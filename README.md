@@ -1,4 +1,5 @@
 # Kai IA
+![Logo Kai IA](LOGO.png)
 ## Enrique Padilla Padilla
 
 Este proyecto consta de un LLM con acceso a diferentes APIs que permitiran ser tu asistente personal y realizar tareas repetitivas o sencillas que permitan agilizar procesos.
