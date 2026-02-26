@@ -29,6 +29,7 @@ El sistema está compuesto por:
 ### 🔹 1. LLM
 
 Modelo de lenguaje que: 
+
     - Interpreta peticiones del usuario 
     - Decide qué servicio utilizar 
     - Genera respuestas estructuradas 
@@ -41,6 +42,7 @@ El backend esta desarrollado en su totalidad con FastAPI junto con integraciones
 ### 🔹 3. Integraciones
 
 Uso de: 
+
     - Google OAuth2
     - Google API Client
 
