@@ -61,7 +61,6 @@ Uso de:
 
 ## 📌 Roadmap
 -   ✅ Enviar y recibir correos electrónicos en Gmail
--   ⏳ Filtrar correos de diferentes bandejas segun filtros
 -   ✅ Extrar hilo de correos electrónicos completos.
 -   ✅ Listar archivos de Drive
 -   ✅ Descargar archivos por ID
@@ -70,9 +69,11 @@ Uso de:
 -   ✅ Integración de Calendar
 -   ✅ Leer, crear y modificar entradas de Calendar
 -   ✅ Instanciar FastAPI para los Endpoints
+-   ⏳ Probar todas las funcionalidades de los serivicios creados
 -   ⏳ Crear los Endpoints para cada servicio
 -   ⏳ Seleccionar el modelo LLM más óptimo para el contexto
 -   ⏳ Seleccionar tecnologías Front, frameworks de CSS y similares
+-   ⏳ Generar el front de forma intuitiva y facil de usar
 -   ⏳ Pruebas y testing
 -   ⏳ Maquetación y generación de Memoria
 -   ⏳ Generación de manual de usuario
