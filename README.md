@@ -64,12 +64,13 @@ Uso de:
 -   ⏳ Filtrar correos de diferentes bandejas segun filtros
 -   ✅ Extrar hilo de correos electrónicos completos.
 -   ✅ Listar archivos de Drive
--   ⏳ Descargar archivos por ID
--   ⏳ Generar URL para descargas de ficheros de Drive
--   ⏳ Subir ficheros a Drive 
--   ⏳ Integración de Calendar
--   ⏳ Leer, crear y modificar entradas de Calendar
+-   ✅ Descargar archivos por ID
+-   ✅ Generar URL para descargas de ficheros de Drive
+-   ✅ Subir ficheros a Drive 
+-   ✅ Integración de Calendar
+-   ✅ Leer, crear y modificar entradas de Calendar
 -   ✅ Instanciar FastAPI para los Endpoints
+-   ⏳ Crear los Endpoints para cada servicio
 -   ⏳ Seleccionar el modelo LLM más óptimo para el contexto
 -   ⏳ Seleccionar tecnologías Front, frameworks de CSS y similares
 -   ⏳ Pruebas y testing
