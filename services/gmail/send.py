@@ -1,13 +1,11 @@
 import base64
 import mimetypes
 from email.message import EmailMessage
-from core.auth import get_creds
 from core.models.email import Email
 from services.gmail.utils import _get_service
 
 def send_email(email: Email, as_html: bool = False):
 
-    creds = get_creds()
     service = _get_service()
 
     message = EmailMessage()
@@ -33,7 +31,6 @@ def send_email(email: Email, as_html: bool = False):
 
 def send_email_with_attachments( email: Email, file_paths: list[str], as_html: bool = False ):
 
-    creds = get_creds()
     service = _get_service()
 
     message = EmailMessage()

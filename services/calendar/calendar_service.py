@@ -1,5 +1,5 @@
 from __future__ import annotations
-
+from googleapiclient.errors import HttpError
 from datetime import datetime,timezone
 from typing import Any, Optional, Literal
 from services.calendar.client import _calendar_service
@@ -99,3 +99,42 @@ def update_calendar_event( event_id: str, calendar_id: str = "primary", summary:
 def get_calendar_event(event_id: str,calendar_id: str =  "primary", ) -> dict[str, Any]:
     service = _calendar_service()
     return service.events().get(calendarId=calendar_id, eventId=event_id).execute()
+
+def delete_calendar_event(
+    event_id: str,
+    calendar_id: str = "primary"
+) -> dict[str, Any]:
+    """
+    Elimina un evento del calendario por su ID.
+    """
+
+    service = _calendar_service()
+
+    try:
+        event = service.events().get(
+            calendarId=calendar_id,
+            eventId=event_id
+        ).execute()
+
+        service.events().delete(
+            calendarId=calendar_id,
+            eventId=event_id
+        ).execute()
+
+        return {
+            "deleted": True,
+            "id": event.get("id"),
+            "summary": event.get("summary"),
+            "start": event.get("start"),
+            "end": event.get("end")
+        }
+
+    except HttpError as e:
+        if e.resp.status == 404:
+            return {
+                "deleted": False,
+                "error": "Event not found",
+                "id": event_id
+            }
+        else:
+            raise

@@ -2,6 +2,7 @@ import base64
 from typing import Any, Dict, Optional
 from core.auth import get_creds
 from googleapiclient.discovery import build
+from core.models.email import Email 
 
 def _b64url_decode(data: str) -> str:
     return base64.urlsafe_b64decode(data.encode("utf-8")).decode("utf-8", errors="replace")

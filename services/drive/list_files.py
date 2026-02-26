@@ -1,14 +1,11 @@
-from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
-from googleapiclient.discovery import build
-from core.auth import get_creds
-from services.drive.utils import GOOGLE_EXPORT_MAP
+from googleapiclient.errors import HttpError
+from services.drive.utils import GOOGLE_EXPORT_MAP,_get_service
 import mimetypes
 import os
 
 def list_drive_files(max_results: int = 20):
-    creds = get_creds()
-    service = build("drive", "v3", credentials=creds)
+    service = _get_service()
 
     res = service.files().list(
         pageSize=max_results,
@@ -33,8 +30,7 @@ def upload_drive_file( file_path: str, folder_id: str | None = None ):
     if not os.path.exists(file_path):
         raise FileNotFoundError(f"El archivo no existe: {file_path}")
 
-    creds = get_creds()
-    service = build("drive", "v3", credentials=creds)
+    service = _get_service()
 
     file_name = os.path.basename(file_path)
 
@@ -68,8 +64,7 @@ def upload_drive_file( file_path: str, folder_id: str | None = None ):
     return uploaded_file
 
 def get_public_download_link(file_id: str, export_fmt: str | None = None) -> dict:
-    creds = get_creds()
-    service = build("drive", "v3", credentials=creds)
+    service = _get_service()
 
     service.permissions().create(
         fileId=file_id,
@@ -112,3 +107,37 @@ def get_public_download_link(file_id: str, export_fmt: str | None = None) -> dic
         "downloadUrl": download_url,
         "webViewLink": meta.get("webViewLink")
     }
+
+def delete_drive_file(file_id: str) -> dict:
+    """
+    Elimina un archivo de Google Drive por su ID.
+    """
+
+    service = _get_service()
+
+
+    try:
+        # Opcional: obtener metadata antes de borrar
+        meta = service.files().get(
+            fileId=file_id,
+            fields="id,name,mimeType"
+        ).execute()
+
+        service.files().delete(fileId=file_id).execute()
+
+        return {
+            "deleted": True,
+            "id": meta["id"],
+            "name": meta["name"],
+            "mimeType": meta["mimeType"]
+        }
+
+    except HttpError as e:
+        if e.resp.status == 404:
+            return {
+                "deleted": False,
+                "error": "File not found",
+                "id": file_id
+            }
+        else:
+            raise
