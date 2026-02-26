@@ -100,13 +100,7 @@ def get_calendar_event(event_id: str,calendar_id: str =  "primary", ) -> dict[st
     service = _calendar_service()
     return service.events().get(calendarId=calendar_id, eventId=event_id).execute()
 
-def delete_calendar_event(
-    event_id: str,
-    calendar_id: str = "primary"
-) -> dict[str, Any]:
-    """
-    Elimina un evento del calendario por su ID.
-    """
+def delete_calendar_event( event_id: str, calendar_id: str = "primary" ) -> dict[str, Any]:
 
     service = _calendar_service()
 
