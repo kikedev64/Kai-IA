@@ -8,12 +8,13 @@
 
 **Kai IA** es un asistente personal inteligente basado en un LLM que integra múltiples servicios como:
 
--   📧 Gmail
--   📅 Google Calendar
--   📂 Google Drive
--   (Ver en un futuro)
+    -   📧 Gmail
+    -   📅 Google Calendar
+    -   📂 Google Drive
+    -   (Ver en un futuro)
 
 El objetivo del proyecto es crear una **secretaria virtual autónoma** capaz de: 
+
     - Gestionar correos 
     - Organizar calendarios 
     - Administrar archivos 
@@ -28,7 +29,8 @@ El sistema está compuesto por:
 
 ### 🔹 1. LLM
 
-Modelo de lenguaje que: 
+Modelo de lenguaje que:
+
     - Interpreta peticiones del usuario 
     - Decide qué servicio utilizar 
     - Genera respuestas estructuradas 
@@ -40,7 +42,8 @@ El backend esta desarrollado en su totalidad con FastAPI junto con integraciones
 
 ### 🔹 3. Integraciones
 
-Uso de: 
+Uso de:
+
     - Google OAuth2
     - Google API Client
 
