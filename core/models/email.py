@@ -26,12 +26,6 @@ class Email:
         return f"{self.sender} | {self.subject} | {self.date}"
     
     def to_llm_prompt(self, max_chars: int = 8000) -> str:
-        """
-        Devuelve el correo formateado para pasarlo a un LLM.
-        Prioriza texto plano, luego snippet.
-        Recorta para evitar contextos gigantes.
-        """
-
         body = self.body_text or self.snippet or ""
 
         if len(body) > max_chars:

@@ -1,21 +1,14 @@
 import base64
 import mimetypes
 from email.message import EmailMessage
-from googleapiclient.discovery import build
-
 from core.auth import get_creds
 from core.models.email import Email
+from services.gmail.utils import _get_service
 
 def send_email(email: Email, as_html: bool = False):
-    """
-    Envía un Email object.
-    
-    - as_html=False → envía body_text como texto plano.
-    - as_html=True  → envía body_html como HTML (con fallback texto).
-    """
 
     creds = get_creds()
-    service = build("gmail", "v1", credentials=creds)
+    service = _get_service()
 
     message = EmailMessage()
     message["To"] = email.to
@@ -38,20 +31,10 @@ def send_email(email: Email, as_html: bool = False):
         body={"raw": raw}
     ).execute()
 
-def send_email_with_attachments(
-    email: Email,
-    file_paths: list[str],
-    as_html: bool = False
-):
-    """
-    Envía un correo con adjuntos.
-
-    file_paths → lista de rutas locales
-    as_html → indica si usar HTML o texto plano
-    """
+def send_email_with_attachments( email: Email, file_paths: list[str], as_html: bool = False ):
 
     creds = get_creds()
-    service = build("gmail", "v1", credentials=creds)
+    service = _get_service()
 
     message = EmailMessage()
     message["To"] = email.to

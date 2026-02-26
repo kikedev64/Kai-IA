@@ -71,14 +71,12 @@ def get_public_download_link(file_id: str, export_fmt: str | None = None) -> dic
     creds = get_creds()
     service = build("drive", "v3", credentials=creds)
 
-    # 1) Asegurar permisos "anyone with link" como lector
     service.permissions().create(
         fileId=file_id,
         body={"type": "anyone", "role": "reader"},
         fields="id"
     ).execute()
 
-    # 2) Obtener info para decidir el tipo de link
     meta = service.files().get(
         fileId=file_id,
         fields="id,name,mimeType,webViewLink"
@@ -86,12 +84,10 @@ def get_public_download_link(file_id: str, export_fmt: str | None = None) -> dic
 
     mime_type = meta["mimeType"]
 
-    # Caso A: Google Workspace (Docs/Sheets/Slides/...)
     if mime_type in GOOGLE_EXPORT_MAP:
         default_fmt, url_tpl = GOOGLE_EXPORT_MAP[mime_type]
         fmt = export_fmt or default_fmt
 
-        # Ojo: Slides y Drawings usan /export/{fmt} en vez de ?format=
         if "{fmt}" in url_tpl and "export/{fmt}" in url_tpl:
             download_url = url_tpl.format(id=file_id, fmt=fmt)
         else:

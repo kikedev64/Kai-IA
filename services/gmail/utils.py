@@ -1,5 +1,7 @@
 import base64
 from typing import Any, Dict, Optional
+from core.auth import get_creds
+from googleapiclient.discovery import build
 
 def _b64url_decode(data: str) -> str:
     return base64.urlsafe_b64decode(data.encode("utf-8")).decode("utf-8", errors="replace")
@@ -10,10 +12,6 @@ def _headers_to_dict(payload: Dict[str, Any]) -> Dict[str, str]:
 
 
 def _extract_bodies(payload: Dict[str, Any]) -> Dict[str, Optional[str]]:
-    """
-    Devuelve el primer text/plain y el primer text/html que encuentre.
-    Recorre recursivamente multiparts.
-    """
     text_plain = None
     text_html = None
 

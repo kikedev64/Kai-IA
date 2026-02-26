@@ -75,7 +75,6 @@ def update_calendar_event( event_id: str, calendar_id: str = "primary", summary:
     if reminders is not None:
         patch["reminders"] = reminders
 
-    # Fechas (si toca una, normalmente toca ambas)
     if start_rfc3339 is not None:
         patch.setdefault("start", {})["dateTime"] = start_rfc3339
         if timezone:
@@ -85,7 +84,6 @@ def update_calendar_event( event_id: str, calendar_id: str = "primary", summary:
         if timezone:
             patch["end"]["timeZone"] = timezone
 
-    # Attendees: ojo, esto reemplaza la lista entera si lo pasas
     if attendees is not None:
         patch["attendees"] = [{"email": e} for e in attendees]
 
