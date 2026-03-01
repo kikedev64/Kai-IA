@@ -5,6 +5,7 @@ from api.routers.drive import router as drive_router
 from api.routers.tasks import router as tasks_router
 from api.routers.calendar import router as calendar_router
 from api.routers.assistant import router as assistant_router
+from api.routers.chat import router as chat_router
 
 app = FastAPI(
     title="Kai IA API",
@@ -17,3 +18,4 @@ app.include_router(drive_router)
 app.include_router(tasks_router)
 app.include_router(calendar_router)
 app.include_router(assistant_router)
+app.include_router(chat_router)
