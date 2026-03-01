@@ -1,5 +1,6 @@
 from googleapiclient.discovery import build
 from core.auth import get_creds
+from fastapi import HTTPException, status
 
 GOOGLE_EXPORT_MAP = {
     "application/vnd.google-apps.document": ("pdf", "https://docs.google.com/document/d/{id}/export?format={fmt}"),
@@ -9,6 +10,21 @@ GOOGLE_EXPORT_MAP = {
 }
 
 def _get_service():
-    creds = get_creds()
-    return build("drive", "v3", credentials=creds)
+    res = get_creds()
 
+    if isinstance(res, dict) and "creds" in res:
+        return build("drive", "v3", credentials=res["creds"])
+
+    if isinstance(res, dict) and "auth_url" in res:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={
+                "message": "Google authentication required",
+                "auth_url": res["auth_url"],
+            },
+        )
+
+    raise HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail={"error": (res.get("error") if isinstance(res, dict) else "Unknown error")},
+    )
