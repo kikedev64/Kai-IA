@@ -15,7 +15,7 @@ def start_chat(req: StartChatRequest):
     return {"chat_id": s.chat_id}
 
 
-@router.post("/message", response_model=ChatMessageResponse)
+""" @router.post("/message", response_model=ChatMessageResponse)
 def send_message(req: ChatMessageRequest):
     s = get_session(req.chat_id)
     if not s:
@@ -24,7 +24,7 @@ def send_message(req: ChatMessageRequest):
     s.messages.append({"role": "user", "content": req.message})
     reply = respond_with_context(s.system_prompt, s.messages)
     s.messages.append({"role": "assistant", "content": reply})
-    return {"chat_id": s.chat_id, "reply": reply}
+    return {"chat_id": s.chat_id, "reply": reply} """
 
 
 @router.delete("/{chat_id}")
