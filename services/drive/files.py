@@ -132,7 +132,6 @@ def search_drive_files_by_name(name_query: str, max_results: int = 20):
 
     items = res.get("files", [])
 
-    # Normalizamos flags igual que en list
     for f in items:
         caps = f.get("capabilities", {}) or {}
 
