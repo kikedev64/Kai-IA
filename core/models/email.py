@@ -1,16 +1,23 @@
-class Email:
+from __future__ import annotations
+from typing import List, Optional
 
+class Email:
     def __init__(
         self,
         id: str,
-        thread_id: str,
         sender: str,
         to: str,
         subject: str,
+        body: str,
         date: str,
-        snippet: str,
-        body_text: str = None,
-        body_html: str = None,
+        thread_id: str,
+        snippet: str | None = None,
+        cc: Optional[List[str]] = None,
+        bcc: Optional[List[str]] = None,
+        reply_to: Optional[str] = None,
+        message_id: Optional[str] = None,
+        references: Optional[str] = None,
+        in_reply_to: Optional[str] = None,
     ):
         self.id = id
         self.thread_id = thread_id
@@ -19,23 +26,39 @@ class Email:
         self.subject = subject
         self.date = date
         self.snippet = snippet
-        self.body_text = body_text
-        self.body_html = body_html
+        self.body = body
 
-    def short_summary(self):
-        return f"{self.sender} | {self.subject} | {self.date}"
-    
-    def to_llm_prompt(self, max_chars: int = 8000) -> str:
-        body = self.body_text or self.snippet or ""
+        self.cc = cc or []
+        self.bcc = bcc or []
+        self.reply_to = reply_to
 
-        if len(body) > max_chars:
-            body = body[:max_chars] + "\n...[TRUNCATED]..."
+        self.message_id = message_id
+        self.references = references
+        self.in_reply_to = in_reply_to
 
-        return (
-            f"EMAIL\n"
-            f"From: {self.sender}\n"
-            f"To: {self.to}\n"
-            f"Subject: {self.subject}\n"
-            f"Date: {self.date}\n\n"
-            f"Body:\n{body}"
+    def to_reply_payload(self) -> dict:
+        return {
+            "thread_id": self.thread_id,
+            "in_reply_to": self.in_reply_to,
+            "references": self.references,
+        }
+
+    @classmethod
+    def from_send_request(cls, req) -> "Email":
+
+        return cls(
+            id="",
+            thread_id=req.thread_id or "",
+            sender="me",
+            to=str(req.to),
+            subject=req.subject,
+            date="",
+            snippet="",
+            body=req.body,
+            cc=[str(x) for x in (req.cc or [])],
+            bcc=[str(x) for x in (req.bcc or [])],
+            reply_to=str(req.reply_to) if req.reply_to else None,
+            references=req.references,
+            in_reply_to=req.in_reply_to,
+            message_id=None,
         )

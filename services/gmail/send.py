@@ -2,10 +2,10 @@ import base64
 import mimetypes
 from email.message import EmailMessage
 from core.models.email import Email
-from services.gmail.utils import _get_service
+from services.gmail.utils import _get_service,_apply_thread_headers
+from core.config import EMAIL_MAX_TOTAL_SIZE_ATTACHMENT as MAX_TOTAL_SIZE
 
 def send_email(email: Email, as_html: bool = False):
-
     service = _get_service()
 
     message = EmailMessage()
@@ -13,24 +13,31 @@ def send_email(email: Email, as_html: bool = False):
     message["From"] = "me"
     message["Subject"] = email.subject
 
-    if as_html:
-        html_content = email.body_html or email.body_text or ""
-        text_fallback = email.body_text or "Este correo contiene contenido HTML."
+    # Respuesta a hilo
+    if getattr(email, "thread_id", None):
+        _apply_thread_headers(message, email)
 
-        message.set_content(text_fallback)
-        message.add_alternative(html_content, subtype="html")
-    else:
-        message.set_content(email.body_text or "")
+    message.set_content(email.body or "")
+    if as_html:
+        message.add_alternative(email.body, subtype="html")
 
     raw = base64.urlsafe_b64encode(message.as_bytes()).decode("utf-8")
 
+    body = {"raw": raw}
+
+    if getattr(email, "thread_id", None):
+        body["threadId"] = email.thread_id
+
     return service.users().messages().send(
         userId="me",
-        body={"raw": raw}
+        body=body
     ).execute()
 
-def send_email_with_attachments( email: Email, file_paths: list[str], as_html: bool = False ):
-
+def send_email_with_attachments(
+    email: Email,
+    attachments: list[tuple[str, bytes]],
+    as_html: bool = False,
+):
     service = _get_service()
 
     message = EmailMessage()
@@ -38,39 +45,47 @@ def send_email_with_attachments( email: Email, file_paths: list[str], as_html: b
     message["From"] = "me"
     message["Subject"] = email.subject
 
-    # --- Body ---
+    # Hilo
+    if getattr(email, "thread_id", None):
+        _apply_thread_headers(message, email)
+
+    # Body
     if as_html:
-        html_content = email.body_html or email.body_text or ""
-        text_fallback = email.body_text or "Este correo contiene contenido HTML."
-        message.set_content(text_fallback)
-        message.add_alternative(html_content, subtype="html")
+        message.set_content("Este correo contiene HTML.")
+        message.add_alternative(email.body or "", subtype="html")
     else:
-        message.set_content(email.body_text or "")
+        message.set_content(email.body or "")
 
-    # --- Adjuntos ---
-    for path in file_paths:
-        with open(path, "rb") as f:
-            file_data = f.read()
+    # Adjuntos
+    total_size = 0
 
-        mime_type, _ = mimetypes.guess_type(path)
+    for filename, file_bytes in attachments:
+        total_size += len(file_bytes)
+
+        if total_size > MAX_TOTAL_SIZE:
+            raise ValueError("Total attachment size exceeds 25 MB")
+
+        mime_type, _ = mimetypes.guess_type(filename)
         if mime_type:
             maintype, subtype = mime_type.split("/", 1)
         else:
             maintype, subtype = "application", "octet-stream"
 
-        filename = path.split("\\")[-1].split("/")[-1]
-
         message.add_attachment(
-            file_data,
+            file_bytes,
             maintype=maintype,
             subtype=subtype,
-            filename=filename
+            filename=filename,
         )
 
-    # --- Envío ---
-    raw = base64.urlsafe_b64encode(message.as_bytes()).decode("utf-8")
+    raw = base64.urlsafe_b64encode(message.as_bytes()).decode()
+
+    body = {"raw": raw}
+
+    if getattr(email, "thread_id", None):
+        body["threadId"] = email.thread_id
 
     return service.users().messages().send(
         userId="me",
-        body={"raw": raw}
+        body=body,
     ).execute()

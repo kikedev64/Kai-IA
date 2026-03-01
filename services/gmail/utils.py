@@ -3,6 +3,8 @@ from typing import Any, Dict, Optional
 from core.auth import get_creds
 from googleapiclient.discovery import build
 from core.models.email import Email 
+from email.message import EmailMessage
+from fastapi import HTTPException,status
 
 def _b64url_decode(data: str) -> str:
     return base64.urlsafe_b64decode(data.encode("utf-8")).decode("utf-8", errors="replace")
@@ -56,5 +58,28 @@ def _gmail_msg_to_email(msg: dict) -> Email:
 
 def _get_service():
     creds = get_creds()
-    return build("gmail", "v1", credentials=creds)
+    if "creds" in creds:
+        return build("gmail", "v1", credentials=creds["creds"])
+    
+    if "auth_url" in creds:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={
+                "message":"Google authentication required",
+                "auth_url":creds["auth_url"]
+            }
+        )
+
+    raise HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail={
+            "error":creds["error"]
+        }
+    )
+
+def _apply_thread_headers(message: EmailMessage, email: Email) -> None:
+    if getattr(email, "in_reply_to", None):
+        message["In-Reply-To"] = email.in_reply_to
+    if getattr(email, "references", None):
+        message["References"] = email.references
 

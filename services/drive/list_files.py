@@ -109,15 +109,8 @@ def get_public_download_link(file_id: str, export_fmt: str | None = None) -> dic
     }
 
 def delete_drive_file(file_id: str) -> dict:
-    """
-    Elimina un archivo de Google Drive por su ID.
-    """
-
     service = _get_service()
-
-
     try:
-        # Opcional: obtener metadata antes de borrar
         meta = service.files().get(
             fileId=file_id,
             fields="id,name,mimeType"
