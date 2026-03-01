@@ -4,7 +4,7 @@ from googleapiclient.discovery import build
 from core.auth import get_creds
 from core.models.email import Email
 from core.models.email_thread import EmailThread
-from services.gmail.utils import _extract_bodies, _headers_to_dict,_get_service,_gmail_msg_to_email
+from services.gmail.utils import _headers_to_dict,_get_service,_gmail_msg_to_email
 
 def read_last_emails_full(max_results: int = 5) -> List[Email]:
     service = _get_service()

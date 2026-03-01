@@ -42,3 +42,30 @@ class GmailSendResponse(BaseModel):
     id: str
     threadId: str
     labelIds: Optional[list[str]] = None
+
+class GmailEmail(BaseModel):
+    id: str
+    thread_id: str = ""
+    sender: str = ""
+    to: str = ""
+    subject: str = ""
+    date: str = ""
+    snippet: str = ""
+    body: str = ""
+
+    cc: list[str] = Field(default_factory=list)
+    bcc: list[str] = Field(default_factory=list)
+
+    reply_to: Optional[str] = None
+    message_id: Optional[str] = None
+    references: Optional[str] = None
+    in_reply_to: Optional[str] = None
+
+
+class GmailReadEmailsResponse(BaseModel):
+    items: list[GmailEmail] = Field(default_factory=list)
+
+
+class GmailThreadResponse(BaseModel):
+    thread_id: str
+    emails: list[GmailEmail] = Field(default_factory=list)

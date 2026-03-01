@@ -1,4 +1,5 @@
 from typing import List, Optional
+from core.models.email import Email
 
 class EmailThread:
     def __init__(self, thread_id: str, messages: List["Email"]):
