@@ -1,0 +1,127 @@
+from __future__ import annotations
+
+from fastapi import APIRouter, HTTPException, Query
+from googleapiclient.errors import HttpError
+
+from api.schemas.calendar import (
+    CalendarListResponse,
+    CalendarEventOut,
+    CalendarCreateRequest,
+    CalendarUpdateRequest,
+    CalendarDeleteResponse,
+)
+from services.calendar.calendar_service import (
+    list_calendar_events,
+    create_calendar_event,
+    update_calendar_event,
+    get_calendar_event,
+    delete_calendar_event,
+)
+
+router = APIRouter(prefix="/calendar", tags=["Calendar"])
+
+
+def _event_to_api(e: dict) -> dict:
+    # Normaliza attendees a lista aunque venga None
+    attendees = e.get("attendees") or []
+    return {
+        "id": e.get("id", ""),
+        "summary": e.get("summary"),
+        "description": e.get("description"),
+        "location": e.get("location"),
+        "start": e.get("start"),
+        "end": e.get("end"),
+        "attendees": [{"email": a.get("email")} for a in attendees if a.get("email")],
+        "status": e.get("status"),
+        "htmlLink": e.get("htmlLink"),
+        "updated": e.get("updated"),
+    }
+
+
+@router.get("/events", response_model=CalendarListResponse)
+def api_list_events(
+    calendar_id: str = "primary",
+    max_results: int = Query(20, ge=1, le=250),
+    time_min: str | None = None,
+    time_max: str | None = None,
+    q: str | None = None,
+    single_events: bool = True,
+    order_by: str = Query("startTime", pattern="^(startTime|updated)$"),
+):
+    try:
+        items = list_calendar_events(
+            calendar_id=calendar_id,
+            max_results=max_results,
+            time_min=time_min,
+            time_max=time_max,
+            q=q,
+            single_events=single_events,
+            order_by=order_by,  # type: ignore[arg-type]
+        )
+        return {"items": [_event_to_api(e) for e in items]}
+    except HttpError as e:
+        raise HTTPException(status_code=e.resp.status, detail=str(e))
+
+
+@router.post("/events", response_model=CalendarEventOut)
+def api_create_event(req: CalendarCreateRequest):
+    try:
+        created = create_calendar_event(
+            summary=req.summary,
+            start_rfc3339=req.start_rfc3339,
+            end_rfc3339=req.end_rfc3339,
+            calendar_id=req.calendar_id,
+            description=req.description,
+            location=req.location,
+            attendees=[str(x) for x in req.attendees] if req.attendees else None,
+            timezone=req.timezone,
+            reminders=req.reminders,
+        )
+        return _event_to_api(created)
+    except HttpError as e:
+        raise HTTPException(status_code=e.resp.status, detail=str(e))
+
+
+@router.get("/events/{event_id}", response_model=CalendarEventOut)
+def api_get_event(event_id: str, calendar_id: str = "primary"):
+    try:
+        e = get_calendar_event(event_id=event_id, calendar_id=calendar_id)
+        return _event_to_api(e)
+    except HttpError as e:
+        raise HTTPException(status_code=e.resp.status, detail=str(e))
+
+
+@router.patch("/events/{event_id}", response_model=CalendarEventOut)
+def api_update_event(event_id: str, req: CalendarUpdateRequest):
+    try:
+        updated = update_calendar_event(
+            event_id=event_id,
+            calendar_id=req.calendar_id,
+            summary=req.summary,
+            start_rfc3339=req.start_rfc3339,
+            end_rfc3339=req.end_rfc3339,
+            description=req.description,
+            location=req.location,
+            attendees=[str(x) for x in req.attendees] if req.attendees is not None else None,
+            timezone=req.timezone,
+            reminders=req.reminders,
+        )
+        return _event_to_api(updated)
+    except HttpError as e:
+        raise HTTPException(status_code=e.resp.status, detail=str(e))
+
+
+@router.delete("/events/{event_id}", response_model=CalendarDeleteResponse)
+def api_delete_event(event_id: str, calendar_id: str = "primary"):
+    try:
+        res = delete_calendar_event(event_id=event_id, calendar_id=calendar_id)
+        return {
+            "deleted": bool(res.get("deleted")),
+            "id": res.get("id", event_id),
+            "summary": res.get("summary"),
+            "start": res.get("start"),
+            "end": res.get("end"),
+            "error": res.get("error"),
+        }
+    except HttpError as e:
+        raise HTTPException(status_code=e.resp.status, detail=str(e))

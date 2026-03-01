@@ -8,11 +8,11 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 GOOGLE_SCOPES = [
     "https://www.googleapis.com/auth/gmail.modify",
     "https://www.googleapis.com/auth/gmail.send",
-    "https://www.googleapis.com/auth/calendar.readonly",
     "https://www.googleapis.com/auth/drive.readonly",
     "https://www.googleapis.com/auth/drive",
     "https://www.googleapis.com/auth/tasks",
-    "https://www.googleapis.com/auth/tasks.readonly"
+    "https://www.googleapis.com/auth/tasks.readonly",
+    "https://www.googleapis.com/auth/calendar"
 ]
 
 GOOGLE_REDIRECT_URI = os.getenv(
