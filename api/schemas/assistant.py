@@ -2,7 +2,7 @@ from pydantic import BaseModel
 from typing import Optional
 
 class StartChatRequest(BaseModel):
-    system_prompt: str = "You are a helpful assistant."
+    system_prompt: str | None = None
 
 class StartChatResponse(BaseModel):
     chat_id: str
