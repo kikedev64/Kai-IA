@@ -22,7 +22,6 @@ router = APIRouter(prefix="/calendar", tags=["Calendar"])
 
 
 def _event_to_api(e: dict) -> dict:
-    # Normaliza attendees a lista aunque venga None
     attendees = e.get("attendees") or []
     return {
         "id": e.get("id", ""),
@@ -56,7 +55,7 @@ def api_list_events(
             time_max=time_max,
             q=q,
             single_events=single_events,
-            order_by=order_by,  # type: ignore[arg-type]
+            order_by=order_by,
         )
         return {"items": [_event_to_api(e) for e in items]}
     except HttpError as e:
