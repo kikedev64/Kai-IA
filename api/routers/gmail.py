@@ -45,9 +45,7 @@ async def send_email_with_attachment(
     try:
         attachments = []
         total_size = 0
-        print(f"los ficheros: {files}")
         for file in files:
-            print(f"RECIBO FICHERO: {file.filename}")
             content = await file.read()
             total_size += len(content)
 
@@ -74,7 +72,7 @@ async def send_email_with_attachment(
             references=references,
             in_reply_to=in_reply_to,
         )
-        
+
         result = send_email_with_attachments(
             email=email,
             attachments=attachments,
