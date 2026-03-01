@@ -3,3 +3,5 @@ token.json
 .venv
 *.pyc
 *.db
+node_modules/
+package-lock.json
