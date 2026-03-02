@@ -12,7 +12,7 @@ class CalendarEventTime(BaseModel):
 
 class CalendarAttendee(BaseModel):
     email: EmailStr
-
+    responseStatus: Optional[Literal["needsAction","declined","tentative","accepted"]]
 
 class CalendarEventOut(BaseModel):
     id: str
@@ -62,3 +62,26 @@ class CalendarDeleteResponse(BaseModel):
     start: Optional[dict[str, Any]] = None
     end: Optional[dict[str, Any]] = None
     error: Optional[str] = None
+
+class CalendarFreeBusyRequest(BaseModel):
+    calendar_ids: list[str] = Field(default_factory=lambda: ["primary"])
+    time_min: str  # RFC3339
+    time_max: str  # RFC3339
+    time_zone: str = "Europe/Madrid"
+
+
+class CalendarBusyPeriod(BaseModel):
+    start: str  # RFC3339
+    end: str    # RFC3339
+
+
+class CalendarFreeBusyCalendarOut(BaseModel):
+    busy: list[CalendarBusyPeriod] = Field(default_factory=list)
+    errors: list[dict] = Field(default_factory=list)
+
+
+class CalendarFreeBusyResponse(BaseModel):
+    time_min: Optional[str] = None
+    time_max: Optional[str] = None
+    time_zone: Optional[str] = None
+    calendars: dict[str, CalendarFreeBusyCalendarOut] = Field(default_factory=dict)

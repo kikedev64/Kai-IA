@@ -4,6 +4,8 @@ from fastapi import APIRouter, HTTPException, Query
 from googleapiclient.errors import HttpError
 
 from api.schemas.calendar import (
+    CalendarFreeBusyRequest,
+    CalendarFreeBusyResponse,
     CalendarListResponse,
     CalendarEventOut,
     CalendarCreateRequest,
@@ -11,6 +13,7 @@ from api.schemas.calendar import (
     CalendarDeleteResponse,
 )
 from services.calendar.calendar_service import (
+    freebusy_query,
     list_calendar_events,
     create_calendar_event,
     update_calendar_event,
@@ -122,5 +125,33 @@ def api_delete_event(event_id: str, calendar_id: str = "primary"):
             "end": res.get("end"),
             "error": res.get("error"),
         }
+    except HttpError as e:
+        raise HTTPException(status_code=e.resp.status, detail=str(e))
+
+@router.post("/freebusy", response_model=CalendarFreeBusyResponse)
+def api_freebusy(req: CalendarFreeBusyRequest):
+    try:
+        raw = freebusy_query(
+            calendar_ids=req.calendar_ids,
+            time_min=req.time_min,
+            time_max=req.time_max,
+            time_zone=req.time_zone,
+        )
+
+        # Normalizamos un pelín el formato para que sea más cómodo
+        calendars_out = {}
+        for cal_id, info in (raw.get("calendars") or {}).items():
+            calendars_out[cal_id] = {
+                "busy": info.get("busy") or [],
+                "errors": info.get("errors") or [],
+            }
+
+        return {
+            "time_min": raw.get("timeMin"),
+            "time_max": raw.get("timeMax"),
+            "time_zone": raw.get("timeZone"),
+            "calendars": calendars_out,
+        }
+
     except HttpError as e:
         raise HTTPException(status_code=e.resp.status, detail=str(e))

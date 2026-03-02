@@ -132,3 +132,20 @@ def delete_calendar_event( event_id: str, calendar_id: str = "primary" ) -> dict
             }
         else:
             raise
+
+def freebusy_query(
+    calendar_ids: list[str],
+    time_min: str,
+    time_max: str,
+    time_zone: str = "Europe/Madrid",
+) -> dict[str, Any]:
+    svc = _calendar_service()
+
+    body = {
+        "timeMin": time_min,
+        "timeMax": time_max,
+        "timeZone": time_zone,
+        "items": [{"id": cid} for cid in calendar_ids],
+    }
+
+    return svc.freebusy().query(body=body).execute()
