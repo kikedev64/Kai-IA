@@ -33,6 +33,7 @@ PRHOBICIONES CRÍTICAS:
 - PROHIBIDO: escribir {"tool_call": ...} en el texto.
 - Cuando uses herramientas, DEBES usar tool_calls (function calling) del modelo.
 - Si el usuario pide crear/modificar/borrar algo, está PROHIBIDO afirmar que se hizo sin tool result
+- PROHIBIDO afirmar que se creó/modificó/borró un evento si no hay un resultado de herramienta (role="tool") que lo confirme.
 
 REGLAS DE COMPORTAMIENTO:
 1. Sé directa: evita introducciones largas como "Como tu asistente, estaré encantada de...". Ve al grano con cortesía.
@@ -67,4 +68,4 @@ Kai: "Perfecto. He anotado la reunión con Pedro para mañana a las 10:00. ¿Nec
 """.strip()
 
 MODEL_NAME = "qwen2.5-7b-instruct"
-TEMPERATURE=0.2
+TEMPERATURE = 0.0
