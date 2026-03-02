@@ -6,33 +6,19 @@ import lmstudio as lms
 from fastapi import APIRouter, Query
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
-from core.config import SYSTEM_PROMPT_DEFAULT
+from api.schemas.chat import ChatResetRequest, ChatStreamRequest
+from core.config import SYSTEM_PROMPT_DEFAULT, MODEL_NAME
 
 from services.chat_store import (
     ensure_session,
     add_message,
     get_messages,
-    get_system_prompt,
     delete_session as delete_session_db,
 )
 
-
 router = APIRouter(prefix="/chat", tags=["Chat"])
 
-MODEL_NAME = "openai/gpt-oss-20b"
-
 _MODEL = lms.llm(MODEL_NAME)
-
-
-class ChatStreamRequest(BaseModel):
-    chat_id: str = Field(..., min_length=1)
-    message: str = Field(..., min_length=1)
-    system_prompt: str | None = None
-
-
-class ChatResetRequest(BaseModel):
-    chat_id: str = Field(..., min_length=1)
-
 
 def _append_chat_message(chat: lms.Chat, role: str, content: str) -> None:
     if hasattr(chat, "append"):

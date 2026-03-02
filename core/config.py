@@ -42,3 +42,5 @@ Cuando necesites usar una herramienta, responde SOLO con un JSON en una única l
 No añadas texto extra antes o después.
 Cuando recibas un mensaje con role="tool" que contenga {"tool_result": ...}, úsalo para responder al usuario.
 """.strip()
+
+MODEL_NAME = "openai/gpt-oss-20b"

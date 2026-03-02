@@ -2,13 +2,10 @@ from __future__ import annotations
 
 from typing import Optional, Any, Literal
 from pydantic import BaseModel, Field, EmailStr
-
-
 class CalendarEventTime(BaseModel):
     dateTime: Optional[str] = None
     date: Optional[str] = None
     timeZone: Optional[str] = None
-
 
 class CalendarAttendee(BaseModel):
     email: EmailStr
