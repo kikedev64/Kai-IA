@@ -1,5 +1,4 @@
 from pydantic import BaseModel
-from typing import Optional
 
 class StartChatRequest(BaseModel):
     system_prompt: str | None = None

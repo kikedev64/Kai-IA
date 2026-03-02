@@ -1,64 +1,160 @@
 <!doctype html>
 <html>
-  <head>
-    <meta charset="UTF-8" />
-    <title>Kai IA - Electron</title>
-    <style>
-      body { font-family: system-ui, Arial; margin: 0; background: #0b0f14; color: #e6eef7; }
-      .top { padding: 14px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; border-bottom: 1px solid #1d2a3a; }
-      .card { background: #0f1722; border: 1px solid #1d2a3a; border-radius: 10px; padding: 12px; }
-      label { display: block; font-size: 12px; opacity: 0.8; margin-bottom: 6px; }
-      input, textarea, button { width: 100%; box-sizing: border-box; background: #0b1220; color: #e6eef7; border: 1px solid #243244; border-radius: 8px; padding: 10px; }
-      textarea { resize: vertical; min-height: 90px; }
-      .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-      .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
-      button { cursor: pointer; background: #16304a; border-color: #2a4c73; }
-      button:hover { filter: brightness(1.08); }
-      button:disabled { opacity: 0.6; cursor: not-allowed; }
 
-      .chat { height: calc(100vh - 240px); padding: 14px; overflow: auto; }
-      .bubble { max-width: 900px; padding: 12px 14px; border-radius: 12px; margin-bottom: 10px; white-space: pre-wrap; line-height: 1.35; border: 1px solid #233246; }
-      .user { background: #101f2f; margin-left: auto; }
-      .assistant { background: #0f1a12; }
-      .meta { font-size: 12px; opacity: 0.75; margin-bottom: 6px; }
+<head>
+  <meta charset="UTF-8" />
+  <title>Kai IA - Electron</title>
+  <style>
+    body {
+      font-family: system-ui, Arial;
+      margin: 0;
+      background: #0b0f14;
+      color: #e6eef7;
+    }
 
-      .bottom { padding: 14px; border-top: 1px solid #1d2a3a; display: grid; grid-template-columns: 1fr 160px; gap: 10px; background: #0b0f14; }
-    </style>
-  </head>
+    .top {
+      padding: 14px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      border-bottom: 1px solid #1d2a3a;
+    }
 
-  <body>
-    <div class="top">
-      <div class="card">
-        <div class="row">
-          <div>
-            <label>Backend URL</label>
-            <input id="backendUrl" value="http://127.0.0.1:8000" />
-          </div>
-          <div>
-            <label>chat_id</label>
-            <input id="chatId" />
-          </div>
+    .card {
+      background: #0f1722;
+      border: 1px solid #1d2a3a;
+      border-radius: 10px;
+      padding: 12px;
+    }
+
+    label {
+      display: block;
+      font-size: 12px;
+      opacity: 0.8;
+      margin-bottom: 6px;
+    }
+
+    input,
+    textarea,
+    button {
+      width: 100%;
+      box-sizing: border-box;
+      background: #0b1220;
+      color: #e6eef7;
+      border: 1px solid #243244;
+      border-radius: 8px;
+      padding: 10px;
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 90px;
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    button {
+      cursor: pointer;
+      background: #16304a;
+      border-color: #2a4c73;
+    }
+
+    button:hover {
+      filter: brightness(1.08);
+    }
+
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .chat {
+      height: calc(100vh - 240px);
+      padding: 14px;
+      overflow: auto;
+    }
+
+    .bubble {
+      max-width: 900px;
+      padding: 12px 14px;
+      border-radius: 12px;
+      margin-bottom: 10px;
+      white-space: pre-wrap;
+      line-height: 1.35;
+      border: 1px solid #233246;
+    }
+
+    .user {
+      background: #101f2f;
+      margin-left: auto;
+    }
+
+    .assistant {
+      background: #0f1a12;
+    }
+
+    .meta {
+      font-size: 12px;
+      opacity: 0.75;
+      margin-bottom: 6px;
+    }
+
+    .bottom {
+      padding: 14px;
+      border-top: 1px solid #1d2a3a;
+      display: grid;
+      grid-template-columns: 1fr 160px;
+      gap: 10px;
+      background: #0b0f14;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="top">
+    <div class="card">
+      <div class="row">
+        <div>
+          <label>Backend URL</label>
+          <input id="backendUrl" value="http://127.0.0.1:8000" />
         </div>
-
-        <div class="actions">
-          <button id="newChat">New chat</button>
-          <button id="clearUi">Clear UI</button>
+        <div>
+          <label>chat_id</label>
+          <input id="chatId" />
         </div>
       </div>
 
-      <div class="card">
-        <label>system_prompt (opcional)</label>
-        <textarea id="systemPrompt" placeholder="Deja vacío para usar el de la sesión o el default..."></textarea>
+      <div class="actions">
+        <button id="newChat">New chat</button>
+        <button id="clearUi">Clear UI</button>
       </div>
     </div>
 
-    <div id="chat" class="chat"></div>
-
-    <div class="bottom">
-      <input id="message" placeholder="Escribe tu mensaje..." />
-      <button id="send">Send</button>
+    <div class="card">
+      <label>system_prompt (opcional)</label>
+      <textarea id="systemPrompt" placeholder="Deja vacío para usar el de la sesión o el default..."></textarea>
     </div>
+  </div>
 
-    <script src="./renderer.js"></script>
-  </body>
+  <div id="chat" class="chat"></div>
+
+  <div class="bottom">
+    <input id="message" placeholder="Escribe tu mensaje..." />
+    <button id="send">Send</button>
+  </div>
+
+  <script src="./renderer.js"></script>
+</body>
+
 </html>
