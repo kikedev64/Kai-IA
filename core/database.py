@@ -27,12 +27,11 @@ def init_db() -> None:
     CREATE TABLE IF NOT EXISTS chat_messages (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         chat_id TEXT NOT NULL,
-        role TEXT NOT NULL CHECK(role IN ('user','assistant')),
+        role TEXT NOT NULL CHECK(role IN ('user','assistant','tool')),
         content TEXT NOT NULL,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY(chat_id) REFERENCES chat_sessions(chat_id) ON DELETE CASCADE
     )
     """)
-
     conn.commit()
     conn.close()

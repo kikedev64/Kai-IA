@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Any, List, Optional
+from typing import Any, Optional
 from core.database import get_connection
 
 def ensure_session(chat_id: str, system_prompt: str) -> None:
@@ -50,19 +50,10 @@ def get_messages(chat_id: str, limit: int = 50) -> list[dict[str, Any]]:
     rows = list(reversed(rows))
     return [{"role": r["role"], "content": r["content"]} for r in rows]
 
-def get_system_prompt(chat_id: str) -> str | None:
+def get_system_prompt(chat_id: str) -> Optional[str]:
     conn = get_connection()
     cur = conn.cursor()
     cur.execute("SELECT system_prompt FROM chat_sessions WHERE chat_id=?", (chat_id,))
     row = cur.fetchone()
     conn.close()
     return row["system_prompt"] if row else None
-
-def delete_session(chat_id: str) -> bool:
-    conn = get_connection()
-    cur = conn.cursor()
-    cur.execute("DELETE FROM chat_sessions WHERE chat_id=?", (chat_id,))
-    deleted = cur.rowcount > 0
-    conn.commit()
-    conn.close()
-    return deleted

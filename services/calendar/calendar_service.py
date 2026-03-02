@@ -238,7 +238,7 @@ def find_calendar_events(
         max_results=max_results,
         time_min=time_min,
         time_max=time_max,
-        q=None,  # IMPORTANTE: no dependemos de q
+        q=None,
         single_events=True,
         order_by="startTime",
     )
