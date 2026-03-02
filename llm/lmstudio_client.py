@@ -7,20 +7,13 @@ client = openai.OpenAI(
     api_key="lm-studio"
 )
 
-def call_lm_studio(user_prompt: str, history: list | None = None):
-    messages = [{"role": "system", "content": SYSTEM_PROMPT_DEFAULT}]
-    if history:
-        messages.extend(history)
-
-    messages.append({"role": "user", "content": user_prompt})
-
+def call_lm_studio(messages: list):
     response = client.chat.completions.create(
         model=MODEL_NAME,
         messages=messages,
         tools=TOOLS,
         tool_choice="auto",
         temperature=TEMPERATURE,
-        timeout=60
+        timeout=60,
     )
-
     return response.choices[0].message

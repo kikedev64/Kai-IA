@@ -1,3 +1,5 @@
+# tools/tools_definition.py
+
 TOOLS = [
     {
         "type": "function",
@@ -9,15 +11,158 @@ TOOLS = [
                 "properties": {
                     "summary": {"type": "string", "description": "Título del evento"},
                     "start_rfc3339": {"type": "string", "description": "Datetime RFC3339. Ej: 2026-03-03T16:00:00+01:00"},
-                    "end_rfc3339": {"type": "string", "description": "Datetime RFC3339. Ej: 2026-03-03T17:00:00+01:00"},
+                    "end_rfc3339": {"type": "string",  "description": "Datetime RFC3339. Ej: 2026-03-03T17:00:00+01:00"},
                     "calendar_id": {"type": "string", "description": "ID del calendario (default: primary)"},
-                    "description": {"type": "string"},
-                    "location": {"type": "string"},
-                    "attendees": {"type": "array", "items": {"type": "string"}},
-                    "timezone": {"type": "string"},
-                    "reminders": {"type": "object"},
+                    "description": {"type": "string", "description": "Descripción del evento"},
+                    "location": {"type": "string", "description": "Ubicación del evento"},
+                    "attendees": {"type": "array", "items": {"type": "string"}, "description": "Lista de emails de asistentes"},
+                    "timezone": {"type": "string", "description": "Zona horaria IANA (ej: Europe/Madrid). Si se envía, se aplica a start/end"},
+                    "reminders": {"type": "object", "description": "Config de recordatorios (useDefault/overrides)"},
                 },
                 "required": ["summary", "start_rfc3339", "end_rfc3339"]
+            }
+        }
+    },
+
+    {
+        "type": "function",
+        "function": {
+            "name": "list_calendar_events",
+            "description": "Lista eventos de un calendario. Si no se indica time_min, por defecto usa 'ahora' en UTC (según el servicio).",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "calendar_id": {"type": "string", "description": "ID del calendario (default: primary)"},
+                    "max_results": {"type": "integer", "description": "Máximo número de eventos (default: 20)", "minimum": 1, "maximum": 250},
+                    "time_min": {"type": "string", "description": "RFC3339. Inicio (inclusive). Ej: 2026-03-03T00:00:00Z"},
+                    "time_max": {"type": "string", "description": "RFC3339. Fin (exclusive). Ej: 2026-03-10T00:00:00Z"},
+                    "q": {"type": "string", "description": "Texto de búsqueda (full-text) en eventos"},
+                    "single_events": {"type": "boolean", "description": "Expandir recurrencias en instancias (default: True)"},
+                    "order_by": {"type": "string", "description": "Orden: startTime o updated (default: startTime)", "enum": ["startTime", "updated"]},
+                },
+                "required": []
+            }
+        }
+    },
+
+    {
+        "type": "function",
+        "function": {
+            "name": "update_calendar_event",
+            "description": "Actualiza (patch) un evento. Solo se modifican los campos enviados (no-null).",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "event_id": {"type": "string", "description": "ID del evento a actualizar"},
+                    "calendar_id": {"type": "string", "description": "ID del calendario (default: primary)"},
+                    "summary": {"type": "string", "description": "Nuevo título"},
+                    "start_rfc3339": {"type": "string", "description": "Nuevo inicio RFC3339"},
+                    "end_rfc3339": {"type": "string", "description": "Nuevo fin RFC3339"},
+                    "description": {"type": "string", "description": "Nueva descripción"},
+                    "location": {"type": "string", "description": "Nueva ubicación"},
+                    "attendees": {"type": "array", "items": {"type": "string"}, "description": "Nueva lista de asistentes (emails)"},
+                    "timezone": {"type": "string", "description": "Zona horaria IANA para start/end si se cambian"},
+                    "reminders": {"type": "object", "description": "Nueva config de recordatorios"},
+                },
+                "required": ["event_id"]
+            }
+        }
+    },
+
+    {
+        "type": "function",
+        "function": {
+            "name": "delete_calendar_event",
+            "description": "Elimina un evento por event_id. Devuelve deleted True/False y datos básicos.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "event_id": {"type": "string", "description": "ID del evento"},
+                    "calendar_id": {"type": "string", "description": "ID del calendario (default: primary)"},
+                },
+                "required": ["event_id"]
+            }
+        }
+    },
+
+    {
+        "type": "function",
+        "function": {
+            "name": "freebusy_query",
+            "description": "Consulta los huecos ocupados (busy) de uno o varios calendarios entre time_min y time_max.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "calendar_ids": {"type": "array", "items": {"type": "string"}, "description": "Lista de calendar IDs a consultar"},
+                    "time_min": {"type": "string", "description": "RFC3339 inicio. Ej: 2026-03-03T00:00:00+01:00"},
+                    "time_max": {"type": "string", "description": "RFC3339 fin. Ej: 2026-03-03T23:59:59+01:00"},
+                    "time_zone": {"type": "string", "description": "Zona horaria (default: Europe/Madrid)"},
+                },
+                "required": ["calendar_ids", "time_min", "time_max"]
+            }
+        }
+    },
+    
+    {
+    "type": "function",
+        "function": {
+            "name": "delete_calendar_event_by_query",
+            "description": "Busca eventos por texto (título) en un rango de fechas y elimina si hay una única coincidencia. Si hay varias, devuelve candidatos para pedir confirmación.",
+            "parameters": {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "Texto a buscar (ej: EJEMPLO)"},
+                "calendar_id": {"type": "string", "description": "ID del calendario (default: primary)"},
+                "time_min": {"type": "string", "description": "RFC3339 inicio de búsqueda (opcional)"},
+                "time_max": {"type": "string", "description": "RFC3339 fin de búsqueda (opcional)"},
+                "max_results": {"type": "integer", "description": "Máximo de resultados (default: 20)", "minimum": 1, "maximum": 250}
+            },
+            "required": ["query"]
+            }
+        }
+    },
+    
+    {
+    "type": "function",
+        "function": {
+            "name": "find_calendar_events",
+            "description": "Busca eventos por condiciones (texto, lugar, nombre, descripción) en un rango de fechas. Si no se especifica rango, busca próximos 365 días.",
+            "parameters": {
+            "type": "object",
+            "properties": {
+                "calendar_id": {"type": "string"},
+                "query": {"type": "string", "description": "Texto general (busca en summary/location/description)"},
+                "location": {"type": "string", "description": "Filtra por lugar (location contiene texto)"},
+                "summary": {"type": "string", "description": "Filtra por nombre/título (summary contiene texto)"},
+                "description": {"type": "string", "description": "Filtra por descripción (description contiene texto)"},
+                "time_min": {"type": "string", "description": "RFC3339 opcional"},
+                "time_max": {"type": "string", "description": "RFC3339 opcional"},
+                "max_results": {"type": "integer", "minimum": 1, "maximum": 250}
+            },
+            "required": []
+            }
+        }
+    },
+    
+    {
+    "type": "function",
+        "function": {
+            "name": "delete_calendar_events_by_conditions",
+            "description": "Borra eventos por condiciones (nombre/lugar/texto/fechas). Si hay más de uno y delete_all=false, devuelve candidatos para pedir confirmación.",
+            "parameters": {
+            "type": "object",
+            "properties": {
+                "calendar_id": {"type": "string"},
+                "query": {"type": "string"},
+                "location": {"type": "string"},
+                "summary": {"type": "string"},
+                "description": {"type": "string"},
+                "time_min": {"type": "string"},
+                "time_max": {"type": "string"},
+                "delete_all": {"type": "boolean", "description": "Si true, borra todos los encontrados"},
+                "max_results": {"type": "integer", "minimum": 1, "maximum": 250}
+            },
+            "required": []
             }
         }
     }

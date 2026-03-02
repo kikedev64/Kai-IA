@@ -158,3 +158,125 @@ def freebusy_query(
     }
 
     return svc.freebusy().query(body=body).execute()
+
+def delete_calendar_events_by_conditions(
+    calendar_id: str = "primary",
+    query: Optional[str] = None,
+    location: Optional[str] = None,
+    summary: Optional[str] = None,
+    description: Optional[str] = None,
+    time_min: Optional[str] = None,
+    time_max: Optional[str] = None,
+    delete_all: bool = False,
+    max_results: int = 250,
+) -> dict[str, Any]:
+
+    found = find_calendar_events(
+        calendar_id=calendar_id,
+        query=query,
+        location=location,
+        summary=summary,
+        description=description,
+        time_min=time_min,
+        time_max=time_max,
+        upcoming_days_default=365,
+        max_results=max_results,
+    )
+
+    events = found["events"]
+    if len(events) == 0:
+        return {"status": "not_found", **found}
+
+    if len(events) > 1 and not delete_all:
+        return {"status": "ambiguous", **found, "candidates": events[:5]}
+
+    deleted_items = []
+    for e in events:
+        deleted_items.append(delete_calendar_event(event_id=e["id"], calendar_id=calendar_id))
+
+    return {
+        "status": "deleted_many" if len(deleted_items) > 1 else "deleted",
+        "matched_count": len(events),
+        "deleted": deleted_items,
+        "query_used": {"query": query, "location": location, "summary": summary, "description": description},
+        "time_min": found["time_min"],
+        "time_max": found["time_max"],
+    }
+
+from datetime import datetime, timedelta, timezone
+from typing import Any, Optional
+
+def _utc_now_rfc3339() -> str:
+    return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+def _utc_in_days_rfc3339(days: int) -> str:
+    return (datetime.now(timezone.utc) + timedelta(days=days)).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+def _norm(s: Optional[str]) -> str:
+    return (s or "").strip().lower()
+
+def find_calendar_events(
+    calendar_id: str = "primary",
+    query: Optional[str] = None,
+    location: Optional[str] = None,
+    summary: Optional[str] = None,
+    description: Optional[str] = None,
+    time_min: Optional[str] = None,
+    time_max: Optional[str] = None,
+    upcoming_days_default: int = 365,
+    max_results: int = 250,
+) -> dict[str, Any]:
+
+
+    if time_min is None:
+        time_min = _utc_now_rfc3339()
+    if time_max is None:
+        time_max = _utc_in_days_rfc3339(upcoming_days_default)
+
+    events = list_calendar_events(
+        calendar_id=calendar_id,
+        max_results=max_results,
+        time_min=time_min,
+        time_max=time_max,
+        q=None,  # IMPORTANTE: no dependemos de q
+        single_events=True,
+        order_by="startTime",
+    )
+
+    q = _norm(query)
+    loc = _norm(location)
+    summ = _norm(summary)
+    desc = _norm(description)
+
+    out = []
+    for e in events or []:
+        e_summary = _norm(e.get("summary"))
+        e_location = _norm(e.get("location"))
+        e_desc = _norm(e.get("description"))
+
+        # filtros AND (si el filtro viene)
+        if q and not (q in e_summary or q in e_location or q in e_desc):
+            continue
+        if loc and loc not in e_location:
+            continue
+        if summ and summ not in e_summary:
+            continue
+        if desc and desc not in e_desc:
+            continue
+
+        out.append({
+            "id": e.get("id"),
+            "summary": e.get("summary"),
+            "start": e.get("start"),
+            "end": e.get("end"),
+            "location": e.get("location"),
+            "description": e.get("description"),
+        })
+
+    return {
+        "calendar_id": calendar_id,
+        "time_min": time_min,
+        "time_max": time_max,
+        "count": len(out),
+        "events": out,
+    }
