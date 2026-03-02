@@ -138,7 +138,6 @@ def api_freebusy(req: CalendarFreeBusyRequest):
             time_zone=req.time_zone,
         )
 
-        # Normalizamos un pelín el formato para que sea más cómodo
         calendars_out = {}
         for cal_id, info in (raw.get("calendars") or {}).items():
             calendars_out[cal_id] = {

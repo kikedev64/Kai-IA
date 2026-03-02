@@ -34,7 +34,16 @@ def list_calendar_events( calendar_id: str = "primary", max_results: int = 20, t
     return res.get("items", [])
 
 
-def create_calendar_event( summary: str, start_rfc3339: str, end_rfc3339: str, calendar_id: str = "primary", description: Optional[str] = None, location: Optional[str] = None, attendees: Optional[list[str]] = None, timezone: Optional[str] = None, reminders: Optional[dict[str, Any]] = None, ) -> dict[str, Any]:
+def create_calendar_event( summary: str,
+                          start_rfc3339: str, 
+                          end_rfc3339: str, 
+                          calendar_id: str = "primary", 
+                          description: Optional[str] = None, 
+                          location: Optional[str] = None, 
+                          attendees: Optional[list[str]] = None, 
+                          timezone: Optional[str] = None, 
+                          reminders: Optional[dict[str, Any]] = None, 
+                        ) -> dict[str, Any]:
 
     service = _calendar_service()
 

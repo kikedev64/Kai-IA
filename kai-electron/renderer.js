@@ -79,7 +79,7 @@ async function sendMessage() {
       system_prompt: systemPrompt || null
     };
 
-    const res = await fetch(`${backendUrl}/chat/stream`, {
+    const res = await fetch(`${backendUrl}`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

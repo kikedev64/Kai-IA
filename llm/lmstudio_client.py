@@ -1,13 +1,26 @@
-import lmstudio as lms
+import openai
+from core.config import SYSTEM_PROMPT_DEFAULT, MODEL_NAME, TEMPERATURE
+from tools.tools_definition import TOOLS
 
-_MODEL = lms.llm("openai/gpt-oss-20b")
+client = openai.OpenAI(
+    base_url="http://localhost:1234/v1",
+    api_key="lm-studio"
+)
 
-def respond_with_context(system_prompt: str, messages: list[dict]) -> str:
-    chat = lms.Chat(system_prompt)
+def call_lm_studio(user_prompt: str, history: list | None = None):
+    messages = [{"role": "system", "content": SYSTEM_PROMPT_DEFAULT}]
+    if history:
+        messages.extend(history)
 
-    for m in messages:
-        if m["role"] == "user":
-            chat.add_user_message(m["content"])
+    messages.append({"role": "user", "content": user_prompt})
 
-    resp = _MODEL.respond(chat)
-    return resp.content
+    response = client.chat.completions.create(
+        model=MODEL_NAME,
+        messages=messages,
+        tools=TOOLS,
+        tool_choice="auto",
+        temperature=TEMPERATURE,
+        timeout=60
+    )
+
+    return response.choices[0].message

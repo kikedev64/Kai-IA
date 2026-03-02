@@ -9,7 +9,6 @@ from api.routers.calendar import router as calendar_router
 from api.routers.chat import router as chat_router
 from core.database import init_db
 
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()
