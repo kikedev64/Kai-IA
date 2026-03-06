@@ -258,7 +258,7 @@ TOOLS = [
             "name": "get_full_email",
             "description": "Lee el correo en su totalidad para hacer un resumen sobre el, todo ello en base a su id",
             "parameters": {
-                "type": "obect",
+                "type": "object",
                 "properties": {
                     "id": {
                         "type": "string",
@@ -269,4 +269,73 @@ TOOLS = [
             }
         }
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "reply_email",
+            "description": "Responde a un correo existente manteniendo el hilo de la conversación. Úsala cuando el usuario quiera contestar un email ya recibido.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "message_id": {
+                        "type": "string",
+                        "description": "ID del mensaje original al que se quiere responder"
+                    },
+                    "body": {
+                        "type": "string",
+                        "description": "Contenido de la respuesta en texto plano"
+                    },
+                    "reply_all": {
+                        "type": "boolean",
+                        "description": "Si es true, responde también a los destinatarios en copia además del remitente principal"
+                    },
+                    "as_html": {
+                        "type": "boolean",
+                        "description": "Si es true, el contenido se enviará como HTML"
+                    }
+                },
+                "required": ["message_id", "body"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "send_email",
+            "description": "Crea y envía un correo nuevo desde cero. Úsala cuando el usuario quiera mandar un email nuevo a uno o varios destinatarios.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "to": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Lista de destinatarios principales"
+                    },
+                    "subject": {
+                        "type": "string",
+                        "description": "Asunto del correo"
+                    },
+                    "body": {
+                        "type": "string",
+                        "description": "Contenido del correo en texto plano"
+                    },
+                    "cc": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Lista de destinatarios en copia"
+                    },
+                    "bcc": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Lista de destinatarios en copia oculta"
+                    },
+                    "as_html": {
+                        "type": "boolean",
+                        "description": "Si es true, el contenido se enviará como HTML"
+                    }
+                },
+                "required": ["to", "subject", "body"]
+            }
+        }
+    }
 ]
