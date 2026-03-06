@@ -165,5 +165,90 @@ TOOLS = [
             "required": []
             }
         }
-    }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "read_last_emails_full",
+            "description": "Lee los correos más recientes de Gmail. Úsala cuando el usuario pregunte por sus últimos correos, correos recientes o emails más nuevos.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "max_results": {
+                        "type": "integer",
+                        "description": "Número máximo de correos a devolver (default: 5)",
+                        "minimum": 1,
+                        "maximum": 20
+                    }
+                },
+                "required": []
+            }
+        }
+    },
+
+    {
+        "type": "function",
+        "function": {
+            "name": "read_last_emails_from_sender",
+            "description": "Lee los correos más recientes de un remitente concreto. Úsala cuando el usuario pida correos de una persona o dirección de email específica.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "sender": {
+                        "type": "string",
+                        "description": "Email o texto identificativo del remitente. Ej: amazon.es o ejemplo@gmail.com"
+                    },
+                    "max_results": {
+                        "type": "integer",
+                        "description": "Número máximo de correos a devolver (default: 5)",
+                        "minimum": 1,
+                        "maximum": 20
+                    }
+                },
+                "required": ["sender"]
+            }
+        }
+    },
+
+    {
+        "type": "function",
+        "function": {
+            "name": "read_last_emails_by_subject",
+            "description": "Lee los correos más recientes cuyo asunto contiene o coincide con un texto dado. Úsala cuando el usuario quiera buscar emails por asunto.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "subject_text": {
+                        "type": "string",
+                        "description": "Texto del asunto a buscar. Ej: factura, pedido, entrevista"
+                    },
+                    "max_results": {
+                        "type": "integer",
+                        "description": "Número máximo de correos a devolver (default: 5)",
+                        "minimum": 1,
+                        "maximum": 20
+                    }
+                },
+                "required": ["subject_text"]
+            }
+        }
+    },
+
+    {
+        "type": "function",
+        "function": {
+            "name": "read_thread_from_message_id",
+            "description": "Lee la conversación completa (thread) a partir del ID de un mensaje de Gmail. Úsala cuando el usuario quiera ver toda la cadena de respuestas de un correo concreto.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "message_id": {
+                        "type": "string",
+                        "description": "ID del mensaje a partir del cual se recuperará el hilo completo"
+                    }
+                },
+                "required": ["message_id"]
+            }
+        }
+    },
 ]
