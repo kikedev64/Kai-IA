@@ -11,7 +11,7 @@ class _HTMLTextExtractor(HTMLParser):
 
     def handle_starttag(self, tag, attrs):
         if tag.lower() in self._skip_tags:
-            self._skip = Tr
+            self._skip = True
         if not self._skip and tag.lower() in {"br", "p", "div", "li", "tr", "table"}:
             self.parts.append("\n")
 

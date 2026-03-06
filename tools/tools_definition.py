@@ -1,5 +1,3 @@
-# tools/tools_definition.py
-
 TOOLS = [
     {
         "type": "function",
@@ -302,7 +300,7 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "send_email",
-            "description": "Crea y envía un correo nuevo desde cero. Úsala cuando el usuario quiera mandar un email nuevo a uno o varios destinatarios.",
+            "description": "Crea y envía un correo nuevo desde cero utilizando unicamente elementos propios de HTML. Úsala cuando el usuario quiera mandar un email nuevo a uno o varios destinatarios.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -317,7 +315,7 @@ TOOLS = [
                     },
                     "body": {
                         "type": "string",
-                        "description": "Contenido del correo en texto plano"
+                        "description": "Contenido del correo en HTML"
                     },
                     "cc": {
                         "type": "array",

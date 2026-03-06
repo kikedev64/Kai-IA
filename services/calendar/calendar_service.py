@@ -254,7 +254,6 @@ def find_calendar_events(
         e_location = _norm(e.get("location"))
         e_desc = _norm(e.get("description"))
 
-        # filtros AND (si el filtro viene)
         if q and not (q in e_summary or q in e_location or q in e_desc):
             continue
         if loc and loc not in e_location:
