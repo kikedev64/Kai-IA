@@ -7,3 +7,6 @@ class ChatStreamRequest(BaseModel):
 
 class ChatResetRequest(BaseModel):
     chat_id: str = Field(..., min_length=1)
+class AskRequest(BaseModel):
+    prompt: str
+    system_prompt: str | None = None

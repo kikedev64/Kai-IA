@@ -9,11 +9,13 @@ try:
 except Exception:
     ZoneInfo = None  # fallback
 
-from core.config import SYSTEM_PROMPT_DEFAULT
-from llm.lmstudio_client import call_lm_studio
+from api.schemas.chat import AskRequest
+from core.config import MODEL_NAME, SYSTEM_PROMPT_DEFAULT
+from llm.lmstudio_client import ask_wiouth_context, call_lm_studio
 from tools.tools_handler import handle_tool_call
 from tools.gmail.email_response_builders import build_emails_context_block
 from services.chat_store import ensure_session, add_message, get_messages, get_system_prompt
+from llm.lmstudio_client import client
 
 router = APIRouter(prefix="/assistant", tags=["Assistant"])
 
@@ -146,6 +148,7 @@ def start():
 
 @router.post("/chat")
 def chat_endpoint(
+    
     user_input: str,
     chat_id: str = Query(..., min_length=1),
     limit_history: int = Query(50, ge=1, le=200),
@@ -306,4 +309,16 @@ def chat_endpoint(
                 "reply": "Ahora mismo no tengo ningún modelo cargado para responder. Carga un modelo en LM Studio.",
                 "chat_id": chat_id,
             }
-        raise
+    
+
+@router.post("/ask")
+def ask_llm(req: AskRequest):
+    try:
+        ask_wiouth_context(req)
+    except Exception as e:
+        if "No models loaded" in str(e):
+            raise HTTPException(
+                status_code=503,
+                detail="No hay ningún modelo cargado en LM Studio."
+            )
+        raise HTTPException(status_code=500, detail=str(e))

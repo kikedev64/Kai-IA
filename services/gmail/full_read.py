@@ -107,3 +107,23 @@ def read_thread_from_message_id(message_id: str, clean_body: bool = False) -> Em
     )
 
     return EmailThread(thread_id, emails)
+
+def read_email_by_id(message_id: str, clean_body: bool = False) -> Email | None:
+    service = _get_service()
+
+    try:
+        full_msg = service.users().messages().get(
+            userId="me",
+            id=message_id,
+            format="full"
+        ).execute()
+
+        email = _gmail_msg_to_email(full_msg)
+
+        if clean_body:
+            email.body = clean_email_body(email.body)
+
+        return email
+
+    except Exception:
+        return None

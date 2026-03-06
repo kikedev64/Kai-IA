@@ -1,4 +1,5 @@
 import openai
+from api.schemas.chat import AskRequest
 from core.config import SYSTEM_PROMPT_DEFAULT, MODEL_NAME, TEMPERATURE
 from tools.tools_definition import TOOLS
 
@@ -17,3 +18,27 @@ def call_lm_studio(messages: list):
         timeout=60,
     )
     return response.choices[0].message
+
+def ask_wiouth_context(req:AskRequest):
+    try:
+        messages = []
+
+        if req.system_prompt:
+            messages.append({"role": "system", "content": req.system_prompt})
+
+        messages.append({"role": "user", "content": req.prompt})
+
+        response = client.chat.completions.create(
+            model=MODEL_NAME,
+            messages=messages,
+            temperature=0.2,
+        )
+
+        content = response.choices[0].message.content or ""
+
+        return {
+            "reply": content.strip()
+        }
+
+    except Exception as e:
+        print(f"[ERROR]: {str(e)}")

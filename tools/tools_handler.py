@@ -1,5 +1,7 @@
 import json
-
+from api.schemas.chat import AskRequest
+from core.config import DEFAULT_PROMPTS
+from llm.lmstudio_client import ask_wiouth_context
 from services.calendar.calendar_service import (
     create_calendar_event,
     delete_calendar_events_by_conditions,
@@ -10,7 +12,7 @@ from services.calendar.calendar_service import (
     delete_calendar_event,
     freebusy_query,
 )
-from services.gmail.full_read import read_last_emails_by_subject, read_last_emails_from_sender, read_last_emails_full, read_thread_from_message_id
+from services.gmail.full_read import read_email_by_id, read_last_emails_by_subject, read_last_emails_from_sender, read_last_emails_full, read_thread_from_message_id
 from tools.compact_handlers import _email_to_dict, _thread_to_dict, compact_calendar_event, compact_calendar_events, compact_delete_calendar_event_result, compact_delete_calendar_events_by_conditions_result, compact_find_calendar_events_result, compact_freebusy_result
 
 def handle_tool_call(tool_call):
@@ -125,6 +127,7 @@ def handle_tool_call(tool_call):
             emails = read_last_emails_full(
                 max_results=args.get("max_results", 5), clean_body=True
             )
+        
             return {
                 "status": "success",
                 "data": {
@@ -185,6 +188,45 @@ def handle_tool_call(tool_call):
                     "thread": _thread_to_dict(thread),
                 },
             }
-        return {"status": "error", "message": f"Tool no encontrada: {name}"}
+        
+        if name == "get_full_email":
+            email = read_email_by_id(args.get("id"), clean_body=True)
+
+            if not email:
+                return {
+                    "status": "error",
+                    "message": "Email no encontrado"
+                }
+
+            body = (email.body or "").strip()
+            if not body:
+                return {
+                    "status": "error",
+                    "message": "El email existe pero el body está vacío"
+                }
+
+            prompt = f"""
+            Remitente: {email.sender}
+            Asunto: {email.subject}
+
+            Contenido:
+            {body}
+            """
+
+            data_mail = AskRequest(
+                prompt=prompt,
+                system_prompt=DEFAULT_PROMPTS.RESUME_MAIL
+            )
+
+            summary = ask_wiouth_context(data_mail)
+
+            return {
+                "status": "success",
+                "data": {
+                    "email": email.model_dump() if hasattr(email, "model_dump") else email.__dict__,
+                    "summary": summary if summary is not None else ""
+                }
+            }
+        return {"status": "warning", "message": f"Tool no encontrada: {name}"}
     except Exception as e:
         return {"status": "error", "message": str(e)}

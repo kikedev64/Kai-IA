@@ -11,9 +11,7 @@ class _HTMLTextExtractor(HTMLParser):
 
     def handle_starttag(self, tag, attrs):
         if tag.lower() in self._skip_tags:
-            self._skip = True
-
-        # Saltos útiles
+            self._skip = Tr
         if not self._skip and tag.lower() in {"br", "p", "div", "li", "tr", "table"}:
             self.parts.append("\n")
 
@@ -35,24 +33,40 @@ class _HTMLTextExtractor(HTMLParser):
 def clean_email_body(raw_body: str) -> str:
     """
     Limpia un cuerpo de email HTML/plain text y deja solo texto útil.
+    Elimina HTML, disclaimers y caracteres unicode invisibles típicos de correos.
     """
     if not raw_body:
         return ""
 
     text = raw_body.strip()
 
-    # 1. Decodificar entidades HTML
     text = html.unescape(text)
 
-    # 2. Si parece HTML, extraer texto
     if "<" in text and ">" in text:
         parser = _HTMLTextExtractor()
         parser.feed(text)
         text = parser.get_text()
 
-    # 3. Eliminar bloques muy típicos de ruido
+    invisible_chars = [
+        "\u2007",  # figure space
+        "\u2009",  # thin space
+        "\u200a",  # hair space
+        "\u200b",  # zero width space
+        "\u200c",  # zero width non-joiner
+        "\u200d",  # zero width joiner
+        "\u2060",  # word joiner
+        "\ufeff",  # zero width no-break space
+        "\u00ad",  # soft hyphen,
+        "\xa0"
+    ]
+
+    for ch in invisible_chars:
+        text = text.replace(ch, "")
+
+    text = re.sub(r"[\u2000-\u200F\u202A-\u202F\u2060\uFEFF]", "", text)
+
     patterns_to_remove = [
-        r"(?is)Este mensaje y sus archivos adjuntos.*",   # disclaimer típico
+        r"(?is)Este mensaje y sus archivos adjuntos.*",
         r"(?is)This message and any attachments.*",
         r"(?is)Aviso legal.*",
         r"(?is)Confidentiality notice.*",
@@ -64,17 +78,15 @@ def clean_email_body(raw_body: str) -> str:
     for pattern in patterns_to_remove:
         text = re.sub(pattern, "", text)
 
-    # 4. Normalizar espacios
     text = re.sub(r"\r\n", "\n", text)
     text = re.sub(r"\r", "\n", text)
+
     text = re.sub(r"[ \t]+", " ", text)
 
-    # 5. Quitar líneas vacías repetidas
     text = re.sub(r"\n\s*\n\s*\n+", "\n\n", text)
 
-    # 6. Limpiar espacios al principio/final de cada línea
     lines = [line.strip() for line in text.split("\n")]
-    lines = [line for line in lines if line]  # quita vacías
+    lines = [line for line in lines if line]
     text = "\n".join(lines)
 
     return text.strip()

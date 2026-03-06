@@ -4,7 +4,7 @@ from googleapiclient.errors import HttpError
 from api.schemas.gmail import GmailSendRequest, GmailSendResponse, GmailReadEmailsResponse,GmailThreadResponse
 from core.models.email import Email
 from services.gmail.send import send_email,send_email_with_attachments
-from services.gmail.full_read import read_last_emails_by_subject,read_last_emails_full, read_last_emails_from_sender, read_thread_from_message_id
+from services.gmail.full_read import read_email_by_id, read_last_emails_by_subject,read_last_emails_full, read_last_emails_from_sender, read_thread_from_message_id
 from core.config import EMAIL_MAX_TOTAL_SIZE_ATTACHMENT as MAX_TOTAL_SIZE
 
 router = APIRouter(prefix="/gmail", tags=["Gmail"])
@@ -142,7 +142,7 @@ def api_read_last_emails_by_subject(
         raise HTTPException(status_code=e.resp.status, detail=str(e))
 
 
-@router.get("/thread/from-message/{message_id}", response_model=GmailThreadResponse)
+@router.get("/thread/from-message/{message_id}/{clean_body}", response_model=GmailThreadResponse)
 def api_read_thread_from_message_id(message_id: str):
     try:
         thread = read_thread_from_message_id(message_id=message_id)
@@ -156,3 +156,32 @@ def api_read_thread_from_message_id(message_id: str):
 
     except HttpError as e:
         raise HTTPException(status_code=e.resp.status, detail=str(e))
+    
+@router.get("/email")
+def get_email_by_id(
+    message_id: str = Query(..., min_length=1, description="ID del mensaje de Gmail"),
+    clean_body: bool = Query(True, description="Si true, limpia el body HTML/CSS y ruido"),
+):
+    email = read_email_by_id(message_id=message_id, clean_body=clean_body)
+
+    if email is None:
+        raise HTTPException(status_code=404, detail="Correo no encontrado")
+
+    return {
+        "status": "success",
+        "data": {
+            "id": email.id,
+            "thread_id": email.thread_id,
+            "sender": email.sender,
+            "to": email.to,
+            "subject": email.subject,
+            "date": email.date,
+            "snippet": email.snippet,
+            "body": email.body,
+            "cc": email.cc,
+            "bcc": email.bcc,
+            "message_id": email.message_id,
+            "references": email.references,
+            "in_reply_to": email.in_reply_to,
+        },
+    }

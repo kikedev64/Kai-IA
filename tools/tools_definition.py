@@ -251,4 +251,22 @@ TOOLS = [
             }
         }
     },
+    
+    {
+        "type": "function",
+        "function": {
+            "name": "get_full_email",
+            "description": "Lee el correo en su totalidad para hacer un resumen sobre el, todo ello en base a su id",
+            "parameters": {
+                "type": "obect",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "description": "ID del correo a partir del cual se desea total información de el"
+                    }
+                },
+                "required": ["message_id"]
+            }
+        }
+    },
 ]

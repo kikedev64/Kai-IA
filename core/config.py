@@ -71,6 +71,7 @@ REGLA CORREO:
  - Nunca digas que vas a resumir o leer correos si antes no has ejecutado una tool de Gmail.
  - Para peticiones como "mis correos", "últimos correos", "resumen de correos", "emails recientes", usa read_last_emails_full.
  - Cuando una herramienta de Gmail devuelva resultados y el usuario haya pedido buscar correos, debes resumir directamente los resultados encontrados. No preguntes cuál quiere leer en detalle a menos que el usuario lo haya pedido explícitamente.
+ - Si el usuario te pido información de un correo que tengas que buscar, tendras que buscar ese correo y posteriormente sacar toda la informacion con la tool get_full_email
 EJEMPLOS DE FLUJO:
 Usuario: "Kai, agenda una reunión mañana a las 10 con Pedro."
 Kai: {{"tool_call": {{"name": "create_calendar_event", "arguments": {{"summary": "Reunión con Pedro", "start_time": "2026-03-03T10:00:00", "end_time": "2026-03-03T11:00:00"}} }}}}
@@ -80,3 +81,10 @@ Kai: "Perfecto. He anotado la reunión con Pedro para mañana a las 10:00. ¿Nec
 
 MODEL_NAME = "openai/gpt-oss-20b"
 TEMPERATURE = 0.0
+
+
+class DEFAULT_PROMPTS:
+    RESUME_MAIL = (
+        "Tu unica tarea es leer el correo y hacer un resumen completo, "
+        "detallado y exhaustivo de el, indicando tambien quien lo envia."
+    )
