@@ -12,12 +12,20 @@ except Exception:
 from core.config import SYSTEM_PROMPT_DEFAULT
 from llm.lmstudio_client import call_lm_studio
 from tools.tools_handler import handle_tool_call
+from tools.gmail.email_response_builders import build_emails_context_block
 from services.chat_store import ensure_session, add_message, get_messages, get_system_prompt
 
 router = APIRouter(prefix="/assistant", tags=["Assistant"])
 
 MAX_TOOL_STEPS = 6
 DEBUG_TOOLS = True
+
+GMAIL_CONTEXT_TOOLS = {
+    "read_last_emails_full",
+    "read_last_emails_from_sender",
+    "read_last_emails_by_subject",
+    "read_thread_from_message_id",
+}
 
 
 def is_legacy_tool_json(text: str) -> bool:
@@ -83,6 +91,52 @@ def now_context_system_message() -> dict:
     }
 
 
+def post_tool_instruction_message(user_input: str) -> dict:
+    return {
+        "role": "system",
+        "content": (
+            "INSTRUCCIONES POST-TOOL (OBLIGATORIAS):\n"
+            f"- Pregunta original del usuario: {user_input}\n"
+            "- Usa el resultado de la herramienta para responder directamente a esa pregunta.\n"
+            "- No digas que el usuario ha compartido datos; los datos vienen de la herramienta.\n"
+            "- Si ya hay información suficiente, responde directamente.\n"
+            "- No vuelvas a invocar la misma herramienta si ya tienes resultados suficientes.\n"
+            "- No hagas preguntas genéricas como '¿en qué puedo ayudarte?' o '¿qué quieres hacer con esto?'.\n"
+        ),
+    }
+
+
+def build_gmail_context_message(tool_name: str, result: dict) -> dict | None:
+    if tool_name not in GMAIL_CONTEXT_TOOLS:
+        return None
+    if not isinstance(result, dict):
+        return None
+    if result.get("status") != "success":
+        return None
+
+    data = result.get("data")
+    if not isinstance(data, dict):
+        return None
+
+    try:
+        block = build_emails_context_block(data)
+    except Exception:
+        return None
+
+    if not block:
+        return None
+
+    return {
+        "role": "system",
+        "content": (
+            "CONTEXTO DE CORREOS RECIBIDO DESDE HERRAMIENTA:\n"
+            f"{block}\n"
+            "Trata este bloque como un resumen fiable de correos obtenidos por herramienta.\n"
+            "Si el usuario preguntó por correos, responde basándote en este bloque sin pedir pasos extra.\n"
+        ),
+    }
+
+
 @router.post("/start")
 def start():
     chat_id = str(uuid.uuid4())
@@ -122,7 +176,7 @@ def chat_endpoint(
             print(f"\n=== [{request_id}] CHAT START {start_ts} ===")
             print(f"[{request_id}] chat_id: {chat_id}")
             print(f"[{request_id}] USER: {user_input}")
-        """ print(f"[{request_id}] MESSAGE_TO_LLM: {messages}") """
+
         for step in range(MAX_TOOL_STEPS):
             msg = call_lm_studio(messages)
             tool_calls = getattr(msg, "tool_calls", None)
@@ -168,6 +222,13 @@ def chat_endpoint(
                             "content": json.dumps(result, ensure_ascii=False),
                         }
                     )
+
+                    gmail_context_msg = build_gmail_context_message(name, result)
+                    if gmail_context_msg:
+                        messages.append(gmail_context_msg)
+
+                    messages.append(post_tool_instruction_message(user_input))
+                    messages.append({"role": "user", "content": user_input})
 
                     msg2 = call_lm_studio(messages)
                     final2 = (msg2.content or "").strip()
@@ -226,8 +287,14 @@ def chat_endpoint(
                 }
 
                 add_message(chat_id, "tool", tool_msg["content"])
-
                 messages.append(tool_msg)
+
+                gmail_context_msg = build_gmail_context_message(tc.function.name, result)
+                if gmail_context_msg:
+                    messages.append(gmail_context_msg)
+
+                messages.append(post_tool_instruction_message(user_input))
+                messages.append({"role": "user", "content": user_input})
 
         raise HTTPException(
             status_code=500,
@@ -237,5 +304,6 @@ def chat_endpoint(
         if "No models loaded" in str(e):
             return {
                 "reply": "Ahora mismo no tengo ningún modelo cargado para responder. Carga un modelo en LM Studio.",
-                "chat_id": chat_id
-                }
+                "chat_id": chat_id,
+            }
+        raise
