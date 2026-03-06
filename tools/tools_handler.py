@@ -39,7 +39,7 @@ def handle_tool_call(tool_call):
         if name == "list_calendar_events":
             result = list_calendar_events(
                 calendar_id=args.get("calendar_id", "primary"),
-                max_results=args.get("max_results", 20),
+                max_results=args.get("max_results", 5),
                 time_min=args.get("time_min"),
                 time_max=args.get("time_max"),
                 q=args.get("q"),

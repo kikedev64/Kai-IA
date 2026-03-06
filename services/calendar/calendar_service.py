@@ -31,7 +31,17 @@ def list_calendar_events( calendar_id: str = "primary", max_results: int = 20, t
         params["q"] = q
 
     res = service.events().list(**params).execute()
-    return res.get("items", [])
+    items = res.get("items")
+    return [
+        {
+            "id": item.get("id"),
+            "summary": item.get("summary"),
+            "start": item.get("start", {}).get("dateTime") or item.get("start", {}).get("date"),
+            "end": item.get("end", {}).get("dateTime") or item.get("end", {}).get("date"),
+            "creator": item.get("creator", {}).get("email"),
+        }
+        for item in items
+    ]
 
 
 def create_calendar_event( summary: str,

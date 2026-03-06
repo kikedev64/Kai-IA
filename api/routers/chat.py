@@ -96,139 +96,146 @@ def chat_endpoint(
     chat_id: str = Query(..., min_length=1),
     limit_history: int = Query(50, ge=1, le=200),
 ):
-    request_id = str(uuid.uuid4())[:8]
-    start_ts = datetime.now().isoformat(timespec="seconds")
+    try:
+        request_id = str(uuid.uuid4())[:8]
+        start_ts = datetime.now().isoformat(timespec="seconds")
 
-    system_prompt = get_system_prompt(chat_id) or SYSTEM_PROMPT_DEFAULT
-    ensure_session(chat_id, system_prompt)
+        system_prompt = get_system_prompt(chat_id) or SYSTEM_PROMPT_DEFAULT
+        ensure_session(chat_id, system_prompt)
 
-    add_message(chat_id, "user", user_input)
+        add_message(chat_id, "user", user_input)
 
-    history = get_messages(chat_id, limit=limit_history)
+        history = get_messages(chat_id, limit=limit_history)
 
-    sanitized: list[dict] = []
-    for m in history:
-        if m["role"] == "assistant" and is_legacy_tool_json(m["content"]):
-            continue
-        sanitized.append(m)
+        sanitized: list[dict] = []
+        for m in history:
+            if m["role"] == "assistant" and is_legacy_tool_json(m["content"]):
+                continue
+            sanitized.append(m)
 
-    messages = [
-        {"role": "system", "content": system_prompt},
-        now_context_system_message(),
-    ] + sanitized
-
-    if DEBUG_TOOLS:
-        print(f"\n=== [{request_id}] CHAT START {start_ts} ===")
-        print(f"[{request_id}] chat_id: {chat_id}")
-        print(f"[{request_id}] USER: {user_input}")
-
-    for step in range(MAX_TOOL_STEPS):
-        msg = call_lm_studio(messages)
-        tool_calls = getattr(msg, "tool_calls", None)
+        messages = [
+            {"role": "system", "content": system_prompt},
+            now_context_system_message(),
+        ] + sanitized
 
         if DEBUG_TOOLS:
-            print(f"\n[{request_id}] STEP {step} - MODEL MESSAGE")
-            print(f"[{request_id}] content: {repr(msg.content)}")
-            print(f"[{request_id}] tool_calls: {len(tool_calls) if tool_calls else 0}")
+            print(f"\n=== [{request_id}] CHAT START {start_ts} ===")
+            print(f"[{request_id}] chat_id: {chat_id}")
+            print(f"[{request_id}] USER: {user_input}")
+        """ print(f"[{request_id}] MESSAGE_TO_LLM: {messages}") """
+        for step in range(MAX_TOOL_STEPS):
+            msg = call_lm_studio(messages)
+            tool_calls = getattr(msg, "tool_calls", None)
 
-        if not tool_calls:
-            content = (msg.content or "").strip()
+            if DEBUG_TOOLS:
+                print(f"\n[{request_id}] STEP {step} - MODEL MESSAGE")
+                print(f"[{request_id}] content: {repr(msg.content)}")
+                print(f"[{request_id}] tool_calls: {len(tool_calls) if tool_calls else 0}")
 
-            legacy_tc = extract_legacy_tool_call(content)
-            if legacy_tc:
+            if not tool_calls:
+                content = (msg.content or "").strip()
+
+                legacy_tc = extract_legacy_tool_call(content)
+                if legacy_tc:
+                    if DEBUG_TOOLS:
+                        print(f"\n[{request_id}] LEGACY TOOL JSON DETECTED (content)")
+                        print(f"[{request_id}] legacy tool: {legacy_tc.get('name')}")
+                        print(f"[{request_id}] legacy args: {json.dumps(legacy_tc.get('arguments'), ensure_ascii=False)}")
+
+                    name = legacy_tc["name"]
+                    args = legacy_tc.get("arguments") or {}
+
+                    class _Fn:
+                        def __init__(self, n: str, a: dict):
+                            self.name = n
+                            self.arguments = json.dumps(a, ensure_ascii=False)
+
+                    class _TC:
+                        def __init__(self, n: str, a: dict):
+                            self.id = "legacy"
+                            self.function = _Fn(n, a)
+
+                    fake_tc = _TC(name, args)
+                    result = handle_tool_call(fake_tc)
+
+                    add_message(chat_id, "tool", json.dumps(result, ensure_ascii=False))
+
+                    messages.append({"role": "assistant", "content": None})
+                    messages.append(
+                        {
+                            "role": "tool",
+                            "tool_call_id": "legacy",
+                            "content": json.dumps(result, ensure_ascii=False),
+                        }
+                    )
+
+                    msg2 = call_lm_studio(messages)
+                    final2 = (msg2.content or "").strip()
+
+                    if final2:
+                        add_message(chat_id, "assistant", final2)
+
+                    if DEBUG_TOOLS:
+                        print(f"\n[{request_id}] FINAL (after legacy tool exec): {final2}")
+                        print(f"=== [{request_id}] CHAT END ===\n")
+
+                    return {"reply": final2, "chat_id": chat_id}
+
+                if content:
+                    add_message(chat_id, "assistant", content)
+
                 if DEBUG_TOOLS:
-                    print(f"\n[{request_id}] LEGACY TOOL JSON DETECTED (content)")
-                    print(f"[{request_id}] legacy tool: {legacy_tc.get('name')}")
-                    print(f"[{request_id}] legacy args: {json.dumps(legacy_tc.get('arguments'), ensure_ascii=False)}")
+                    print(f"\n[{request_id}] FINAL: {content}")
+                    print(f"=== [{request_id}] CHAT END ===\n")
 
-                name = legacy_tc["name"]
-                args = legacy_tc.get("arguments") or {}
+                return {"reply": content, "chat_id": chat_id}
 
-                class _Fn:
-                    def __init__(self, n: str, a: dict):
-                        self.name = n
-                        self.arguments = json.dumps(a, ensure_ascii=False)
+            assistant_payload = {"role": "assistant", "content": msg.content, "tool_calls": []}
 
-                class _TC:
-                    def __init__(self, n: str, a: dict):
-                        self.id = "legacy"
-                        self.function = _Fn(n, a)
-
-                fake_tc = _TC(name, args)
-                result = handle_tool_call(fake_tc)
-
-                add_message(chat_id, "tool", json.dumps(result, ensure_ascii=False))
-
-                messages.append({"role": "assistant", "content": None})
-                messages.append(
+            for tc in tool_calls:
+                assistant_payload["tool_calls"].append(
                     {
-                        "role": "tool",
-                        "tool_call_id": "legacy",
-                        "content": json.dumps(result, ensure_ascii=False),
+                        "id": tc.id,
+                        "type": "function",
+                        "function": {
+                            "name": tc.function.name,
+                            "arguments": tc.function.arguments,
+                        },
                     }
                 )
 
-                msg2 = call_lm_studio(messages)
-                final2 = (msg2.content or "").strip()
+                if DEBUG_TOOLS:
+                    print(f"\n[{request_id}] TOOL CALL -> {tc.function.name}")
+                    print(f"[{request_id}] tool_call_id: {tc.id}")
+                    print(f"[{request_id}] raw arguments: {tc.function.arguments}")
 
-                if final2:
-                    add_message(chat_id, "assistant", final2)
+            messages.append(assistant_payload)
+
+            for tc in tool_calls:
+                result = handle_tool_call(tc)
 
                 if DEBUG_TOOLS:
-                    print(f"\n[{request_id}] FINAL (after legacy tool exec): {final2}")
-                    print(f"=== [{request_id}] CHAT END ===\n")
+                    print(f"\n[{request_id}] TOOL RESULT <- {tc.function.name}")
+                    print(f"[{request_id}] tool_call_id: {tc.id}")
+                    print(f"[{request_id}] result: {json.dumps(result, ensure_ascii=False, indent=2)}")
 
-                return {"reply": final2, "chat_id": chat_id}
-
-            if content:
-                add_message(chat_id, "assistant", content)
-
-            if DEBUG_TOOLS:
-                print(f"\n[{request_id}] FINAL: {content}")
-                print(f"=== [{request_id}] CHAT END ===\n")
-
-            return {"reply": content, "chat_id": chat_id}
-
-        assistant_payload = {"role": "assistant", "content": msg.content, "tool_calls": []}
-
-        for tc in tool_calls:
-            assistant_payload["tool_calls"].append(
-                {
-                    "id": tc.id,
-                    "type": "function",
-                    "function": {
-                        "name": tc.function.name,
-                        "arguments": tc.function.arguments,
-                    },
+                tool_msg = {
+                    "role": "tool",
+                    "tool_call_id": tc.id,
+                    "content": json.dumps(result, ensure_ascii=False),
                 }
-            )
 
-            if DEBUG_TOOLS:
-                print(f"\n[{request_id}] TOOL CALL -> {tc.function.name}")
-                print(f"[{request_id}] tool_call_id: {tc.id}")
-                print(f"[{request_id}] raw arguments: {tc.function.arguments}")
+                add_message(chat_id, "tool", tool_msg["content"])
 
-        messages.append(assistant_payload)
+                messages.append(tool_msg)
 
-        for tc in tool_calls:
-            result = handle_tool_call(tc)
-
-            if DEBUG_TOOLS:
-                print(f"\n[{request_id}] TOOL RESULT <- {tc.function.name}")
-                print(f"[{request_id}] tool_call_id: {tc.id}")
-                print(f"[{request_id}] result: {json.dumps(result, ensure_ascii=False, indent=2)}")
-
-            tool_msg = {
-                "role": "tool",
-                "tool_call_id": tc.id,
-                "content": json.dumps(result, ensure_ascii=False),
-            }
-
-            add_message(chat_id, "tool", tool_msg["content"])
-
-            messages.append(tool_msg)
-
-    raise HTTPException(
-        status_code=500,
-        detail="Demasiadas llamadas a herramientas seguidas (posible bucle).",
-    )
+        raise HTTPException(
+            status_code=500,
+            detail="Demasiadas llamadas a herramientas seguidas (posible bucle).",
+        )
+    except Exception as e:
+        if "No models loaded" in str(e):
+            return {
+                "reply": "Ahora mismo no tengo ningún modelo cargado para responder. Carga un modelo en LM Studio.",
+                "chat_id": chat_id
+                }
