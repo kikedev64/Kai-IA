@@ -24,6 +24,12 @@ def handle_tool_call(tool_call):
 
     try:
         args = json.loads(fn.arguments or "{}")
+
+        if isinstance(args, dict) and "arguments" in args:
+            args = args["arguments"]
+
+        if not isinstance(args, dict):
+            args = {}
     except json.JSONDecodeError:
         args = {}
 
