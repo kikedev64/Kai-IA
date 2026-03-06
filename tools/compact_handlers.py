@@ -1,27 +1,54 @@
 from __future__ import annotations
 from typing import Any
 
+
+def _compact_datetime(value: Any) -> Any:
+    """
+    Soporta:
+    - {"dateTime": "..."}
+    - {"date": "..."}
+    - "2026-03-10T15:00:00+01:00"
+    - None
+    """
+    if value is None:
+        return None
+
+    if isinstance(value, dict):
+        return value.get("dateTime") or value.get("date")
+
+    return value
+
+
 def compact_calendar_event(event: dict[str, Any]) -> dict[str, Any]:
     if not event:
         return {}
 
-    return {
+    out = {
         "id": event.get("id"),
         "summary": event.get("summary"),
-        "start": (
-            event.get("start", {}).get("dateTime")
-            or event.get("start", {}).get("date")
-        ),
-        "end": (
-            event.get("end", {}).get("dateTime")
-            or event.get("end", {}).get("date")
-        ),
-        "location": event.get("location"),
-        "description": event.get("description"),
-        "creator": event.get("creator", {}).get("email") if isinstance(event.get("creator"), dict) else None,
-        "htmlLink": event.get("htmlLink"),
-        "eventType": event.get("eventType"),
+        "start": _compact_datetime(event.get("start")),
+        "end": _compact_datetime(event.get("end")),
     }
+
+    if event.get("location"):
+        out["location"] = event.get("location")
+
+    if event.get("description"):
+        out["description"] = event.get("description")
+
+    creator = event.get("creator")
+    if isinstance(creator, dict) and creator.get("email"):
+        out["creator"] = creator.get("email")
+    elif event.get("creator"):
+        out["creator"] = event.get("creator")
+
+    if event.get("htmlLink"):
+        out["htmlLink"] = event.get("htmlLink")
+
+    if event.get("eventType"):
+        out["eventType"] = event.get("eventType")
+
+    return out
 
 
 def compact_calendar_events(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -55,37 +82,43 @@ def compact_delete_calendar_event_result(data: dict[str, Any]) -> dict[str, Any]
         "deleted": True,
         "id": data.get("id"),
         "summary": data.get("summary"),
-        "start": (
-            data.get("start", {}).get("dateTime")
-            or data.get("start", {}).get("date")
-            if isinstance(data.get("start"), dict)
-            else data.get("start")
-        ),
-        "end": (
-            data.get("end", {}).get("dateTime")
-            or data.get("end", {}).get("date")
-            if isinstance(data.get("end"), dict)
-            else data.get("end")
-        ),
+        "start": _compact_datetime(data.get("start")),
+        "end": _compact_datetime(data.get("end")),
     }
 
 
 def compact_delete_calendar_events_by_conditions_result(data: dict[str, Any]) -> dict[str, Any]:
-    return {
+    out = {
         "status": data.get("status"),
-        "matched_count": data.get("matched_count"),
         "time_min": data.get("time_min"),
         "time_max": data.get("time_max"),
-        "query_used": data.get("query_used"),
-        "candidates": compact_calendar_events(data.get("candidates", [])),
-        "deleted": [
+    }
+
+    if data.get("matched_count") is not None:
+        out["matched_count"] = data.get("matched_count")
+
+    if data.get("count") is not None:
+        out["count"] = data.get("count")
+
+    if data.get("calendar_id") is not None:
+        out["calendar_id"] = data.get("calendar_id")
+
+    if data.get("query_used") is not None:
+        out["query_used"] = data.get("query_used")
+
+    if data.get("events"):
+        out["events"] = compact_calendar_events(data.get("events", []))
+
+    if data.get("candidates"):
+        out["candidates"] = compact_calendar_events(data.get("candidates", []))
+
+    if data.get("deleted"):
+        out["deleted"] = [
             compact_delete_calendar_event_result(item)
             for item in data.get("deleted", [])
-        ],
-        "events": compact_calendar_events(data.get("events", [])),
-        "count": data.get("count"),
-        "calendar_id": data.get("calendar_id"),
-    }
+        ]
+
+    return out
 
 
 def compact_freebusy_result(data: dict[str, Any]) -> dict[str, Any]:
@@ -102,6 +135,7 @@ def compact_freebusy_result(data: dict[str, Any]) -> dict[str, Any]:
         "timeMax": data.get("timeMax"),
         "calendars": compacted,
     }
+
 
 def _email_to_dict(email):
     return {

@@ -11,7 +11,7 @@ from services.calendar.calendar_service import (
     freebusy_query,
 )
 from services.gmail.full_read import read_last_emails_by_subject, read_last_emails_from_sender, read_last_emails_full, read_thread_from_message_id
-from tools.compact_handlers import _email_to_dict, _thread_to_dict, compact_calendar_event, compact_calendar_events, compact_delete_calendar_event_result, compact_delete_calendar_events_by_conditions_result, compact_freebusy_result
+from tools.compact_handlers import _email_to_dict, _thread_to_dict, compact_calendar_event, compact_calendar_events, compact_delete_calendar_event_result, compact_delete_calendar_events_by_conditions_result, compact_find_calendar_events_result, compact_freebusy_result
 
 def handle_tool_call(tool_call):
 
@@ -102,7 +102,7 @@ def handle_tool_call(tool_call):
                 time_max=args.get("time_max"),
                 max_results=args.get("max_results", 250),
             )
-            return {"status": "success", "data": compact_calendar_events(result)}
+            return {"status": "success", "data": compact_find_calendar_events_result(result)}
 
         if name == "delete_calendar_events_by_conditions":
             result = delete_calendar_events_by_conditions(
