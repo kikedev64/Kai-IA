@@ -123,7 +123,7 @@ def handle_tool_call(tool_call):
     
         if name == "read_last_emails_full":
             emails = read_last_emails_full(
-                max_results=args.get("max_results", 5),
+                max_results=args.get("max_results", 5), clean_body=True
             )
             return {
                 "status": "success",
@@ -137,6 +137,7 @@ def handle_tool_call(tool_call):
             emails = read_last_emails_from_sender(
                 sender=args.get("sender"),
                 max_results=args.get("max_results", 5),
+                clean_body=True
             )
             return {
                 "status": "success",
@@ -151,6 +152,7 @@ def handle_tool_call(tool_call):
             emails = read_last_emails_by_subject(
                 subject_text=args.get("subject_text"),
                 max_results=args.get("max_results", 5),
+                clean_body=True
             )
             return {
                 "status": "success",
@@ -164,6 +166,7 @@ def handle_tool_call(tool_call):
         if name == "read_thread_from_message_id":
             thread = read_thread_from_message_id(
                 message_id=args.get("message_id"),
+                clean_body=True
             )
 
             if thread is None:

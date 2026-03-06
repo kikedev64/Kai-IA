@@ -190,7 +190,7 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "read_last_emails_from_sender",
-            "description": "Lee los correos más recientes de un remitente concreto. Úsala cuando el usuario pida correos de una persona o dirección de email específica.",
+            "description": "Busca correos enviados por un remitente. El parámetro sender puede ser tanto un email exacto como un nombre visible o parte del nombre del remitente, por ejemplo 'Maria Jose' o 'amazon.es'.",
             "parameters": {
                 "type": "object",
                 "properties": {

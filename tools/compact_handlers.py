@@ -142,16 +142,9 @@ def _email_to_dict(email):
         "id": email.id,
         "thread_id": email.thread_id,
         "sender": email.sender,
-        "to": email.to,
         "subject": email.subject,
         "date": email.date,
         "snippet": email.snippet,
-        "body": email.body,
-        "cc": email.cc,
-        "bcc": email.bcc,
-        "message_id": email.message_id,
-        "references": email.references,
-        "in_reply_to": email.in_reply_to,
     }
 
 

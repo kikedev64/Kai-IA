@@ -1,12 +1,12 @@
 from typing import List
-from googleapiclient.discovery import build
 
-from core.auth import get_creds
 from core.models.email import Email
 from core.models.email_thread import EmailThread
-from services.gmail.utils import _headers_to_dict,_get_service,_gmail_msg_to_email
+from services.gmail.html_formatter import clean_email_body
+from services.gmail.utils import _get_service, _gmail_msg_to_email
 
-def read_last_emails_full(max_results: int = 5) -> List[Email]:
+
+def read_last_emails_full(max_results: int = 5, clean_body: bool = False) -> List[Email]:
     service = _get_service()
 
     res = service.users().messages().list(userId="me", maxResults=max_results).execute()
@@ -17,12 +17,17 @@ def read_last_emails_full(max_results: int = 5) -> List[Email]:
     out: List[Email] = []
     for m in msgs:
         full_msg = service.users().messages().get(userId="me", id=m["id"], format="full").execute()
-        out.append(_gmail_msg_to_email(full_msg))
+        email = _gmail_msg_to_email(full_msg)
+
+        if clean_body:
+            email.body = clean_email_body(email.body)
+
+        out.append(email)
 
     return out
 
 
-def read_last_emails_from_sender(sender: str, max_results: int = 5) -> List[Email]:
+def read_last_emails_from_sender(sender: str, max_results: int = 5, clean_body: bool = False) -> List[Email]:
     service = _get_service()
 
     res = service.users().messages().list(
@@ -38,17 +43,27 @@ def read_last_emails_from_sender(sender: str, max_results: int = 5) -> List[Emai
     out: List[Email] = []
     for m in msgs:
         full_msg = service.users().messages().get(userId="me", id=m["id"], format="full").execute()
-        out.append(_gmail_msg_to_email(full_msg))
+        email = _gmail_msg_to_email(full_msg)
+
+        if clean_body:
+            email.body = clean_email_body(email.body)
+
+        out.append(email)
 
     return out
 
 
-def read_last_emails_by_subject(subject_text: str, max_results: int = 5) -> List[Email]:
+def read_last_emails_by_subject(subject_text: str, max_results: int = 5, clean_body: bool = False) -> List[Email]:
     service = _get_service()
 
     query = f"subject:{subject_text}"
 
-    res = service.users().messages().list(userId="me", q=query, maxResults=max_results).execute()
+    res = service.users().messages().list(
+        userId="me",
+        q=query,
+        maxResults=max_results
+    ).execute()
+
     msgs = res.get("messages", [])
     if not msgs:
         return []
@@ -56,12 +71,17 @@ def read_last_emails_by_subject(subject_text: str, max_results: int = 5) -> List
     out: List[Email] = []
     for m in msgs:
         full_msg = service.users().messages().get(userId="me", id=m["id"], format="full").execute()
-        out.append(_gmail_msg_to_email(full_msg))
+        email = _gmail_msg_to_email(full_msg)
+
+        if clean_body:
+            email.body = clean_email_body(email.body)
+
+        out.append(email)
 
     return out
 
 
-def read_thread_from_message_id(message_id: str) -> EmailThread | None:
+def read_thread_from_message_id(message_id: str, clean_body: bool = False) -> EmailThread | None:
     service = _get_service()
 
     meta = service.users().messages().get(userId="me", id=message_id, format="metadata").execute()
@@ -76,6 +96,14 @@ def read_thread_from_message_id(message_id: str) -> EmailThread | None:
 
     emails = [_gmail_msg_to_email(m) for m in messages]
 
-    emails.sort(key=lambda e: int(next((m.get("internalDate") for m in messages if m.get("id") == e.id), "0")))
+    if clean_body:
+        for email in emails:
+            email.body = clean_email_body(email.body)
+
+    emails.sort(
+        key=lambda e: int(
+            next((m.get("internalDate") for m in messages if m.get("id") == e.id), "0")
+        )
+    )
 
     return EmailThread(thread_id, emails)
