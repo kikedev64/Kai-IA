@@ -3,6 +3,7 @@ import os
 from googleapiclient.http import MediaIoBaseUpload
 from googleapiclient.errors import HttpError
 import io
+
 from services.drive.utils import GOOGLE_EXPORT_MAP, _get_service
 
 
@@ -11,7 +12,7 @@ def list_drive_files(max_results: int = 20):
 
     res = service.files().list(
         pageSize=max_results,
-        fields="files(id,name,mimeType,modifiedTime,size,ownedByMe,capabilities(canShare,canDelete,canTrash)),nextPageToken",
+        fields="files(id,name,mimeType,webViewLink,modifiedTime,size,ownedByMe,capabilities(canShare,canDelete,canTrash)),nextPageToken",
         supportsAllDrives=True,
         includeItemsFromAllDrives=True,
     ).execute()
@@ -26,16 +27,32 @@ def list_drive_files(max_results: int = 20):
         f["canTrash"] = bool(caps.get("canTrash"))
         f["ownedByMe"] = bool(f.get("ownedByMe"))
 
-    return {"items": items, "nextPageToken": res.get("nextPageToken")}
+    return {
+        "items": items,
+        "nextPageToken": res.get("nextPageToken")
+    }
+
 
 def get_public_download_link(file_id: str, export_fmt: str | None = None) -> dict:
     service = _get_service()
 
-    service.permissions().create(
+    # comprobar si ya existe permiso público
+    perms = service.permissions().list(
         fileId=file_id,
-        body={"type": "anyone", "role": "reader"},
-        fields="id"
-    ).execute()
+        fields="permissions(id,type,role)"
+    ).execute().get("permissions", [])
+
+    already_public = any(
+        p.get("type") == "anyone" and p.get("role") == "reader"
+        for p in perms
+    )
+
+    if not already_public:
+        service.permissions().create(
+            fileId=file_id,
+            body={"type": "anyone", "role": "reader"},
+            fields="id"
+        ).execute()
 
     meta = service.files().get(
         fileId=file_id,
@@ -44,9 +61,11 @@ def get_public_download_link(file_id: str, export_fmt: str | None = None) -> dic
 
     mime_type = meta["mimeType"]
 
+    # Si es documento de Google (Docs, Sheets, Slides...)
     if mime_type in GOOGLE_EXPORT_MAP:
         default_fmt, url_tpl = GOOGLE_EXPORT_MAP[mime_type]
         fmt = export_fmt or default_fmt
+
         download_url = url_tpl.format(id=file_id, fmt=fmt)
 
         return {
@@ -59,6 +78,7 @@ def get_public_download_link(file_id: str, export_fmt: str | None = None) -> dic
             "exportFormat": fmt,
         }
 
+    # Si es archivo normal
     download_url = f"https://drive.google.com/uc?id={file_id}&export=download"
 
     return {
@@ -86,8 +106,13 @@ def delete_drive_file(file_id: str) -> dict:
 
     except HttpError as e:
         if e.resp.status == 404:
-            return {"deleted": False, "error": "File not found", "id": file_id}
+            return {
+                "deleted": False,
+                "error": "File not found",
+                "id": file_id
+            }
         raise
+
 
 def upload_drive_file(
     filename: str,
@@ -99,14 +124,21 @@ def upload_drive_file(
 
     if not mime_type:
         mime_type, _ = mimetypes.guess_type(filename)
+
     mime_type = mime_type or "application/octet-stream"
 
     metadata = {"name": filename}
+
     if folder_id:
         metadata["parents"] = [folder_id]
 
     fh = io.BytesIO(file_data)
-    media = MediaIoBaseUpload(fh, mimetype=mime_type, resumable=True)
+
+    media = MediaIoBaseUpload(
+        fh,
+        mimetype=mime_type,
+        resumable=True
+    )
 
     uploaded = service.files().create(
         body=metadata,
@@ -115,6 +147,7 @@ def upload_drive_file(
     ).execute()
 
     return uploaded
+
 
 def search_drive_files_by_name(name_query: str, max_results: int = 20):
 
@@ -125,7 +158,7 @@ def search_drive_files_by_name(name_query: str, max_results: int = 20):
     res = service.files().list(
         q=query,
         pageSize=max_results,
-        fields="files(id,name,mimeType,modifiedTime,size,ownedByMe,capabilities(canShare,canDelete,canTrash)),nextPageToken",
+        fields="files(id,name,mimeType,webViewLink,modifiedTime,size,ownedByMe,capabilities(canShare,canDelete,canTrash)),nextPageToken",
         supportsAllDrives=True,
         includeItemsFromAllDrives=True,
     ).execute()

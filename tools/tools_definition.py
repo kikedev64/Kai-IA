@@ -578,4 +578,69 @@ TOOLS = [
             }
         }
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "list_drive_files",
+            "description": "Lista archivos del Google Drive del usuario. Útil para explorar documentos disponibles.",
+            "parameters": {
+            "type": "object",
+            "properties": {
+                "max_results": {
+                "type": "integer",
+                "description": "Número máximo de archivos a devolver.",
+                "minimum": 1,
+                "maximum": 100,
+                "default": 20
+                }
+            },
+            "required": []
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "search_drive_files_by_name",
+            "description": "Busca archivos en Google Drive por nombre.",
+            "parameters": {
+            "type": "object",
+            "properties": {
+                "name_query": {
+                "type": "string",
+                "description": "Texto que debe aparecer en el nombre del archivo."
+                },
+                "max_results": {
+                "type": "integer",
+                "description": "Número máximo de resultados.",
+                "minimum": 1,
+                "maximum": 100,
+                "default": 20
+                }
+            },
+            "required": ["name_query"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_public_download_link",
+            "description": "Genera un enlace público de descarga o visualización para un archivo de Google Drive.",
+            "parameters": {
+            "type": "object",
+            "properties": {
+                "file_id": {
+                "type": "string",
+                "description": "ID del archivo en Google Drive."
+                },
+                "export_fmt": {
+                "type": "string",
+                "description": "Formato de exportación si el archivo es un documento de Google (pdf, xlsx, pptx, etc.)."
+                }
+            },
+            "required": ["file_id"]
+            }
+        }
+    },
 ]

@@ -15,6 +15,7 @@ from services.calendar.calendar_service import (
     delete_calendar_event,
     freebusy_query,
 )
+from services.drive.files import get_public_download_link, list_drive_files, search_drive_files_by_name
 from services.gmail.full_read import read_email_by_id, read_last_emails_by_subject, read_last_emails_from_sender, read_last_emails_full, read_thread_from_message_id
 from services.gmail.send import send_email
 from services.task.tasks_service import create_reminder, delete_reminder, ensure_tasklist, get_reminder, list_reminders, update_reminder
@@ -150,20 +151,23 @@ def handle_tool_call(tool_call):
                 send_updates=args.get("send_updates", "all"),
             )
 
-            meet_link = None
-            for entry in result.get("conferenceData", {}).get("entryPoints", []):
-                if entry.get("entryPointType") == "video":
-                    meet_link = entry.get("uri")
-                    break
+            raw_event = result.get("event") if isinstance(result, dict) and "event" in result else result
+            meet_link = result.get("meet_link") if isinstance(result, dict) else None
+
+            if not meet_link:
+                for entry in raw_event.get("conferenceData", {}).get("entryPoints", []):
+                    if entry.get("entryPointType") == "video":
+                        meet_link = entry.get("uri")
+                        break
 
             return {
                 "status": "success",
                 "data": {
-                    "id": result.get("id"),
-                    "summary": result.get("summary"),
-                    "start": result.get("start"),
-                    "end": result.get("end"),
-                    "htmlLink": result.get("htmlLink"),
+                    "id": raw_event.get("id"),
+                    "summary": raw_event.get("summary"),
+                    "start": raw_event.get("start"),
+                    "end": raw_event.get("end"),
+                    "htmlLink": raw_event.get("htmlLink"),
                     "meet_link": meet_link,
                 },
             }
@@ -582,6 +586,88 @@ def handle_tool_call(tool_call):
                     "task": _compact_task(original_task) if original_task else {"id": task_id},
                 },
             }
+        if name == "list_drive_files":
+            max_results = args.get("max_results", 20)
+
+            try:
+                result = list_drive_files(max_results=max_results)
+
+                return {
+                    "status": "success",
+                    "data": {
+                        "count": len(result.get("items", [])),
+                        "files": result.get("items", []),
+                        "nextPageToken": result.get("nextPageToken"),
+                    },
+                }
+
+            except Exception as e:
+                return {
+                    "status": "error",
+                    "message": str(e)
+                }
+            
+        if name == "search_drive_files_by_name":
+            name_query = args.get("name_query")
+            max_results = args.get("max_results", 20)
+
+            if not name_query:
+                return {
+                    "status": "error",
+                    "message": "Falta 'name_query'"
+                }
+
+            try:
+                result = search_drive_files_by_name(
+                    name_query=name_query,
+                    max_results=max_results
+                )
+
+                return {
+                    "status": "success",
+                    "data": {
+                        "query": name_query,
+                        "count": len(result.get("items", [])),
+                        "files": result.get("items", []),
+                        "nextPageToken": result.get("nextPageToken"),
+                    },
+                }
+
+            except Exception as e:
+                return {
+                    "status": "error",
+                    "message": str(e)
+                }
+            
+        if name == "get_public_download_link":
+            file_id = args.get("file_id")
+            export_fmt = args.get("export_fmt")
+
+            if not file_id:
+                return {
+                    "status": "error",
+                    "message": "Falta 'file_id'"
+                }
+
+            try:
+                result = get_public_download_link(
+                    file_id=file_id,
+                    export_fmt=export_fmt
+                )
+
+                return {
+                    "status": "success",
+                    "data": {
+                        "file": result
+                    },
+                }
+
+            except Exception as e:
+                return {
+                    "status": "error",
+                    "message": str(e)
+                }
+                
         return {"status": "warning", "message": f"Tool no encontrada: {name}"}
     except Exception as e:
         return {"status": "error", "message": str(e)}
