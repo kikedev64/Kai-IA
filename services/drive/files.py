@@ -36,10 +36,10 @@ def list_drive_files(max_results: int = 20):
 def get_public_download_link(file_id: str, export_fmt: str | None = None) -> dict:
     service = _get_service()
 
-    # comprobar si ya existe permiso público
     perms = service.permissions().list(
         fileId=file_id,
-        fields="permissions(id,type,role)"
+        fields="permissions(id,type,role)",
+        supportsAllDrives=True,
     ).execute().get("permissions", [])
 
     already_public = any(
@@ -50,18 +50,22 @@ def get_public_download_link(file_id: str, export_fmt: str | None = None) -> dic
     if not already_public:
         service.permissions().create(
             fileId=file_id,
-            body={"type": "anyone", "role": "reader"},
-            fields="id"
+            body={
+                "type": "anyone",
+                "role": "reader",
+            },
+            fields="id",
+            supportsAllDrives=True,
         ).execute()
 
     meta = service.files().get(
         fileId=file_id,
-        fields="id,name,mimeType,webViewLink"
+        fields="id,name,mimeType,webViewLink",
+        supportsAllDrives=True,
     ).execute()
 
     mime_type = meta["mimeType"]
 
-    # Si es documento de Google (Docs, Sheets, Slides...)
     if mime_type in GOOGLE_EXPORT_MAP:
         default_fmt, url_tpl = GOOGLE_EXPORT_MAP[mime_type]
         fmt = export_fmt or default_fmt
@@ -78,8 +82,8 @@ def get_public_download_link(file_id: str, export_fmt: str | None = None) -> dic
             "exportFormat": fmt,
         }
 
-    # Si es archivo normal
     download_url = f"https://drive.google.com/uc?id={file_id}&export=download"
+    public_view = f"https://drive.google.com/file/d/{file_id}/view?usp=sharing"
 
     return {
         "id": meta["id"],
@@ -87,7 +91,7 @@ def get_public_download_link(file_id: str, export_fmt: str | None = None) -> dic
         "mimeType": mime_type,
         "public": True,
         "downloadUrl": download_url,
-        "webViewLink": meta.get("webViewLink"),
+        "webViewLink": public_view,
     }
 
 
