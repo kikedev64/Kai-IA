@@ -333,7 +333,7 @@ def handle_tool_call(tool_call):
                     "email": {
                         "to": to_field,
                         "subject": subject,
-                        "body": body,
+                        "body": markdown_to_html(body),
                         "cc": cc_field,
                         "bcc": bcc_field,
                     },

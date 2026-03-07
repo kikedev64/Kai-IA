@@ -6,7 +6,7 @@ from typing import Any, Optional, Literal
 from services.calendar.client import _calendar_service
 
 
-def list_calendar_events( calendar_id: str = "primary", max_results: int = 20, time_min: Optional[str] = None, time_max: Optional[str] = None, q: Optional[str] = None, single_events: bool = True, order_by: Literal["startTime", "updated"] = "startTime",
+def list_calendar_events( calendar_id: str = "primary", max_results: int = 10, time_min: Optional[str] = None, time_max: Optional[str] = None, q: Optional[str] = None, single_events: bool = True, order_by: Literal["startTime", "updated"] = "startTime",
 ) -> list[dict[str, Any]]:
 
     service = _calendar_service()
