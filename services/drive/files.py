@@ -162,7 +162,7 @@ def search_drive_files_by_name(name_query: str, max_results: int = 20):
     res = service.files().list(
         q=query,
         pageSize=max_results,
-        fields="files(id,name,mimeType,webViewLink,modifiedTime,size,ownedByMe,capabilities(canShare,canDelete,canTrash)),nextPageToken",
+        fields="files(id,name,mimeType,modifiedTime,size,ownedByMe,capabilities(canShare,canDelete,canTrash)),nextPageToken",
         supportsAllDrives=True,
         includeItemsFromAllDrives=True,
     ).execute()
@@ -170,12 +170,42 @@ def search_drive_files_by_name(name_query: str, max_results: int = 20):
     items = res.get("files", [])
 
     for f in items:
+        file_id = f["id"]
+
         caps = f.get("capabilities", {}) or {}
 
         f["canMakePublicLink"] = bool(caps.get("canShare"))
         f["canDelete"] = bool(caps.get("canDelete"))
         f["canTrash"] = bool(caps.get("canTrash"))
         f["ownedByMe"] = bool(f.get("ownedByMe"))
+
+        # comprobar permisos actuales
+        perms = service.permissions().list(
+            fileId=file_id,
+            fields="permissions(id,type,role)",
+            supportsAllDrives=True,
+        ).execute().get("permissions", [])
+
+        already_public = any(
+            p.get("type") == "anyone" and p.get("role") == "reader"
+            for p in perms
+        )
+
+        # hacerlo público si no lo es
+        if not already_public:
+            service.permissions().create(
+                fileId=file_id,
+                body={
+                    "type": "anyone",
+                    "role": "reader"
+                },
+                fields="id",
+                supportsAllDrives=True,
+            ).execute()
+
+        # generar link público
+        f["publicLink"] = f"https://drive.google.com/file/d/{file_id}/view?usp=sharing"
+        f["downloadUrl"] = f"https://drive.google.com/uc?id={file_id}&export=download"
 
     return {
         "items": items,
