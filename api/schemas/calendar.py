@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Optional, Any, Literal
+from typing import List, Optional, Any, Literal
 from pydantic import BaseModel, Field, EmailStr
 class CalendarEventTime(BaseModel):
     dateTime: Optional[str] = None
@@ -82,3 +82,18 @@ class CalendarFreeBusyResponse(BaseModel):
     time_max: Optional[str] = None
     time_zone: Optional[str] = None
     calendars: dict[str, CalendarFreeBusyCalendarOut] = Field(default_factory=dict)
+    
+class CalendarMeetCreateRequest(BaseModel):
+    summary: str
+    start_rfc3339: str
+    end_rfc3339: str
+    calendar_id: str = "primary"
+    description: Optional[str] = None
+    location: Optional[str] = None
+    attendees: list[EmailStr] = Field(default_factory=list)
+    timezone: Optional[str] = None
+    reminders: Optional[dict[str, Any]] = None
+    send_updates: str = "all"
+
+class CalendarMeetEventOut(CalendarEventOut):
+    meet_link: Optional[str] = None

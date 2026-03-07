@@ -5,6 +5,7 @@ from core.models.email import Email
 from llm.lmstudio_client import ask_wiouth_context
 from services.calendar.calendar_service import (
     create_calendar_event,
+    create_meet_invitation,
     delete_calendar_events_by_conditions,
     find_calendar_events,
     list_calendar_events,
@@ -129,6 +130,38 @@ def handle_tool_call(tool_call):
             return {
                 "status": "success",
                 "data": compact_delete_calendar_events_by_conditions_result(result),
+            }
+        
+        if name == "create_meet_invitation":
+            result = create_meet_invitation(
+                summary=args.get("summary"),
+                start_rfc3339=args.get("start_rfc3339"),
+                end_rfc3339=args.get("end_rfc3339"),
+                calendar_id=args.get("calendar_id", "primary"),
+                description=args.get("description"),
+                location=args.get("location"),
+                attendees=args.get("attendees"),
+                timezone=args.get("timezone"),
+                reminders=args.get("reminders"),
+                send_updates=args.get("send_updates", "all"),
+            )
+
+            meet_link = None
+            for entry in result.get("conferenceData", {}).get("entryPoints", []):
+                if entry.get("entryPointType") == "video":
+                    meet_link = entry.get("uri")
+                    break
+
+            return {
+                "status": "success",
+                "data": {
+                    "id": result.get("id"),
+                    "summary": result.get("summary"),
+                    "start": result.get("start"),
+                    "end": result.get("end"),
+                    "htmlLink": result.get("htmlLink"),
+                    "meet_link": meet_link,
+                },
             }
         
         if name == "read_last_emails_full":

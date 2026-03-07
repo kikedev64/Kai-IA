@@ -9,10 +9,13 @@ from api.schemas.calendar import (
     CalendarListResponse,
     CalendarEventOut,
     CalendarCreateRequest,
+    CalendarMeetCreateRequest,
+    CalendarMeetEventOut,
     CalendarUpdateRequest,
     CalendarDeleteResponse,
 )
 from services.calendar.calendar_service import (
+    create_meet_invitation,
     freebusy_query,
     list_calendar_events,
     create_calendar_event,
@@ -33,12 +36,18 @@ def _event_to_api(e: dict) -> dict:
         "location": e.get("location"),
         "start": e.get("start"),
         "end": e.get("end"),
-        "attendees": [{"email": a.get("email")} for a in attendees if a.get("email")],
+        "attendees": [
+            {
+                "email": a.get("email"),
+                "responseStatus": a.get("responseStatus", "needsAction"),
+            }
+            for a in attendees
+            if a.get("email")
+        ],
         "status": e.get("status"),
         "htmlLink": e.get("htmlLink"),
         "updated": e.get("updated"),
     }
-
 
 @router.get("/events", response_model=CalendarListResponse)
 def api_list_events(
@@ -151,6 +160,31 @@ def api_freebusy(req: CalendarFreeBusyRequest):
             "time_zone": raw.get("timeZone"),
             "calendars": calendars_out,
         }
+
+    except HttpError as e:
+        raise HTTPException(status_code=e.resp.status, detail=str(e))
+
+@router.post("/events/meet", response_model=CalendarMeetEventOut)
+def api_create_meet_event(req: CalendarMeetCreateRequest):
+    try:
+        created = create_meet_invitation(
+            summary=req.summary,
+            start_rfc3339=req.start_rfc3339,
+            end_rfc3339=req.end_rfc3339,
+            calendar_id=req.calendar_id,
+            description=req.description,
+            location=req.location,
+            attendees=[str(x) for x in req.attendees] if req.attendees else None,
+            timezone=req.timezone,
+            reminders=req.reminders,
+            send_updates=req.send_updates,
+        )
+
+        raw_event = created["event"]
+        event_out = _event_to_api(raw_event)
+        event_out["meet_link"] = created.get("meet_link")
+
+        return event_out
 
     except HttpError as e:
         raise HTTPException(status_code=e.resp.status, detail=str(e))

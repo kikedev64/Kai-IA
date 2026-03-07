@@ -164,6 +164,64 @@ TOOLS = [
             }
         }
     },
+    
+    {
+        "type": "function",
+        "function": {
+            "name": "create_meet_invitation",
+            "description": "Crea un evento de Google Calendar con enlace de Google Meet e invita por correo a los asistentes indicados.",
+            "parameters": {
+            "type": "object",
+            "properties": {
+                "summary": {
+                "type": "string",
+                "description": "Título o nombre de la reunión."
+                },
+                "start_rfc3339": {
+                "type": "string",
+                "description": "Fecha y hora de inicio en formato RFC3339, por ejemplo 2026-03-10T18:00:00+01:00."
+                },
+                "end_rfc3339": {
+                "type": "string",
+                "description": "Fecha y hora de fin en formato RFC3339, por ejemplo 2026-03-10T19:00:00+01:00."
+                },
+                "calendar_id": {
+                "type": "string",
+                "description": "ID del calendario donde crear el evento. Por defecto suele ser 'primary'."
+                },
+                "description": {
+                "type": "string",
+                "description": "Descripción opcional de la reunión."
+                },
+                "location": {
+                "type": "string",
+                "description": "Ubicación opcional del evento. Puede ser algo como 'Online'."
+                },
+                "attendees": {
+                "type": "array",
+                "description": "Lista de correos electrónicos de los asistentes a invitar.",
+                "items": {
+                    "type": "string"
+                }
+                },
+                "timezone": {
+                "type": "string",
+                "description": "Zona horaria del evento, por ejemplo 'Europe/Madrid'."
+                },
+                "send_updates": {
+                "type": "string",
+                "description": "Controla el envío de invitaciones por correo a los asistentes.",
+                "enum": ["all", "externalOnly", "none"]
+                },
+                "reminders": {
+                "type": "object",
+                "description": "Configuración opcional de recordatorios del evento."
+                }
+            },
+            "required": ["summary", "start_rfc3339", "end_rfc3339"]
+            }
+        }
+        },
     {
         "type": "function",
         "function": {

@@ -1,4 +1,5 @@
 from __future__ import annotations
+import uuid
 from googleapiclient.errors import HttpError
 from datetime import datetime,timezone
 from typing import Any, Optional, Literal
@@ -278,4 +279,61 @@ def find_calendar_events(
         "time_max": time_max,
         "count": len(out),
         "events": out,
+    }
+
+def create_meet_invitation(
+    summary: str,
+    start_rfc3339: str,
+    end_rfc3339: str,
+    calendar_id: str = "primary",
+    description: Optional[str] = None,
+    location: Optional[str] = None,
+    attendees: Optional[list[str]] = None,
+    timezone: Optional[str] = None,
+    reminders: Optional[dict[str, Any]] = None,
+    send_updates: Literal["all", "externalOnly", "none"] = "all",
+) -> dict[str, Any]:
+
+    service = _calendar_service()
+
+    event: dict[str, Any] = {
+        "summary": summary,
+        "start": {"dateTime": start_rfc3339},
+        "end": {"dateTime": end_rfc3339},
+        "conferenceData": {
+            "createRequest": {
+                "requestId": str(uuid.uuid4()),
+                "conferenceSolutionKey": {"type": "hangoutsMeet"},
+            }
+        },
+    }
+
+    if timezone:
+        event["start"]["timeZone"] = timezone
+        event["end"]["timeZone"] = timezone
+    if description:
+        event["description"] = description
+    if location:
+        event["location"] = location
+    if attendees:
+        event["attendees"] = [{"email": e} for e in attendees]
+    if reminders:
+        event["reminders"] = reminders
+
+    created = service.events().insert(
+        calendarId=calendar_id,
+        body=event,
+        conferenceDataVersion=1,
+        sendUpdates=send_updates,
+    ).execute()
+
+    meet_link = None
+    for entry in created.get("conferenceData", {}).get("entryPoints", []):
+        if entry.get("entryPointType") == "video":
+            meet_link = entry.get("uri")
+            break
+
+    return {
+        "event": created,
+        "meet_link": meet_link,
     }
