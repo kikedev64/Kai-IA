@@ -1,4 +1,5 @@
 import json
+from api.routers.tasks import find_reminders_by_conditions
 from api.schemas.chat import AskRequest
 from core.config import DEFAULT_PROMPTS
 from core.models.email import Email
@@ -16,7 +17,10 @@ from services.calendar.calendar_service import (
 )
 from services.gmail.full_read import read_email_by_id, read_last_emails_by_subject, read_last_emails_from_sender, read_last_emails_full, read_thread_from_message_id
 from services.gmail.send import send_email
+from services.task.tasks_service import create_reminder, delete_reminder, ensure_tasklist, get_reminder, list_reminders, update_reminder
 from tools.compact_handlers import _email_to_dict, _thread_to_dict, compact_calendar_event, compact_calendar_events, compact_delete_calendar_event_result, compact_delete_calendar_events_by_conditions_result, compact_find_calendar_events_result, compact_freebusy_result
+from tools.gmail.email_response_builders import markdown_to_html
+from tools.tasks.tasks_tools import _compact_task, _resolve_tasklist
 
 def handle_tool_call(tool_call):
 
@@ -307,7 +311,7 @@ def handle_tool_call(tool_call):
                 subject=subject,
                 date="",
                 snippet="",
-                body=body,
+                body=markdown_to_html(body),
                 cc=cc_field,
                 bcc=bcc_field,
                 message_id=None,
@@ -404,6 +408,178 @@ def handle_tool_call(tool_call):
                         "reply_all": reply_all,
                     },
                     "gmail_result": result,
+                },
+            }
+        
+        if name == "find_reminders_by_conditions":
+            tasklist_title = args.get("tasklist_title", "Kai IA")
+
+            tasklist = ensure_tasklist(tasklist_title=tasklist_title)
+
+            result = find_reminders_by_conditions(
+                tasklist_id=tasklist["id"],
+                query=args.get("query"),
+                title=args.get("title"),
+                notes=args.get("notes"),
+                status=args.get("status"),
+                due_from=args.get("due_from"),
+                due_to=args.get("due_to"),
+                max_results=args.get("max_results", 100),
+                show_completed=bool(args.get("show_completed", True)),
+                show_deleted=bool(args.get("show_deleted", False)),
+                show_hidden=bool(args.get("show_hidden", True)),
+            )
+
+            return {
+                "status": "success",
+                "data": {
+                    "tasklist": {
+                        "id": tasklist.get("id"),
+                        "title": tasklist.get("title"),
+                    },
+                    "count": result.get("count", 0),
+                    "tasks": result.get("tasks", []),
+                    "filters_used": result.get("filters_used", {}),
+                },
+            }
+        if name == "list_reminders":
+            tasklist_title = args.get("tasklist_title", "Kai IA")
+            max_results = args.get("max_results", 20)
+            show_completed = bool(args.get("show_completed", False))
+            show_deleted = bool(args.get("show_deleted", False))
+            show_hidden = bool(args.get("show_hidden", False))
+
+            tasklist = _resolve_tasklist(tasklist_title)
+            items = list_reminders(
+                tasklist_id=tasklist["id"],
+                max_results=max_results,
+                show_completed=show_completed,
+                show_deleted=show_deleted,
+                show_hidden=show_hidden,
+            )
+
+            return {
+                "status": "success",
+                "data": {
+                    "tasklist": {
+                        "id": tasklist.get("id"),
+                        "title": tasklist.get("title"),
+                    },
+                    "count": len(items),
+                    "items": [_compact_task(x) for x in items],
+                },
+            }
+
+        if name == "create_reminder":
+            title = args.get("title") or args.get("summary")
+            due_rfc3339 = args.get("due_rfc3339")
+            notes = args.get("notes")
+            status = args.get("status", "needsAction")
+            tasklist_title = args.get("tasklist_title", "Kai IA")
+
+            if not title or not str(title).strip():
+                return {
+                    "status": "error",
+                    "message": "Falta el título del recordatorio 'title'"
+                }
+
+            tasklist = _resolve_tasklist(tasklist_title)
+
+            created = create_reminder(
+                tasklist_id=tasklist["id"],
+                title=title,
+                due_rfc3339=due_rfc3339,
+                notes=notes,
+                status=status,
+            )
+
+            return {
+                "status": "success",
+                "data": {
+                    "tasklist": {
+                        "id": tasklist.get("id"),
+                        "title": tasklist.get("title"),
+                    },
+                    "task": _compact_task(created),
+                },
+            }
+
+        if name == "update_reminder":
+            task_id = args.get("task_id")
+            title = args.get("title")
+            due_rfc3339 = args.get("due_rfc3339")
+            notes = args.get("notes")
+            status = args.get("status")
+            tasklist_title = args.get("tasklist_title", "Kai IA")
+
+            if not task_id:
+                return {
+                    "status": "error",
+                    "message": "Falta 'task_id'"
+                }
+
+            if (
+                title is None
+                and due_rfc3339 is None
+                and notes is None
+                and status is None
+            ):
+                return {
+                    "status": "error",
+                    "message": "No se ha indicado ningún campo para actualizar"
+                }
+
+            tasklist = _resolve_tasklist(tasklist_title)
+
+            updated = update_reminder(
+                tasklist_id=tasklist["id"],
+                task_id=task_id,
+                title=title,
+                due_rfc3339=due_rfc3339,
+                notes=notes,
+                status=status,
+            )
+
+            return {
+                "status": "success",
+                "data": {
+                    "tasklist": {
+                        "id": tasklist.get("id"),
+                        "title": tasklist.get("title"),
+                    },
+                    "task": _compact_task(updated),
+                },
+            }
+
+        if name == "delete_reminder":
+            task_id = args.get("task_id")
+            tasklist_title = args.get("tasklist_title", "Kai IA")
+
+            if not task_id:
+                return {
+                    "status": "error",
+                    "message": "Falta 'task_id'"
+                }
+
+            tasklist = _resolve_tasklist(tasklist_title)
+
+            original_task = None
+            try:
+                original_task = get_reminder(tasklist_id=tasklist["id"], task_id=task_id)
+            except Exception:
+                original_task = None
+
+            delete_reminder(tasklist_id=tasklist["id"], task_id=task_id)
+
+            return {
+                "status": "success",
+                "data": {
+                    "deleted": True,
+                    "tasklist": {
+                        "id": tasklist.get("id"),
+                        "title": tasklist.get("title"),
+                    },
+                    "task": _compact_task(original_task) if original_task else {"id": task_id},
                 },
             }
         return {"status": "warning", "message": f"Tool no encontrada: {name}"}

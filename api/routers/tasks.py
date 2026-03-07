@@ -1,4 +1,5 @@
 from __future__ import annotations
+from typing import Any, Literal, Optional
 
 from fastapi import APIRouter, HTTPException, Query
 from googleapiclient.errors import HttpError
@@ -14,6 +15,7 @@ from api.schemas.tasks import (
 )
 from services.task.tasks_service import (
     ensure_tasklist,
+    get_reminder,
     list_reminders,
     create_reminder,
     update_reminder,
@@ -40,6 +42,79 @@ def _task_to_api(t: dict) -> dict:
         "due": t.get("due"),
         "notes": t.get("notes"),
         "updated": t.get("updated"),
+    }
+
+def _norm(s: Optional[str]) -> str:
+    return (s or "").strip().lower()
+
+
+def find_reminders_by_conditions(
+    tasklist_id: str,
+    query: Optional[str] = None,
+    title: Optional[str] = None,
+    notes: Optional[str] = None,
+    status: Optional[Literal["needsAction", "completed"]] = None,
+    due_from: Optional[str] = None,
+    due_to: Optional[str] = None,
+    max_results: int = 100,
+    show_completed: bool = True,
+    show_deleted: bool = False,
+    show_hidden: bool = True,
+) -> dict[str, Any]:
+
+    tasks = list_reminders(
+        tasklist_id=tasklist_id,
+        max_results=max_results,
+        show_completed=show_completed,
+        show_deleted=show_deleted,
+        show_hidden=show_hidden,
+    )
+
+    q = _norm(query)
+    t = _norm(title)
+    n = _norm(notes)
+
+    out = []
+    for task in tasks or []:
+        task_title = _norm(task.get("title"))
+        task_notes = _norm(task.get("notes"))
+        task_status = task.get("status")
+        task_due = task.get("due")
+
+        if q and not (q in task_title or q in task_notes):
+            continue
+        if t and t not in task_title:
+            continue
+        if n and n not in task_notes:
+            continue
+        if status and task_status != status:
+            continue
+        if due_from and (not task_due or task_due < due_from):
+            continue
+        if due_to and (not task_due or task_due > due_to):
+            continue
+
+        out.append({
+            "id": task.get("id"),
+            "title": task.get("title"),
+            "status": task.get("status"),
+            "due": task.get("due"),
+            "notes": task.get("notes"),
+            "updated": task.get("updated"),
+        })
+
+    return {
+        "tasklist_id": tasklist_id,
+        "count": len(out),
+        "tasks": out,
+        "filters_used": {
+            "query": query,
+            "title": title,
+            "notes": notes,
+            "status": status,
+            "due_from": due_from,
+            "due_to": due_to,
+        },
     }
 
 
@@ -120,5 +195,14 @@ def api_delete_task(tasklist_id: str, task_id: str):
     try:
         delete_reminder(tasklist_id=tasklist_id, task_id=task_id)
         return {"deleted": True, "task_id": task_id}
+    except HttpError as e:
+        raise HTTPException(status_code=e.resp.status, detail=str(e))
+
+
+@router.get("/tasklists/{tasklist_id}/tasks/{task_id}", response_model=TaskOut)
+def api_get_task(tasklist_id: str, task_id: str):
+    try:
+        t = get_reminder(tasklist_id=tasklist_id, task_id=task_id)
+        return _task_to_api(t)
     except HttpError as e:
         raise HTTPException(status_code=e.resp.status, detail=str(e))

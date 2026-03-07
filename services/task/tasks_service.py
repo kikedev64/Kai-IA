@@ -15,6 +15,9 @@ def ensure_tasklist(tasklist_title: str = "Kai IA") -> dict[str, Any]:
     created = service.tasklists().insert(body={"title": tasklist_title}).execute()
     return created
 
+def get_reminder(tasklist_id: str, task_id: str) -> dict[str, Any]:
+    service = _tasks_service()
+    return service.tasks().get(tasklist=tasklist_id, task=task_id).execute()
 
 def list_reminders(
     tasklist_id: str,

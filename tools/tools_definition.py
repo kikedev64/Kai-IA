@@ -393,5 +393,189 @@ TOOLS = [
                 "required": ["to", "subject", "body"]
             }
         }
-    }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "find_reminders_by_conditions",
+            "description": "Busca recordatorios o tareas en Google Tasks por título, texto, notas, estado o rango de vencimiento. Sirve para localizar tareas antes de actualizarlas o eliminarlas.",
+            "parameters": {
+            "type": "object",
+            "properties": {
+                "tasklist_title": {
+                "type": "string",
+                "description": "Nombre de la lista de tareas. Si no se indica, se usa 'Kai IA'."
+                },
+                "query": {
+                "type": "string",
+                "description": "Texto general a buscar en título o notas."
+                },
+                "title": {
+                "type": "string",
+                "description": "Texto a buscar específicamente en el título."
+                },
+                "notes": {
+                "type": "string",
+                "description": "Texto a buscar específicamente en las notas."
+                },
+                "status": {
+                "type": "string",
+                "enum": ["needsAction", "completed"],
+                "description": "Estado de la tarea."
+                },
+                "due_from": {
+                "type": "string",
+                "description": "Fecha mínima de vencimiento en formato RFC3339."
+                },
+                "due_to": {
+                "type": "string",
+                "description": "Fecha máxima de vencimiento en formato RFC3339."
+                },
+                "max_results": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 250
+                },
+                "show_completed": {
+                "type": "boolean"
+                },
+                "show_deleted": {
+                "type": "boolean"
+                },
+                "show_hidden": {
+                "type": "boolean"
+                }
+            },
+            "required": []
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "list_reminders",
+            "description": "Lista los recordatorios o tareas de una lista de Google Tasks. Si no se indica lista, usa la lista por defecto de Kai IA.",
+            "parameters": {
+            "type": "object",
+            "properties": {
+                "tasklist_title": {
+                "type": "string",
+                "description": "Nombre de la lista de tareas. Si no se indica, se usa 'Kai IA'."
+                },
+                "max_results": {
+                "type": "integer",
+                "description": "Número máximo de recordatorios a devolver.",
+                "minimum": 1,
+                "maximum": 100
+                },
+                "show_completed": {
+                "type": "boolean",
+                "description": "Si es true, incluye tareas completadas."
+                },
+                "show_deleted": {
+                "type": "boolean",
+                "description": "Si es true, incluye tareas eliminadas."
+                },
+                "show_hidden": {
+                "type": "boolean",
+                "description": "Si es true, incluye tareas ocultas."
+                }
+            },
+            "required": []
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "create_reminder",
+            "description": "Crea un recordatorio o tarea en Google Tasks dentro de una lista. Si no se indica lista, usa la lista por defecto de Kai IA.",
+            "parameters": {
+            "type": "object",
+            "properties": {
+                "tasklist_title": {
+                "type": "string",
+                "description": "Nombre de la lista de tareas. Si no se indica, se usa 'Kai IA'."
+                },
+                "title": {
+                "type": "string",
+                "description": "Título del recordatorio."
+                },
+                "due_rfc3339": {
+                "type": "string",
+                "description": "Fecha y hora límite en formato RFC3339, por ejemplo 2026-03-10T18:00:00Z."
+                },
+                "notes": {
+                "type": "string",
+                "description": "Notas opcionales del recordatorio."
+                },
+                "status": {
+                "type": "string",
+                "description": "Estado de la tarea.",
+                "enum": ["needsAction", "completed"]
+                }
+            },
+            "required": ["title"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "update_reminder",
+            "description": "Actualiza un recordatorio existente en Google Tasks.",
+            "parameters": {
+            "type": "object",
+            "properties": {
+                "tasklist_title": {
+                "type": "string",
+                "description": "Nombre de la lista de tareas. Si no se indica, se usa 'Kai IA'."
+                },
+                "task_id": {
+                "type": "string",
+                "description": "ID de la tarea a actualizar."
+                },
+                "title": {
+                "type": "string",
+                "description": "Nuevo título del recordatorio."
+                },
+                "due_rfc3339": {
+                "type": "string",
+                "description": "Nueva fecha y hora límite en formato RFC3339."
+                },
+                "notes": {
+                "type": "string",
+                "description": "Nuevas notas del recordatorio."
+                },
+                "status": {
+                "type": "string",
+                "description": "Nuevo estado de la tarea.",
+                "enum": ["needsAction", "completed"]
+                }
+            },
+            "required": ["task_id"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "delete_reminder",
+            "description": "Elimina un recordatorio o tarea de Google Tasks.",
+            "parameters": {
+            "type": "object",
+            "properties": {
+                "tasklist_title": {
+                "type": "string",
+                "description": "Nombre de la lista de tareas. Si no se indica, se usa 'Kai IA'."
+                },
+                "task_id": {
+                "type": "string",
+                "description": "ID de la tarea a eliminar."
+                }
+            },
+            "required": ["task_id"]
+            }
+        }
+    },
 ]

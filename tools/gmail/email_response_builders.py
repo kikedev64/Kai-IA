@@ -1,3 +1,5 @@
+from markdown import markdown
+
 def build_emails_context_block(data: dict) -> str:
     emails = data.get("emails", [])
     count = data.get("count", 0)
@@ -33,3 +35,19 @@ def build_emails_context_block(data: dict) -> str:
 
     lines.append("[/CORREOS]")
     return "\n".join(lines)
+
+
+def markdown_to_html(md_text: str) -> str:
+    if not md_text:
+        return ""
+
+    html = markdown(
+        md_text,
+        extensions=[
+            "extra",        # tablas, listas avanzadas
+            "sane_lists",
+            "nl2br",        # saltos de línea -> <br>
+        ],
+    )
+
+    return html
