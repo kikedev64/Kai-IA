@@ -192,6 +192,14 @@ def init_db() -> None:
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
     """)
+    
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS user_profile (
+        key TEXT PRIMARY KEY,
+        value TEXT,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
 
     _seed_initial_config(cur)
 

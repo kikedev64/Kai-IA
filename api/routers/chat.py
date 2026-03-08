@@ -4,6 +4,8 @@ import uuid
 from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter, HTTPException, Query
 
+from services.user_profile_service import get_user_profile_as_dict
+
 try:
     from zoneinfo import ZoneInfo
 except Exception:
@@ -58,6 +60,28 @@ def extract_legacy_tool_call(text: str) -> dict | None:
         return None
     return tc
 
+def user_profile_system_message() -> dict | None:
+    profile = get_user_profile_as_dict()
+
+    if not profile:
+        return None
+
+    lines = []
+    for key, value in profile.items():
+        lines.append(f"- {key}: {value}")
+
+    block = "\n".join(lines)
+
+    return {
+        "role": "system",
+        "content": (
+            "CONTEXTO PERSONAL DEL USUARIO (OBLIGATORIO):\n"
+            "La siguiente información describe al usuario y sus preferencias. "
+            "Úsala para personalizar respuestas, tono, prioridades y contexto, "
+            "pero no la menciones explícitamente salvo que sea relevante.\n"
+            f"{block}\n"
+        ),
+    }
 
 def now_context_system_message() -> dict:
     if ZoneInfo is not None:
@@ -173,7 +197,13 @@ def chat_endpoint(
         messages = [
             {"role": "system", "content": system_prompt},
             now_context_system_message(),
-        ] + sanitized
+        ]
+
+        user_profile_msg = user_profile_system_message()
+        if user_profile_msg:
+            messages.append(user_profile_msg)
+
+        messages += sanitized
 
         if DEBUG_TOOLS:
             print(f"\n=== [{request_id}] CHAT START {start_ts} ===")
