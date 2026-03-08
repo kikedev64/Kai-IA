@@ -1,7 +1,7 @@
 import os
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
-from google_auth_oauthlib.flow import InstalledAppFlow,Flow
+from google_auth_oauthlib.flow import Flow
 from core.config import GOOGLE_SCOPES as SCOPES, GOOGLE_REDIRECT_URI as REDIRECT_URI, GOOGLE_CREDENTIALS_FILE, GOOGLE_TOKEN_FILE
 
 def get_creds():
@@ -54,3 +54,18 @@ def exchange_code_for_token(code:str) -> Credentials:
         f.write(creds.to_json())
 
     return creds
+
+def get_google_auth_url() -> str:
+    flow = Flow.from_client_secrets_file(
+        str(GOOGLE_CREDENTIALS_FILE),
+        scopes=SCOPES,
+    )
+    flow.redirect_uri = REDIRECT_URI
+
+    auth_url, _state = flow.authorization_url(
+        access_type="offline",
+        include_granted_scopes="true",
+        prompt="consent",
+    )
+
+    return auth_url
