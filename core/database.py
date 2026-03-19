@@ -91,6 +91,33 @@ def _build_initial_config() -> dict[str, str]:
         "detallado y exhaustivo de el, indicando tambien quien lo envia. "
         "NO OLVIDES NINGUN DETALLE DE ESPACIO, LUGAR O TIEMPO."
     )
+    default_prompts_basic_user_information_json = (
+        "Vas a recibir un texto con información personal del usuario.\n\n"
+        
+        "Tu tarea es extraer la información relevante y devolverla en formato JSON válido, "
+        "estructurado para poder guardarse en una base de datos.\n\n"
+        
+        "Reglas:\n"
+        "- Devuelve SOLO JSON válido (sin explicaciones, sin texto adicional).\n"
+        "- Usa claves en inglés y valores en español cuando corresponda.\n"
+        "- No inventes información.\n"
+        "- Si un dato no aparece, no lo incluyas.\n"
+        "- Usa nombres de claves claros y consistentes.\n\n"
+        
+        "Posibles campos (usa solo los que existan):\n"
+        "- name\n"
+        "- age\n"
+        "- job\n"
+        "- study\n"
+        "- location\n"
+        "- interests\n"
+        "- goals\n\n"
+        
+        "Ejemplo:\n"
+        "Input: Me llamo Marcos, tengo 24 años y estudio diseño gráfico.\n"
+        "Output:\n"
+        "{\"name\": \"Marcos\", \"age\": 24, \"study\": \"Diseño gráfico\"}\n"
+    )
 
     return {
         "google_scopes": json.dumps(google_scopes, ensure_ascii=False),
@@ -102,6 +129,7 @@ def _build_initial_config() -> dict[str, str]:
         "model_name": model_name,
         "temperature": str(temperature),
         "default_prompts.resume_mail": default_prompt_resume_mail,
+        "default_prompts.basic_user_information_json": default_prompts_basic_user_information_json
     }
 
 

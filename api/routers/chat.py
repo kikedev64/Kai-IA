@@ -13,11 +13,12 @@ except Exception:
 
 from api.schemas.chat import AskRequest
 from core.config import MODEL_NAME, SYSTEM_PROMPT_DEFAULT
-from llm.lmstudio_client import ask_wiouth_context, call_lm_studio
+from llm.lmstudio_client import ask_without_context, call_lm_studio
 from tools.tools_handler import handle_tool_call
 from tools.gmail.email_response_builders import build_emails_context_block
 from services.chat_store import ensure_session, add_message, get_messages, get_system_prompt
 from llm.lmstudio_client import client
+from core.config import DEFAULT_PROMPTS
 
 router = APIRouter(prefix="/assistant", tags=["Assistant"])
 
@@ -354,7 +355,7 @@ except Exception:
 
 from api.schemas.chat import AskRequest
 from core.config import MODEL_NAME, SYSTEM_PROMPT_DEFAULT
-from llm.lmstudio_client import ask_wiouth_context, call_lm_studio
+from llm.lmstudio_client import ask_without_context, call_lm_studio
 from tools.tools_handler import handle_tool_call
 from tools.gmail.email_response_builders import build_emails_context_block
 from services.chat_store import ensure_session, add_message, get_messages, get_system_prompt
@@ -659,8 +660,11 @@ def chat_endpoint(
 @router.post("/ask")
 def ask_llm(req: AskRequest):
     try:
-        response = ask_wiouth_context(req)
-        return {"reply": response}
+        response = ask_without_context(req)
+        return response
+
+    except HTTPException:
+        raise
     except Exception as e:
         if "No models loaded" in str(e):
             raise HTTPException(

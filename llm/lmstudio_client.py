@@ -19,14 +19,31 @@ def call_lm_studio(messages: list):
     )
     return response.choices[0].message
 
-def ask_wiouth_context(req:AskRequest):
+from fastapi import HTTPException
+from core.config import PROMPT_MAP
+
+def ask_without_context(req: AskRequest):
     try:
         messages = []
 
         if req.system_prompt:
-            messages.append({"role": "system", "content": req.system_prompt})
+            selected_prompt = PROMPT_MAP.get(req.system_prompt)
 
-        messages.append({"role": "user", "content": req.prompt})
+            if selected_prompt is None:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Prompt por defecto no válido: {req.system_prompt}"
+                )
+
+            messages.append({
+                "role": "system",
+                "content": selected_prompt
+            })
+
+        messages.append({
+            "role": "user",
+            "content": req.prompt
+        })
 
         response = client.chat.completions.create(
             model=MODEL_NAME,
@@ -40,5 +57,8 @@ def ask_wiouth_context(req:AskRequest):
             "reply": content.strip()
         }
 
+    except HTTPException:
+        raise
     except Exception as e:
         print(f"[ERROR]: {str(e)}")
+        raise

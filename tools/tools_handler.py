@@ -3,7 +3,7 @@ from api.routers.tasks import find_reminders_by_conditions
 from api.schemas.chat import AskRequest
 from core.config import DEFAULT_PROMPTS
 from core.models.email import Email
-from llm.lmstudio_client import ask_wiouth_context
+from llm.lmstudio_client import ask_without_context
 from services.calendar.calendar_service import (
     create_calendar_event,
     create_meet_invitation,
@@ -267,7 +267,7 @@ def handle_tool_call(tool_call):
                 system_prompt=DEFAULT_PROMPTS.RESUME_MAIL
             )
 
-            summary = ask_wiouth_context(data_mail)
+            summary = ask_without_context(data_mail)
 
             return {
                 "status": "success",

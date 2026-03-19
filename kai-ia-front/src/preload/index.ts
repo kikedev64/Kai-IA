@@ -20,3 +20,8 @@ if (process.contextIsolated) {
   // @ts-ignore (define in dts)
   window.api = api
 }
+
+contextBridge.exposeInMainWorld('electronAPI', {
+  openGoogleOAuthPopup: (authUrl: string) =>
+    ipcRenderer.invoke('oauth:open-google-popup', authUrl)
+})

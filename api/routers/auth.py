@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException, status
 
+from api.routers.health import test_google_auth_connection
 from core.auth import (
     exchange_code_for_token,
     get_google_auth_url,
@@ -8,40 +9,64 @@ from core.auth import (
 router = APIRouter(prefix="/auth/google", tags=["Auth"])
 
 
-@router.get("/callback")
+from fastapi.responses import HTMLResponse
+
+@router.get("/callback", response_class=HTMLResponse)
 def google_oauth_callback(
     code: str | None = None,
     state: str | None = None,
     error: str | None = None
 ):
     if error:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail={"error": error}
-        )
+        return HTMLResponse(f"""
+        <html>
+            <body>
+                <script>
+                    window.opener?.postMessage({{ status: "error", error: "{error}" }}, "*");
+                    window.close();
+                </script>
+                <p>Error en autenticación...</p>
+            </body>
+        </html>
+        """)
 
-    if not code:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail={"error": "Missing 'code' in callback"}
-        )
-
-    if not state:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail={"error": "Missing 'state' in callback"}
-        )
+    if not code or not state:
+        return HTMLResponse("""
+        <html>
+            <body>
+                <script>
+                    window.opener?.postMessage({ status: "error" }, "*");
+                    window.close();
+                </script>
+            </body>
+        </html>
+        """)
 
     try:
         exchange_code_for_token(code=code, state=state)
-        return {"status": "authenticated"}
+
+        return HTMLResponse("""
+        <html>
+            <body>
+                <script>
+                    window.opener?.postMessage({ status: "success" }, "*");
+                    window.close();
+                </script>
+                <p>Autenticado correctamente. Puedes cerrar esta ventana.</p>
+            </body>
+        </html>
+        """)
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail={"error": str(e)}
-        )
-
-
+        return HTMLResponse(f"""
+        <html>
+            <body>
+                <script>
+                    window.opener?.postMessage({{ status: "error", error: "{str(e)}" }}, "*");
+                    window.close();
+                </script>
+            </body>
+        </html>
+        """)
 @router.get("/url")
 def google_oauth_url():
     try:
@@ -52,3 +77,7 @@ def google_oauth_url():
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail={"error": str(e)}
         )
+
+@router.get("/test")
+def google_oauth_test():
+    return test_google_auth_connection()

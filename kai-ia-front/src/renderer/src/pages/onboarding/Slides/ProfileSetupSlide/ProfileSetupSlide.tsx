@@ -5,71 +5,63 @@ type Props = {
   onPrev?: () => void
 }
 
+type AskResponse = {
+  reply: string
+}
+
 const ProfileSetupSlide = ({ onNext, onPrev }: Props) => {
   const [inputText, setInputText] = useState('')
   const [previewJson, setPreviewJson] = useState<Record<string, unknown> | null>(null)
   const [loadingPreview, setLoadingPreview] = useState(false)
-  const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
   const handlePreview = async () => {
     setError('')
     setLoadingPreview(true)
+    setPreviewJson(null)
 
     try {
-      const res = await fetch('http://localhost:8000/user-profile/preview', {
+      const res = await fetch('http://localhost:8000/assistant/ask', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          text: inputText
+          prompt: inputText,
+          system_prompt: 'basic_user_information'
         })
       })
 
-      const data = await res.json()
+      const data: AskResponse | { detail?: string } = await res.json()
 
       if (!res.ok) {
-        throw new Error(data?.detail || 'Error generando la vista previa')
+        throw new Error('detail' in data ? data.detail || 'Error generando la vista previa' : 'Error generando la vista previa')
       }
 
-      setPreviewJson(data.profile)
+      if (!('reply' in data) || typeof data.reply !== 'string') {
+        throw new Error('La respuesta del backend no tiene un formato válido')
+      }
+
+      let parsedJson: Record<string, unknown>
+
+      try {
+        parsedJson = JSON.parse(data.reply)
+      } catch {
+        throw new Error('El modelo no devolvió un JSON válido')
+      }
+
+      setPreviewJson(parsedJson)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error desconocido')
+      setPreviewJson(null)
     } finally {
       setLoadingPreview(false)
     }
   }
 
-  const handleSaveAndContinue = async () => {
+  const handleContinue = () => {
     if (!previewJson) return
-
-    setError('')
-    setSaving(true)
-
-    try {
-      const res = await fetch('http://localhost:8000/user-profile/save', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          profile: previewJson
-        })
-      })
-
-      const data = await res.json()
-
-      if (!res.ok) {
-        throw new Error(data?.detail || 'Error guardando el perfil')
-      }
-
-      onNext?.()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error desconocido')
-    } finally {
-      setSaving(false)
-    }
+    onNext?.()
   }
 
   return (
@@ -111,21 +103,22 @@ const ProfileSetupSlide = ({ onNext, onPrev }: Props) => {
             <h2 className="mb-4 text-xl font-medium">Vista previa JSON</h2>
 
             <div className="min-h-[360px] overflow-auto rounded-2xl border border-white/10 bg-slate-900/70 p-4">
-              <pre className="text-sm leading-6 text-slate-200 whitespace-pre-wrap break-words">
+              <pre className="whitespace-pre-wrap break-words text-sm leading-6 text-slate-200">
                 {previewJson
                   ? JSON.stringify(previewJson, null, 2)
                   : `{
   "name": "",
-  "city": "",
-  "studies": "",
-  "preferred_tone": "",
-  "tools_used": []
+  "age": null,
+  "study": "",
+  "location": "",
+  "interests": [],
+  "goals": []
 }`}
               </pre>
             </div>
 
             <p className="mt-4 text-sm text-slate-400">
-              Kai extraerá únicamente la información útil para personalizar la experiencia.
+              Por ahora se mostrará únicamente el JSON generado a partir de tu texto.
             </p>
           </div>
         </div>
@@ -134,13 +127,14 @@ const ProfileSetupSlide = ({ onNext, onPrev }: Props) => {
 
         <div className="mt-8 flex justify-end">
           <button
-            onClick={handleSaveAndContinue}
-            disabled={!previewJson || saving}
+            onClick={handleContinue}
+            disabled={!previewJson}
             className="rounded-full border border-white/30 bg-transparent px-7 py-3 text-sm text-white/80 transition hover:border-white hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
           >
-            {saving ? 'Guardando...' : 'Guardar y continuar'}
+            Guardar y continuar
           </button>
         </div>
+
         <button
           onClick={onPrev}
           className="absolute bottom-8 left-8 rounded-full border border-white/30 px-6 py-2 text-sm text-white/80 bg-transparent transition hover:border-white hover:text-white"
