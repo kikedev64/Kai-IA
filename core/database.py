@@ -19,10 +19,8 @@ def _build_initial_config() -> dict[str, str]:
     google_scopes = [
         "https://www.googleapis.com/auth/gmail.modify",
         "https://www.googleapis.com/auth/gmail.send",
-        "https://www.googleapis.com/auth/drive.readonly",
         "https://www.googleapis.com/auth/drive",
         "https://www.googleapis.com/auth/tasks",
-        "https://www.googleapis.com/auth/tasks.readonly",
         "https://www.googleapis.com/auth/calendar",
     ]
 

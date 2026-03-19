@@ -1,5 +1,4 @@
 from fastapi import APIRouter, HTTPException, status
-from fastapi.responses import RedirectResponse
 
 from core.auth import (
     exchange_code_for_token,
@@ -8,8 +7,13 @@ from core.auth import (
 
 router = APIRouter(prefix="/auth/google", tags=["Auth"])
 
+
 @router.get("/callback")
-def google_oauth_callback(code: str | None = None, error: str | None = None):
+def google_oauth_callback(
+    code: str | None = None,
+    state: str | None = None,
+    error: str | None = None
+):
     if error:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -22,15 +26,22 @@ def google_oauth_callback(code: str | None = None, error: str | None = None):
             detail={"error": "Missing 'code' in callback"}
         )
 
+    if not state:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"error": "Missing 'state' in callback"}
+        )
+
     try:
-        exchange_code_for_token(code=code)
+        exchange_code_for_token(code=code, state=state)
         return {"status": "authenticated"}
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail={"error": str(e)}
         )
-    
+
+
 @router.get("/url")
 def google_oauth_url():
     try:
