@@ -1,0 +1,307 @@
+import React, { useMemo, useState } from 'react'
+import { Menu, Plus, Search, Settings, Send, Bot, User, Sparkles } from 'lucide-react'
+
+type ChatItem = {
+  id: string
+  title: string
+  lastMessage: string
+  updatedAt: string
+}
+
+type Message = {
+  id: string
+  role: 'user' | 'assistant'
+  content: string
+}
+
+const mockChats: ChatItem[] = [
+  {
+    id: '1',
+    title: 'Planificación del día',
+    lastMessage: 'Recuérdame la reunión de las 18:00',
+    updatedAt: 'Hoy'
+  },
+  {
+    id: '2',
+    title: 'Correos importantes',
+    lastMessage: 'Resume los últimos correos de Gmail',
+    updatedAt: 'Hoy'
+  },
+  {
+    id: '3',
+    title: 'Ideas TFG',
+    lastMessage: 'Quiero ideas relacionadas con IA',
+    updatedAt: 'Ayer'
+  }
+]
+
+const mockMessagesByChat: Record<string, Message[]> = {
+  '1': [
+    {
+      id: 'm1',
+      role: 'assistant',
+      content: 'Hola, Enrique. ¿En qué quieres que te ayude hoy?'
+    },
+    {
+      id: 'm2',
+      role: 'user',
+      content: 'Organízame el día y recuérdame la reunión de las 18:00.'
+    },
+    {
+      id: 'm3',
+      role: 'assistant',
+      content:
+        'Perfecto. Puedo ayudarte a estructurar tus tareas del día y dejar preparado el recordatorio.'
+    }
+  ],
+  '2': [
+    {
+      id: 'm4',
+      role: 'user',
+      content: 'Muéstrame los correos más importantes de hoy.'
+    },
+    {
+      id: 'm5',
+      role: 'assistant',
+      content:
+        'Puedo revisar tus correos conectados y resumirte los más relevantes en un formato claro.'
+    }
+  ],
+  '3': [
+    {
+      id: 'm6',
+      role: 'user',
+      content: 'Dame ideas de TFG de IA que sean potentes.'
+    },
+    {
+      id: 'm7',
+      role: 'assistant',
+      content:
+        'Una buena línea sería un asistente local con integración de correo, calendario y automatización.'
+    }
+  ]
+}
+
+const HomePage = () => {
+  const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [selectedChatId, setSelectedChatId] = useState<string>('1')
+  const [input, setInput] = useState('')
+  const [search, setSearch] = useState('')
+
+  const filteredChats = useMemo(() => {
+    const term = search.trim().toLowerCase()
+
+    if (!term) return mockChats
+
+    return mockChats.filter(
+      (chat) =>
+        chat.title.toLowerCase().includes(term) ||
+        chat.lastMessage.toLowerCase().includes(term)
+    )
+  }, [search])
+
+  const selectedChat = mockChats.find((chat) => chat.id === selectedChatId) ?? null
+  const messages = selectedChat ? mockMessagesByChat[selectedChat.id] ?? [] : []
+
+  const handleSend = () => {
+    if (!input.trim()) return
+    console.log('Enviar mensaje:', input)
+    setInput('')
+  }
+
+  return (
+    <div className="relative flex h-screen w-full overflow-hidden bg-[#020617] text-white">
+      <div className="pointer-events-none absolute inset-0">
+        <div className="absolute -left-24 top-[-60px] h-[320px] w-[320px] rounded-full bg-cyan-500/18 blur-3xl" />
+        <div className="absolute right-[-80px] top-[10%] h-[340px] w-[340px] rounded-full bg-fuchsia-500/12 blur-3xl" />
+        <div className="absolute bottom-[-100px] left-[20%] h-[300px] w-[300px] rounded-full bg-blue-500/12 blur-3xl" />
+        <div className="absolute bottom-[12%] right-[18%] h-[220px] w-[220px] rounded-full bg-emerald-400/10 blur-3xl" />
+
+        <div
+          className="absolute inset-0 opacity-[0.08]"
+          style={{
+            backgroundImage:
+              'linear-gradient(rgba(255,255,255,0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.06) 1px, transparent 1px)',
+            backgroundSize: '44px 44px'
+          }}
+        />
+
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.08),transparent_32%)]" />
+      </div>
+
+      <aside
+        className={`relative z-10 border-r border-white/10 bg-white/[0.045] backdrop-blur-2xl transition-all duration-300 ${
+          sidebarOpen ? 'w-[330px]' : 'w-0 overflow-hidden border-r-0'
+        }`}
+      >
+        <div className="flex h-full flex-col">
+          <div className="border-b border-white/10 bg-white/[0.03] p-4">
+            <button className="group flex w-full items-center justify-center gap-2 rounded-2xl border border-white/15 bg-white/[0.08] px-4 py-3 text-sm font-medium shadow-[0_10px_30px_rgba(0,0,0,0.18)] transition hover:border-white/30 hover:bg-white hover:text-black">
+              <Plus size={18} />
+              Nuevo chat
+            </button>
+
+            <div className="relative mt-4">
+              <Search
+                size={16}
+                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+              />
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Buscar chat..."
+                className="w-full rounded-2xl border border-white/10 bg-black/20 py-3 pl-10 pr-4 text-sm text-white outline-none backdrop-blur-xl transition placeholder:text-slate-500 focus:border-cyan-300/30 focus:bg-black/25"
+              />
+            </div>
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-3">
+            <div className="space-y-2">
+              {filteredChats.map((chat) => {
+                const isActive = chat.id === selectedChatId
+
+                return (
+                  <button
+                    key={chat.id}
+                    onClick={() => setSelectedChatId(chat.id)}
+                    className={`group w-full rounded-2xl border p-4 text-left backdrop-blur-xl transition ${
+                      isActive
+                        ? 'border-cyan-300/20 bg-white/[0.12] shadow-[0_8px_30px_rgba(34,211,238,0.08)]'
+                        : 'border-white/5 bg-white/[0.04] hover:border-white/15 hover:bg-white/[0.08]'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <h3 className="line-clamp-1 text-sm font-medium text-white">
+                        {chat.title}
+                      </h3>
+                      <span className="shrink-0 text-xs text-slate-400">
+                        {chat.updatedAt}
+                      </span>
+                    </div>
+
+                    <p className="mt-2 line-clamp-2 text-sm text-slate-300/80">
+                      {chat.lastMessage}
+                    </p>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <div className="relative z-10 flex min-w-0 flex-1 flex-col">
+        <header className="flex h-16 items-center justify-between border-b border-white/10 bg-white/[0.045] px-4 backdrop-blur-2xl">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setSidebarOpen((prev) => !prev)}
+              className="rounded-2xl border border-white/10 bg-white/[0.08] p-2.5 shadow-[0_8px_25px_rgba(0,0,0,0.18)] transition hover:bg-white hover:text-black"
+            >
+              <Menu size={18} />
+            </button>
+
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-2xl border border-cyan-300/15 bg-cyan-400/10 text-cyan-200 backdrop-blur-xl">
+                <Sparkles size={16} />
+              </div>
+
+              <div>
+                <h1 className="text-sm font-semibold md:text-base">Kai IA</h1>
+                <p className="text-xs text-slate-400">
+                  Asistente personal inteligente
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button className="rounded-2xl border border-white/10 bg-white/[0.08] px-4 py-2 text-sm backdrop-blur-xl transition hover:bg-white hover:text-black">
+              Próximamente
+            </button>
+
+            <button className="rounded-2xl border border-white/10 bg-white/[0.08] p-2.5 backdrop-blur-xl transition hover:bg-white hover:text-black">
+              <Settings size={18} />
+            </button>
+          </div>
+        </header>
+
+        <main className="flex min-h-0 flex-1 flex-col p-3">
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[28px] border border-white/10 bg-white/[0.045] shadow-[0_20px_80px_rgba(0,0,0,0.35)] backdrop-blur-2xl">
+            <div className="relative border-b border-white/10 px-6 py-5">
+              <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/30 to-transparent" />
+              <h2 className="text-lg font-semibold">
+                {selectedChat?.title ?? 'Selecciona un chat'}
+              </h2>
+              <p className="mt-1 text-sm text-slate-400">
+                Conversación activa con Kai
+              </p>
+            </div>
+
+            <div className="flex-1 overflow-y-auto px-6 py-6">
+              <div className="mx-auto flex max-w-4xl flex-col gap-4">
+                {messages.length > 0 ? (
+                  messages.map((message) => {
+                    const isUser = message.role === 'user'
+
+                    return (
+                      <div
+                        key={message.id}
+                        className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}
+                      >
+                        <div
+                          className={`max-w-[80%] rounded-[24px] border px-4 py-3 shadow-[0_10px_30px_rgba(0,0,0,0.18)] backdrop-blur-xl ${
+                            isUser
+                              ? 'border-cyan-300/20 bg-cyan-400/10'
+                              : 'border-white/10 bg-white/[0.06]'
+                          }`}
+                        >
+                          <div className="mb-2 flex items-center gap-2 text-xs text-slate-300/80">
+                            {isUser ? <User size={14} /> : <Bot size={14} />}
+                            <span>{isUser ? 'Tú' : 'Kai'}</span>
+                          </div>
+
+                          <p className="whitespace-pre-wrap text-sm leading-7 text-slate-100">
+                            {message.content}
+                          </p>
+                        </div>
+                      </div>
+                    )
+                  })
+                ) : (
+                  <div className="flex h-full items-center justify-center text-slate-400">
+                    No hay mensajes en este chat.
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="border-t border-white/10 px-6 py-4">
+              <div className="mx-auto flex max-w-4xl items-end gap-3">
+                <div className="relative flex-1 overflow-hidden rounded-[24px] border border-white/10 bg-white/[0.06] shadow-[0_12px_30px_rgba(0,0,0,0.18)] backdrop-blur-2xl">
+                  <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/25 to-transparent" />
+
+                  <textarea
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    placeholder="Escribe un mensaje para Kai..."
+                    className="max-h-40 min-h-[72px] w-full resize-none bg-transparent px-4 py-4 text-sm text-white outline-none placeholder:text-slate-500"
+                  />
+                </div>
+
+                <button
+                  onClick={handleSend}
+                  disabled={!input.trim()}
+                  className="flex h-[54px] w-[54px] items-center justify-center rounded-[20px] border border-white/10 bg-white/[0.1] shadow-[0_12px_30px_rgba(0,0,0,0.2)] backdrop-blur-xl transition hover:bg-white hover:text-black disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  <Send size={18} />
+                </button>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  )
+}
+
+export default HomePage
