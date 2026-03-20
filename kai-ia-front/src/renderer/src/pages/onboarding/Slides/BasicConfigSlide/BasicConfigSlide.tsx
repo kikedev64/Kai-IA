@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react"
+import React, { useEffect, useMemo, useState } from "react"
 
 type Props = {
   onNext?: () => void
@@ -7,11 +7,38 @@ type Props = {
 
 type ConnectionStatus = "idle" | "checking" | "success" | "error"
 
+const DEFAULT_HOST = "http://localhost"
+const DEFAULT_PORT = "8000"
+
 const BasicConfigSlide = ({ onNext, onPrev }: Props) => {
-  const [host, setHost] = useState("http://localhost")
-  const [port, setPort] = useState("8000")
+  const [host, setHost] = useState(DEFAULT_HOST)
+  const [port, setPort] = useState(DEFAULT_PORT)
   const [status, setStatus] = useState<ConnectionStatus>("idle")
   const [message, setMessage] = useState("")
+  const [loadingConfig, setLoadingConfig] = useState(true)
+
+  useEffect(() => {
+    const loadSavedConfig = async () => {
+      try {
+        const savedHost = await window.configApi.getServerUrl()
+        const savedPort = await window.configApi.getServerPort()
+
+        if (savedHost) {
+          setHost(savedHost)
+        }
+
+        if (savedPort !== null && savedPort !== undefined) {
+          setPort(String(savedPort))
+        }
+      } catch (error) {
+        console.error("No se pudo cargar la configuración guardada:", error)
+      } finally {
+        setLoadingConfig(false)
+      }
+    }
+
+    void loadSavedConfig()
+  }, [])
 
   const baseUrl = useMemo(() => {
     const cleanHost = host.trim().replace(/\/+$/, "")
@@ -24,7 +51,14 @@ const BasicConfigSlide = ({ onNext, onPrev }: Props) => {
       setStatus("checking")
       setMessage("Comprobando conexión con el backend...")
 
-      const response = await fetch(`${baseUrl}/health`, {
+      const cleanHost = host.trim().replace(/\/+$/, "")
+      const cleanPort = port.trim()
+
+      if (!cleanHost || !cleanPort || Number.isNaN(Number(cleanPort))) {
+        throw new Error("Introduce una URL y un puerto válidos")
+      }
+
+      const response = await fetch(`${cleanHost}:${cleanPort}/health`, {
         method: "GET"
       })
 
@@ -38,8 +72,11 @@ const BasicConfigSlide = ({ onNext, onPrev }: Props) => {
         throw new Error("La respuesta del backend no es válida")
       }
 
+      await window.configApi.setServerUrl(cleanHost)
+      await window.configApi.setServerPort(Number(cleanPort))
+
       setStatus("success")
-      setMessage("Conexión correcta con el backend")
+      setMessage("Conexión correcta con el backend. Configuración guardada.")
       onNext?.()
     } catch (error) {
       setStatus("error")
@@ -58,11 +95,17 @@ const BasicConfigSlide = ({ onNext, onPrev }: Props) => {
     }
   }
 
+  if (loadingConfig) {
+    return (
+      <section className="relative flex min-h-screen w-full items-center justify-center bg-slate-950 px-6 text-white">
+        <div className="text-slate-300">Cargando configuración...</div>
+      </section>
+    )
+  }
+
   return (
     <section className="relative flex min-h-screen w-full items-center justify-center bg-slate-950 px-6 text-white">
-      
       <div className="w-full max-w-xl rounded-2xl border border-white/10 bg-white/[0.03] p-8 backdrop-blur-sm">
-        
         <h1 className="mb-2 text-3xl font-semibold">
           Configuración inicial
         </h1>
@@ -117,8 +160,8 @@ const BasicConfigSlide = ({ onNext, onPrev }: Props) => {
                 status === "success"
                   ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-200"
                   : status === "error"
-                  ? "border-rose-400/30 bg-rose-400/10 text-rose-200"
-                  : "border-cyan-400/30 bg-cyan-400/10 text-cyan-200"
+                    ? "border-rose-400/30 bg-rose-400/10 text-rose-200"
+                    : "border-cyan-400/30 bg-cyan-400/10 text-cyan-200"
               }`}
             >
               {message}

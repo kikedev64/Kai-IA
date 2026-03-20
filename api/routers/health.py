@@ -43,7 +43,7 @@ def test_google_auth_connection() -> dict[str, Any]:
         return {
             "authenticated": True,
             "google_ok": True,
-            "message": "Token válido y conexión con Google Calendar correcta",
+            "message": "Token válido",
             "items_found": len(events),
         }
 

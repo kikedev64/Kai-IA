@@ -67,6 +67,7 @@ def google_oauth_callback(
             </body>
         </html>
         """)
+        
 @router.get("/url")
 def google_oauth_url():
     try:

@@ -13,7 +13,12 @@ const ProfileSetupSlide = ({ onNext, onPrev }: Props) => {
   const [inputText, setInputText] = useState('')
   const [previewJson, setPreviewJson] = useState<Record<string, unknown> | null>(null)
   const [loadingPreview, setLoadingPreview] = useState(false)
+  const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+
+  const isValidPlainObject = (value: unknown): value is Record<string, unknown> => {
+    return typeof value === 'object' && value !== null && !Array.isArray(value)
+  }
 
   const handlePreview = async () => {
     setError('')
@@ -35,19 +40,27 @@ const ProfileSetupSlide = ({ onNext, onPrev }: Props) => {
       const data: AskResponse | { detail?: string } = await res.json()
 
       if (!res.ok) {
-        throw new Error('detail' in data ? data.detail || 'Error generando la vista previa' : 'Error generando la vista previa')
+        throw new Error(
+          'detail' in data
+            ? data.detail || 'Error generando la vista previa'
+            : 'Error generando la vista previa'
+        )
       }
 
       if (!('reply' in data) || typeof data.reply !== 'string') {
         throw new Error('La respuesta del backend no tiene un formato válido')
       }
 
-      let parsedJson: Record<string, unknown>
+      let parsedJson: unknown
 
       try {
         parsedJson = JSON.parse(data.reply)
       } catch {
         throw new Error('El modelo no devolvió un JSON válido')
+      }
+
+      if (!isValidPlainObject(parsedJson)) {
+        throw new Error('El JSON devuelto debe ser un objeto válido')
       }
 
       setPreviewJson(parsedJson)
@@ -59,9 +72,41 @@ const ProfileSetupSlide = ({ onNext, onPrev }: Props) => {
     }
   }
 
-  const handleContinue = () => {
-    if (!previewJson) return
-    onNext?.()
+  const handleContinue = async () => {
+    setError('')
+
+    try {
+      if (!inputText.trim()) {
+        throw new Error('Introduce información antes de guardar')
+      }
+
+      if (!previewJson) {
+        throw new Error('Primero genera una vista previa válida')
+      }
+
+      if (!isValidPlainObject(previewJson)) {
+        throw new Error('El JSON generado no es válido')
+      }
+
+      const serializedJson = JSON.stringify(previewJson)
+
+      try {
+        JSON.parse(serializedJson)
+      } catch {
+        throw new Error('No se pudo validar el JSON antes de guardarlo')
+      }
+
+      setSaving(true)
+
+      await window.configApi.setUserProfileRaw(inputText.trim())
+      await window.configApi.setUserProfileJson(previewJson)
+
+      onNext?.()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error guardando la información')
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -83,7 +128,10 @@ const ProfileSetupSlide = ({ onNext, onPrev }: Props) => {
 
             <textarea
               value={inputText}
-              onChange={(e) => setInputText(e.target.value)}
+              onChange={(e) => {
+                setInputText(e.target.value)
+                setError('')
+              }}
               placeholder="Ejemplo: Me llamo Enrique, estudio Ingeniería Informática, vivo en Madrid, prefiero respuestas directas, uso Gmail y Calendar a diario..."
               className="min-h-[360px] w-full rounded-2xl border border-white/10 bg-slate-900/70 p-4 text-sm leading-6 text-white outline-none placeholder:text-slate-500"
             />
@@ -91,7 +139,7 @@ const ProfileSetupSlide = ({ onNext, onPrev }: Props) => {
             <div className="mt-5 flex items-center gap-3">
               <button
                 onClick={handlePreview}
-                disabled={!inputText.trim() || loadingPreview}
+                disabled={!inputText.trim() || loadingPreview || saving}
                 className="rounded-full border border-white/30 bg-transparent px-6 py-2 text-sm text-white/80 transition hover:border-white hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
               >
                 {loadingPreview ? 'Generando...' : 'Probar'}
@@ -118,7 +166,7 @@ const ProfileSetupSlide = ({ onNext, onPrev }: Props) => {
             </div>
 
             <p className="mt-4 text-sm text-slate-400">
-              Por ahora se mostrará únicamente el JSON generado a partir de tu texto.
+              Revisa el JSON generado. Si refleja bien tu información, guárdalo para continuar.
             </p>
           </div>
         </div>
@@ -128,16 +176,17 @@ const ProfileSetupSlide = ({ onNext, onPrev }: Props) => {
         <div className="mt-8 flex justify-end">
           <button
             onClick={handleContinue}
-            disabled={!previewJson}
+            disabled={!previewJson || loadingPreview || saving}
             className="rounded-full border border-white/30 bg-transparent px-7 py-3 text-sm text-white/80 transition hover:border-white hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
           >
-            Guardar y continuar
+            {saving ? 'Guardando...' : 'Guardar y continuar'}
           </button>
         </div>
 
         <button
           onClick={onPrev}
-          className="absolute bottom-8 left-8 rounded-full border border-white/30 px-6 py-2 text-sm text-white/80 bg-transparent transition hover:border-white hover:text-white"
+          disabled={loadingPreview || saving}
+          className="absolute bottom-8 left-8 rounded-full border border-white/30 px-6 py-2 text-sm text-white/80 bg-transparent transition hover:border-white hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
         >
           ← Atrás
         </button>

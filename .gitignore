@@ -5,3 +5,4 @@ token.json
 *.db
 node_modules/
 package-lock.json
+oauth_temp.json

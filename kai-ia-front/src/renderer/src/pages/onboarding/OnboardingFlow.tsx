@@ -14,25 +14,15 @@ type SlideProps = {
   onPrev?: () => void
 }
 
-const OnboardingFlow = () => {
+type OnboardingFlowProps = {
+  onFinish?: () => void
+}
+
+const OnboardingFlow = ({ onFinish }: OnboardingFlowProps) => {
   const [step, setStep] = useState(0)
   const [direction, setDirection] = useState(1)
 
-  const nextSlide = () => {
-    if (step < slides.length - 1) {
-      setDirection(1)
-      setStep((s) => s + 1)
-    }
-  }
-
-  const prevSlide = () => {
-    if (step > 0) {
-      setDirection(-1)
-      setStep((s) => s - 1)
-    }
-  }
-
-  const slides = [
+  const slides: React.ComponentType<SlideProps>[] = [
     WelcomeSlide,
     WhoamiSlide,
     HowItWorksSlide,
@@ -42,11 +32,28 @@ const OnboardingFlow = () => {
     ConnectGoogleSlide
   ]
 
+  const nextSlide = () => {
+    if (step < slides.length - 1) {
+      setDirection(1)
+      setStep((s) => s + 1)
+      return
+    }
+
+    onFinish?.()
+  }
+
+  const prevSlide = () => {
+    if (step > 0) {
+      setDirection(-1)
+      setStep((s) => s - 1)
+    }
+  }
+
   const CurrentSlide = slides[step]
+  const isLastSlide = step === slides.length - 1
 
   return (
     <div className="relative min-h-screen w-full overflow-hidden bg-slate-950">
-
       <AnimatePresence mode="wait" custom={direction}>
         <motion.div
           key={step}
@@ -58,13 +65,12 @@ const OnboardingFlow = () => {
           className="min-h-screen w-full"
         >
           <CurrentSlide
-            onNext={nextSlide}
+            onNext={isLastSlide ? onFinish : nextSlide}
             onPrev={step > 0 ? prevSlide : undefined}
           />
         </motion.div>
       </AnimatePresence>
 
-      {/* indicador progreso */}
       <div className="absolute left-1/2 top-8 flex -translate-x-1/2 items-center gap-2">
         {slides.map((_, index) => (
           <div
@@ -75,7 +81,6 @@ const OnboardingFlow = () => {
           />
         ))}
       </div>
-
     </div>
   )
 }
