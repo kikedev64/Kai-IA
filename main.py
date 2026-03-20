@@ -10,15 +10,20 @@ from api.routers.chat import router as chat_router
 from api.routers.config import router as config_router
 from core.database import init_db
 from api.routers.health import router as health_router
+from core.runtime_config import set_runtime_config
+from services.config.config_loader import get_all_config_as_dict
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()
+
+    config_data = get_all_config_as_dict()
+    set_runtime_config(config_data)
+
     print("Base de datos inicializada")
+    print("Configuración runtime cargada")
 
     yield
-    # Evento de cierre
-
 
 app = FastAPI(
     title="Kai IA API",

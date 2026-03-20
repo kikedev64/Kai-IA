@@ -7,7 +7,7 @@ from core.models.email import Email
 from services.gmail.history_reader import check_history_changes, get_history_ids, get_latest_history_id, read_history_since
 from services.gmail.send import send_email,send_email_with_attachments
 from services.gmail.full_read import read_email_by_id, read_last_emails_by_subject,read_last_emails_full, read_last_emails_from_sender, read_thread_from_message_id
-from core.config import EMAIL_MAX_TOTAL_SIZE_ATTACHMENT as MAX_TOTAL_SIZE
+from core.config import get_email_max_total_size_attachment
 
 router = APIRouter(prefix="/email-request", tags=["Email Requests"])
 
@@ -51,7 +51,7 @@ async def send_email_with_attachment(
             content = await file.read()
             total_size += len(content)
 
-            if total_size > MAX_TOTAL_SIZE:
+            if total_size > get_email_max_total_size_attachment():
                 raise HTTPException(
                     status_code=400,
                     detail="Total attachment size exceeds 25MB"

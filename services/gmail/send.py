@@ -3,7 +3,7 @@ import mimetypes
 from email.message import EmailMessage
 from core.models.email import Email
 from services.gmail.utils import _get_service,_apply_thread_headers
-from core.config import EMAIL_MAX_TOTAL_SIZE_ATTACHMENT as MAX_TOTAL_SIZE
+from core.config import get_email_max_total_size_attachment
 
 def send_email(email: Email, as_html: bool = False):
     service = _get_service()
@@ -62,7 +62,7 @@ def send_email_with_attachments(
     for filename, file_bytes in attachments:
         total_size += len(file_bytes)
 
-        if total_size > MAX_TOTAL_SIZE:
+        if total_size > get_email_max_total_size_attachment():
             raise ValueError("Total attachment size exceeds 25 MB")
 
         mime_type, _ = mimetypes.guess_type(filename)

@@ -152,7 +152,6 @@ def init_db() -> None:
     CREATE TABLE IF NOT EXISTS chat_sessions (
         chat_id TEXT PRIMARY KEY,
         title TEXT,
-        description TEXT,
         system_prompt TEXT NOT NULL,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -202,6 +201,22 @@ def init_db() -> None:
     """)
 
     cur.execute("""
+    CREATE TABLE IF NOT EXISTS app_config (
+        key TEXT PRIMARY KEY,
+        value TEXT,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS user_profile (
+        key TEXT PRIMARY KEY,
+        value TEXT,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+
+    cur.execute("""
     CREATE INDEX IF NOT EXISTS idx_chat_messages_chat_id_created_at
     ON chat_messages(chat_id, created_at)
     """)
@@ -209,22 +224,6 @@ def init_db() -> None:
     cur.execute("""
     CREATE INDEX IF NOT EXISTS idx_google_accounts_email
     ON google_accounts(email)
-    """)
-
-    cur.execute("""
-    CREATE TABLE IF NOT EXISTS app_config (
-        key TEXT PRIMARY KEY,
-        value TEXT,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )
-    """)
-    
-    cur.execute("""
-    CREATE TABLE IF NOT EXISTS user_profile (
-        key TEXT PRIMARY KEY,
-        value TEXT,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )
     """)
 
     _seed_initial_config(cur)

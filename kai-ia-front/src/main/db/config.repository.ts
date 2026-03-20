@@ -79,7 +79,6 @@ export const configRepository = {
 
     markOnboardingCompleted(): void {
         setConfigValue('onboarding_completed', 'true')
-        setConfigValue('is_first_run', 'false')
     },
 
     getOnboardingCompleted(): boolean {

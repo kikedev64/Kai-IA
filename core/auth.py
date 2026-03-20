@@ -8,11 +8,12 @@ from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import Flow
 
 from core.config import (
-    GOOGLE_SCOPES as SCOPES,
-    GOOGLE_REDIRECT_URI as REDIRECT_URI,
-    GOOGLE_CREDENTIALS_FILE,
-    GOOGLE_TOKEN_FILE,
+    get_google_scopes,
+    get_google_redirect_uri,
+    get_google_credentials_file,
+    get_google_token_file,
 )
+
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 GOOGLE_OAUTH_TEMP_FILE = BASE_DIR / "oauth_temp.json"
@@ -41,21 +42,21 @@ def _clear_oauth_temp_data() -> None:
 
 
 def get_creds():
-    if os.path.exists(str(GOOGLE_TOKEN_FILE)):
-        creds = Credentials.from_authorized_user_file(str(GOOGLE_TOKEN_FILE), SCOPES)
+    if os.path.exists(str(get_google_token_file())):
+        creds = Credentials.from_authorized_user_file(str(get_google_token_file()), get_google_scopes())
 
         if creds and creds.valid:
             return {"creds": creds}
 
         if creds and creds.expired and creds.refresh_token:
             creds.refresh(Request())
-            with open(GOOGLE_TOKEN_FILE, "w", encoding="utf-8") as f:
+            with open(get_google_token_file(), "w", encoding="utf-8") as f:
                 f.write(creds.to_json())
             return {"creds": creds}
 
-    if not os.path.exists(str(GOOGLE_CREDENTIALS_FILE)):
+    if not os.path.exists(str(get_google_credentials_file())):
         return {
-            "error": f"{GOOGLE_CREDENTIALS_FILE} not found. Download it from Google Cloud Console."
+            "error": f"{get_google_credentials_file()} not found. Download it from Google Cloud Console."
         }
 
     auth_url = get_google_auth_url()
@@ -63,16 +64,16 @@ def get_creds():
 
 
 def get_google_auth_url() -> str:
-    if not os.path.exists(str(GOOGLE_CREDENTIALS_FILE)):
-        raise FileNotFoundError(f"Missing {GOOGLE_CREDENTIALS_FILE}")
+    if not os.path.exists(str(get_google_credentials_file())):
+        raise FileNotFoundError(f"Missing {get_google_credentials_file()}")
 
     # Generamos code_verifier explícitamente
     code_verifier = secrets.token_urlsafe(64)
 
     flow = Flow.from_client_secrets_file(
-        str(GOOGLE_CREDENTIALS_FILE),
-        scopes=SCOPES,
-        redirect_uri=REDIRECT_URI,
+        str(get_google_credentials_file()),
+        scopes=get_google_scopes(),
+        redirect_uri=get_google_redirect_uri(),
         code_verifier=code_verifier,
     )
 
@@ -88,8 +89,8 @@ def get_google_auth_url() -> str:
 
 
 def exchange_code_for_token(code: str, state: str) -> Credentials:
-    if not os.path.exists(str(GOOGLE_CREDENTIALS_FILE)):
-        raise FileNotFoundError(f"Missing {GOOGLE_CREDENTIALS_FILE}")
+    if not os.path.exists(str(get_google_credentials_file())):
+        raise FileNotFoundError(f"Missing {get_google_credentials_file()}")
 
     oauth_temp = _load_oauth_temp_data()
     if not oauth_temp:
@@ -105,9 +106,9 @@ def exchange_code_for_token(code: str, state: str) -> Credentials:
         raise ValueError("Invalid OAuth state")
 
     flow = Flow.from_client_secrets_file(
-        str(GOOGLE_CREDENTIALS_FILE),
-        scopes=SCOPES,
-        redirect_uri=REDIRECT_URI,
+        str(get_google_credentials_file()),
+        scopes=get_google_scopes(),
+        redirect_uri=get_google_redirect_uri(),
         state=state,
         code_verifier=code_verifier,
     )
@@ -116,7 +117,7 @@ def exchange_code_for_token(code: str, state: str) -> Credentials:
 
     creds: Credentials = flow.credentials
 
-    with open(GOOGLE_TOKEN_FILE, "w", encoding="utf-8") as f:
+    with open(get_google_token_file(), "w", encoding="utf-8") as f:
         f.write(creds.to_json())
 
     _clear_oauth_temp_data()

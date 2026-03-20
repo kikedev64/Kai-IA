@@ -1,6 +1,7 @@
 import openai
 from api.schemas.chat import AskRequest
-from core.config import SYSTEM_PROMPT_DEFAULT, MODEL_NAME, TEMPERATURE
+from core.config import  get_model_name, get_temperature, get_prompt_map
+from fastapi import HTTPException
 from tools.tools_definition import TOOLS
 
 client = openai.OpenAI(
@@ -10,24 +11,21 @@ client = openai.OpenAI(
 
 def call_lm_studio(messages: list):
     response = client.chat.completions.create(
-        model=MODEL_NAME,
+        model=get_model_name(),
         messages=messages,
         tools=TOOLS,
         tool_choice="auto",
-        temperature=TEMPERATURE,
+        temperature=get_temperature(),
         timeout=60,
     )
     return response.choices[0].message
-
-from fastapi import HTTPException
-from core.config import PROMPT_MAP
 
 def ask_without_context(req: AskRequest):
     try:
         messages = []
 
         if req.system_prompt:
-            selected_prompt = PROMPT_MAP.get(req.system_prompt)
+            selected_prompt = get_prompt_map().get(req.system_prompt)
 
             if selected_prompt is None:
                 raise HTTPException(
@@ -46,7 +44,7 @@ def ask_without_context(req: AskRequest):
         })
 
         response = client.chat.completions.create(
-            model=MODEL_NAME,
+            model=get_model_name(),
             messages=messages,
             temperature=0.2,
         )
