@@ -141,3 +141,71 @@ def count_user_messages(chat_id: str) -> int:
     conn.close()
 
     return int(row["total"] if row else 0)
+
+def list_chat_sessions() -> list[dict[str, Any]]:
+    conn = get_connection()
+    cur = conn.cursor()
+
+    cur.execute(
+        """
+        SELECT
+            chat_id,
+            COALESCE(title, 'Nuevo chat') AS title,
+            created_at,
+            updated_at
+        FROM chat_sessions
+        ORDER BY updated_at DESC
+        """
+    )
+
+    rows = cur.fetchall()
+    conn.close()
+
+    return [dict(row) for row in rows]
+
+def get_full_chat_by_id(chat_id: str) -> dict[str, Any] | None:
+    conn = get_connection()
+    cur = conn.cursor()
+
+    cur.execute(
+        """
+        SELECT
+            chat_id,
+            COALESCE(title, 'Nuevo chat') AS title,
+            created_at,
+            updated_at
+        FROM chat_sessions
+        WHERE chat_id = ?
+        """,
+        (chat_id,),
+    )
+    chat_row = cur.fetchone()
+
+    if not chat_row:
+        conn.close()
+        return None
+
+    cur.execute(
+        """
+        SELECT
+            id,
+            role,
+            content,
+            created_at
+        FROM chat_messages
+        WHERE chat_id = ?
+        ORDER BY id ASC
+        """,
+        (chat_id,),
+    )
+    message_rows = cur.fetchall()
+
+    conn.close()
+
+    return {
+        "chat_id": chat_row["chat_id"],
+        "title": chat_row["title"],
+        "created_at": chat_row["created_at"],
+        "updated_at": chat_row["updated_at"],
+        "messages": [dict(row) for row in message_rows],
+    }

@@ -20,9 +20,11 @@ from tools.gmail.email_response_builders import build_emails_context_block
 from services.chat_store import (
     ensure_session,
     add_message,
+    get_full_chat_by_id,
     get_messages,
     get_system_prompt,
     get_chat_title,
+    list_chat_sessions,
     update_chat_title,
     count_user_messages,
 )
@@ -390,4 +392,26 @@ def ask_llm(req: AskRequest):
                 status_code=503,
                 detail="No hay ningún modelo cargado en LM Studio."
             )
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/chats")
+def get_chats():
+    try:
+        chats = list_chat_sessions()
+        return {"chats": chats}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
+@router.get("/chats/{chat_id}")
+def get_chat_by_id(chat_id: str):
+    try:
+        chat = get_full_chat_by_id(chat_id)
+
+        if not chat:
+            raise HTTPException(status_code=404, detail="Chat no encontrado")
+
+        return chat
+    except HTTPException:
+        raise
+    except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
