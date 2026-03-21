@@ -6,3 +6,4 @@ token.json
 node_modules/
 package-lock.json
 oauth_temp.json
+*.env

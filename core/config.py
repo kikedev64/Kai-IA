@@ -2,6 +2,7 @@ from pathlib import Path
 import json
 
 from core.runtime_config import get_runtime_config_value
+import os
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -45,10 +46,7 @@ def get_google_scopes():
 
 
 def get_google_redirect_uri():
-    return get_config_value(
-        "google_redirect_uri",
-        "http://localhost:8000/auth/google/callback"
-    )
+    return os.getenv("GOOGLE_REDIRECT_URI")
 
 
 def get_google_credentials_file() -> Path:

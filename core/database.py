@@ -24,11 +24,6 @@ def _build_initial_config() -> dict[str, str]:
         "https://www.googleapis.com/auth/calendar",
     ]
 
-    google_redirect_uri = os.getenv(
-        "GOOGLE_REDIRECT_URI",
-        "http://localhost:8000/auth/google/callback"
-    )
-
     google_credentials_file = str(BASE_DIR / "credentials.json")
     google_token_file = str(BASE_DIR / "token.json")
 
@@ -121,7 +116,6 @@ def _build_initial_config() -> dict[str, str]:
 
     return {
         "google_scopes": json.dumps(google_scopes, ensure_ascii=False),
-        "google_redirect_uri": google_redirect_uri,
         "google_credentials_file": google_credentials_file,
         "google_token_file": google_token_file,
         "email_max_total_size_attachment": str(email_max_total_size_attachment),

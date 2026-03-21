@@ -1,3 +1,8 @@
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
+
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -12,6 +17,8 @@ from core.database import init_db
 from api.routers.health import router as health_router
 from core.runtime_config import set_runtime_config
 from services.config.config_loader import get_all_config_as_dict
+from api.routers.app import router as app_router
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -48,3 +55,4 @@ app.include_router(calendar_router)
 app.include_router(chat_router)
 app.include_router(config_router)
 app.include_router(health_router)
+app.include_router(app_router)

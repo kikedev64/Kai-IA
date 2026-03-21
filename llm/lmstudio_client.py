@@ -3,10 +3,11 @@ from api.schemas.chat import AskRequest
 from core.config import  get_model_name, get_temperature, get_prompt_map
 from fastapi import HTTPException
 from tools.tools_definition import TOOLS
+import os
 
 client = openai.OpenAI(
-    base_url="http://localhost:1234/v1",
-    api_key="lm-studio"
+    base_url=os.getenv("BASE_URL_OPEN_AI"),
+    api_key=os.getenv("API_KEY_OPEN_AI")
 )
 
 def call_lm_studio(messages: list):
@@ -60,3 +61,15 @@ def ask_without_context(req: AskRequest):
     except Exception as e:
         print(f"[ERROR]: {str(e)}")
         raise
+
+def check_llm_service() -> bool:
+    try:
+        models = client.models.list()
+
+        if not models.data:
+            return False
+
+        return True
+
+    except Exception:
+        return False
