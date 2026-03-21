@@ -29,6 +29,7 @@
     "electron-updater": "^6.3.9",
     "framer-motion": "^12.35.1",
     "lucide-react": "^0.577.0",
+    "react-router-dom": "^7.13.1",
     "simple-icons": "^16.12.0",
     "tailwindcss": "^4.2.1"
   },

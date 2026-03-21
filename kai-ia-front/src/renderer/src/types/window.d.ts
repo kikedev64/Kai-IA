@@ -1,11 +1,12 @@
-export { }
+export {}
 
 declare global {
   interface Window {
     electronAPI: {
       openGoogleOAuthPopup: (authUrl: string) => Promise<{ closed: true }>
+      closeApp: () => Promise<boolean>      
+    }
 
-    },
     configApi: {
       isFirstRun: () => Promise<boolean>
       setFirstRun: (value: boolean) => Promise<boolean>
@@ -23,13 +24,18 @@ declare global {
       setUserProfileJson: (profile: Record<string, unknown>) => Promise<boolean>
 
       completeOnboarding: () => Promise<boolean>
-
       getOnboardingCompleted: () => Promise<boolean>
-
       setOnboardingCompleted: (value: boolean) => Promise<boolean>
+      resetOnboardingState: () => Promise<boolean>
+    }
 
-      setServerUrl: (url: string) => Promise<boolean>
-      setServerPort: (port: number) => Promise<boolean>
+    startupApi: {
+      onStatus: (
+        callback: (payload: { step: string; message: string }) => void
+      ) => () => void
+      getCurrentStatus: () => Promise<{ step: string; message: string }>
+      resetAndOpenOnboarding: () => Promise<boolean>
+      completeOnboardingAndOpenMain: () => Promise<boolean>
     }
   }
 }

@@ -1,4 +1,4 @@
-import { ipcMain } from 'electron'
+import { app, ipcMain } from 'electron'
 import { configRepository } from '../db/config.repository'
 
 export function registerConfigIpc(): void {
@@ -58,5 +58,16 @@ export function registerConfigIpc(): void {
 
     ipcMain.handle('config:set-onboarding-completed', (_event, value: boolean) => {
         configRepository.setOnboardingCompleted(value)
+        return true
     })
+
+    ipcMain.handle('config:reset-onboarding-state', () => {
+        configRepository.setOnboardingCompleted(false)
+        return true
+    })
+
+    ipcMain.handle('app:quit', () => {
+        app.quit()
+    })
+
 }

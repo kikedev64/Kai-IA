@@ -1,45 +1,26 @@
-import { useEffect, useState } from 'react'
+import { HashRouter, Routes, Route } from 'react-router-dom'
 import OnboardingFlow from './pages/onboarding/OnboardingFlow'
 import HomePage from './pages/home/HomePage'
-
-type AppStatus = 'loading' | 'show-onboarding' | 'show-main'
+import SplashPage from './pages/splash/SplashPage'
 
 function App(): React.JSX.Element {
-  const [status, setStatus] = useState<AppStatus>('loading')
-
-  useEffect(() => {
-    const bootstrap = async () => {
-      try {
-        const onboardingCompleted = await window.configApi.getOnboardingCompleted()
-
-        if (!onboardingCompleted) {
-          setStatus('show-onboarding')
-          return
-        }
-
-        setStatus('show-main')
-      } catch (error) {
-        console.error('Error inicializando la app:', error)
-        setStatus('show-main')
-      }
+  const handleOnboardingFinish = async () => {
+    try {
+      await window.startupApi.completeOnboardingAndOpenMain()
+    } catch (error) {
+      console.error('No se pudo cerrar onboarding y abrir HomePage:', error)
     }
-
-    void bootstrap()
-  }, [])
-
-  const handleOnboardingFinish = () => {
-    setStatus('show-main')
   }
 
-  if (status === 'loading') {
-    return <div>Cargando...</div>
-  }
-
-  if (status === 'show-onboarding') {
-    return <OnboardingFlow onFinish={handleOnboardingFinish} />
-  }
-
-  return <HomePage />
+  return (
+    <HashRouter>
+      <Routes>
+        <Route path="/splash" element={<SplashPage />} />
+        <Route path="/onboarding" element={<OnboardingFlow onFinish={handleOnboardingFinish} />} />
+        <Route path="/" element={<HomePage />} />
+      </Routes>
+    </HashRouter>
+  )
 }
 
 export default App
