@@ -2,6 +2,7 @@ import json
 from api.routers.tasks import find_reminders_by_conditions
 from api.schemas.chat import AskRequest
 from core.config import DEFAULT_PROMPTS
+from core.google_auth_utils import is_google_token_expired_error
 from core.models.email import Email
 from llm.lmstudio_client import ask_without_context
 from services.calendar.calendar_service import (
@@ -11,10 +12,10 @@ from services.calendar.calendar_service import (
     find_calendar_events,
     list_calendar_events,
     update_calendar_event,
-    get_calendar_event,
     delete_calendar_event,
     freebusy_query,
 )
+from core.auth import get_google_auth_url
 from services.drive.files import get_public_download_link, list_drive_files, search_drive_files_by_name
 from services.gmail.full_read import read_email_by_id, read_last_emails_by_subject, read_last_emails_from_sender, read_last_emails_full, read_thread_from_message_id
 from services.gmail.send import send_email
@@ -22,6 +23,18 @@ from services.task.tasks_service import create_reminder, delete_reminder, ensure
 from tools.compact_handlers import _email_to_dict, _thread_to_dict, compact_calendar_event, compact_calendar_events, compact_delete_calendar_event_result, compact_delete_calendar_events_by_conditions_result, compact_find_calendar_events_result, compact_freebusy_result
 from tools.gmail.email_response_builders import markdown_to_html
 from tools.tasks.tasks_tools import _compact_task, _resolve_tasklist
+
+def build_google_reauth_message() -> str:
+    try:
+        auth_url = get_google_auth_url()
+    except Exception:
+        auth_url = "No se pudo generar la URL de reautenticación en este momento."
+
+    return (
+        "No puedo acceder a tus servicios de Google porque la sesión ha caducado o ha sido revocada.\n\n"
+        f"Abre esta URL para volver a vincular tu cuenta:\n{auth_url}\n\n"
+        "Cuando lo hayas hecho, vuelve a pedírmelo."
+    )
 
 def handle_tool_call(tool_call):
 
@@ -589,24 +602,17 @@ def handle_tool_call(tool_call):
         if name == "list_drive_files":
             max_results = args.get("max_results", 20)
 
-            try:
-                result = list_drive_files(max_results=max_results)
+            result = list_drive_files(max_results=max_results)
 
-                return {
-                    "status": "success",
-                    "data": {
-                        "count": len(result.get("items", [])),
-                        "files": result.get("items", []),
-                        "nextPageToken": result.get("nextPageToken"),
-                    },
-                }
+            return {
+                "status": "success",
+                "data": {
+                    "count": len(result.get("items", [])),
+                    "files": result.get("items", []),
+                    "nextPageToken": result.get("nextPageToken"),
+                },
+            }
 
-            except Exception as e:
-                return {
-                    "status": "error",
-                    "message": str(e)
-                }
-            
         if name == "search_drive_files_by_name":
             name_query = args.get("name_query")
             max_results = args.get("max_results", 20)
@@ -617,27 +623,21 @@ def handle_tool_call(tool_call):
                     "message": "Falta 'name_query'"
                 }
 
-            try:
-                result = search_drive_files_by_name(
-                    name_query=name_query,
-                    max_results=max_results
-                )
+            result = search_drive_files_by_name(
+                name_query=name_query,
+                max_results=max_results
+            )
 
-                return {
-                    "status": "success",
-                    "data": {
-                        "query": name_query,
-                        "count": len(result.get("items", [])),
-                        "files": result.get("items", []),
-                        "nextPageToken": result.get("nextPageToken"),
-                    },
-                }
+            return {
+                "status": "success",
+                "data": {
+                    "query": name_query,
+                    "count": len(result.get("items", [])),
+                    "files": result.get("items", []),
+                    "nextPageToken": result.get("nextPageToken"),
+                },
+            }
 
-            except Exception as e:
-                return {
-                    "status": "error",
-                    "message": str(e)
-                }
             
         if name == "get_public_download_link":
             file_id = args.get("file_id")
@@ -649,25 +649,28 @@ def handle_tool_call(tool_call):
                     "message": "Falta 'file_id'"
                 }
 
-            try:
-                result = get_public_download_link(
-                    file_id=file_id,
-                    export_fmt=export_fmt
-                )
+            result = get_public_download_link(
+                file_id=file_id,
+                export_fmt=export_fmt
+            )
 
-                return {
-                    "status": "success",
-                    "data": {
-                        "file": result
-                    },
-                }
+            return {
+                "status": "success",
+                "data": {
+                    "file": result
+                },
+            }
 
-            except Exception as e:
-                return {
-                    "status": "error",
-                    "message": str(e)
-                }
                 
         return {"status": "warning", "message": f"Tool no encontrada: {name}"}
     except Exception as e:
+        print(f"[TOOLS] Exception in tool '{name}': {repr(e)}")
+
+        if is_google_token_expired_error(e):
+            print(f"[TOOLS] Token expirado detectado en tool '{name}'")
+            return {
+                "status": "auth_expired",
+                "message": build_google_reauth_message()
+            }
+
         return {"status": "error", "message": str(e)}

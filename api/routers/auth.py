@@ -1,4 +1,5 @@
 from fastapi import APIRouter, HTTPException, status
+from fastapi.responses import HTMLResponse
 
 from api.routers.health import test_google_auth_connection
 from core.auth import (
@@ -7,9 +8,6 @@ from core.auth import (
 )
 
 router = APIRouter(prefix="/auth/google", tags=["Auth"])
-
-
-from fastapi.responses import HTMLResponse
 
 @router.get("/callback", response_class=HTMLResponse)
 def google_oauth_callback(

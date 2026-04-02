@@ -281,7 +281,6 @@ def chat_endpoint(
 
                     fake_tc = _TC(name, args)
                     result = handle_tool_call(fake_tc)
-
                     add_message(chat_id, "tool", json.dumps(result, ensure_ascii=False))
 
                     messages.append({"role": "assistant", "content": None})
@@ -352,6 +351,20 @@ def chat_endpoint(
                     print(f"[{request_id}] tool_call_id: {tc.id}")
                     print(f"[{request_id}] result: {json.dumps(result, ensure_ascii=False, indent=2)}")
 
+                if isinstance(result, dict) and result.get("status") == "auth_expired":
+                    final_auth_reply = result.get("message") or (
+                        "No puedo acceder a tus servicios de Google porque la sesión ha expirado."
+                    )
+
+                    add_message(chat_id, "assistant", final_auth_reply)
+
+                    if DEBUG_TOOLS:
+                        print(f"\n[{request_id}] AUTH EXPIRED DETECTED")
+                        print(f"[{request_id}] message: {final_auth_reply}")
+                        print(f"=== [{request_id}] CHAT END ===\n")
+
+                    return {"reply": final_auth_reply, "chat_id": chat_id}
+                
                 tool_msg = {
                     "role": "tool",
                     "tool_call_id": tc.id,
