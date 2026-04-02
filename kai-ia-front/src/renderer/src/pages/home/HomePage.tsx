@@ -1,112 +1,160 @@
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { Menu, Plus, Search, Settings, Send, Bot, User, Sparkles } from 'lucide-react'
+import {
+  createChat,
+  getChatItemById,
+  getChatMessages,
+  sendMessage
+} from '../../services/assistant.services'
+import { useChatBootstrap } from '../../context/chat-bootstrap.context'
+import type { ChatItem, Message } from '../../types/assistant'
 
-type ChatItem = {
-  id: string
-  title: string
-  lastMessage: string
-  updatedAt: string
-}
-
-type Message = {
-  id: string
-  role: 'user' | 'assistant'
-  content: string
-}
-
-const mockChats: ChatItem[] = [
-  {
-    id: '1',
-    title: 'Planificación del día',
-    lastMessage: 'Recuérdame la reunión de las 18:00',
-    updatedAt: 'Hoy'
-  },
-  {
-    id: '2',
-    title: 'Correos importantes',
-    lastMessage: 'Resume los últimos correos de Gmail',
-    updatedAt: 'Hoy'
-  },
-  {
-    id: '3',
-    title: 'Ideas TFG',
-    lastMessage: 'Quiero ideas relacionadas con IA',
-    updatedAt: 'Ayer'
-  }
-]
-
-const mockMessagesByChat: Record<string, Message[]> = {
-  '1': [
-    {
-      id: 'm1',
-      role: 'assistant',
-      content: 'Hola, Enrique. ¿En qué quieres que te ayude hoy?'
-    },
-    {
-      id: 'm2',
-      role: 'user',
-      content: 'Organízame el día y recuérdame la reunión de las 18:00.'
-    },
-    {
-      id: 'm3',
-      role: 'assistant',
-      content:
-        'Perfecto. Puedo ayudarte a estructurar tus tareas del día y dejar preparado el recordatorio.'
-    }
-  ],
-  '2': [
-    {
-      id: 'm4',
-      role: 'user',
-      content: 'Muéstrame los correos más importantes de hoy.'
-    },
-    {
-      id: 'm5',
-      role: 'assistant',
-      content:
-        'Puedo revisar tus correos conectados y resumirte los más relevantes en un formato claro.'
-    }
-  ],
-  '3': [
-    {
-      id: 'm6',
-      role: 'user',
-      content: 'Dame ideas de TFG de IA que sean potentes.'
-    },
-    {
-      id: 'm7',
-      role: 'assistant',
-      content:
-        'Una buena línea sería un asistente local con integración de correo, calendario y automatización.'
-    }
-  ]
-}
-
-const HomePage = () => {
+const HomePage = (): React.JSX.Element => {
   const [sidebarOpen, setSidebarOpen] = useState(true)
-  const [selectedChatId, setSelectedChatId] = useState<string>('1')
   const [input, setInput] = useState('')
   const [search, setSearch] = useState('')
+  const [isSending, setIsSending] = useState(false)
+  const [isCreatingChat, setIsCreatingChat] = useState(false)
+  const [isLoadingMessages, setIsLoadingMessages] = useState(false)
+
+  const {
+    chats,
+    selectedChatId,
+    messagesByChatId,
+    setSelectedChatId,
+    setMessagesForChat
+  } = useChatBootstrap()
+
+  const [localChats, setLocalChats] = useState<ChatItem[]>(chats)
+
+  useEffect(() => {
+    setLocalChats(chats)
+  }, [chats])
+
+  useEffect(() => {
+    const loadMessagesForSelectedChat = async () => {
+      if (!selectedChatId) return
+      if (messagesByChatId[selectedChatId]) return
+
+      try {
+        setIsLoadingMessages(true)
+        const messages = await getChatMessages(selectedChatId)
+        setMessagesForChat(selectedChatId, messages)
+      } catch (error) {
+        console.error('Error cargando mensajes del chat:', error)
+      } finally {
+        setIsLoadingMessages(false)
+      }
+    }
+
+    void loadMessagesForSelectedChat()
+  }, [selectedChatId, messagesByChatId, setMessagesForChat])
 
   const filteredChats = useMemo(() => {
     const term = search.trim().toLowerCase()
 
-    if (!term) return mockChats
+    if (!term) return localChats
 
-    return mockChats.filter(
+    return localChats.filter(
       (chat) =>
         chat.title.toLowerCase().includes(term) ||
         chat.lastMessage.toLowerCase().includes(term)
     )
-  }, [search])
+  }, [search, localChats])
 
-  const selectedChat = mockChats.find((chat) => chat.id === selectedChatId) ?? null
-  const messages = selectedChat ? mockMessagesByChat[selectedChat.id] ?? [] : []
+  const selectedChat = localChats.find((chat) => chat.id === selectedChatId) ?? null
+  const messages = selectedChatId ? messagesByChatId[selectedChatId] ?? [] : []
 
-  const handleSend = () => {
-    if (!input.trim()) return
-    console.log('Enviar mensaje:', input)
+  const handleCreateChat = async () => {
+    try {
+      setIsCreatingChat(true)
+
+      const newChatId = await createChat()
+
+      const optimisticChat: ChatItem = {
+        id: newChatId,
+        title: 'Nuevo chat',
+        lastMessage: 'Sin mensajes todavía',
+        updatedAt: 'Hoy'
+      }
+
+      setLocalChats((prev) => [optimisticChat, ...prev])
+      setMessagesForChat(newChatId, [])
+      setSelectedChatId(newChatId)
+      setInput('')
+    } catch (error) {
+      console.error('Error creando chat:', error)
+      alert('No se pudo crear el chat.')
+    } finally {
+      setIsCreatingChat(false)
+    }
+  }
+
+  const handleSelectChat = (chatId: string) => {
+    setSelectedChatId(chatId)
+  }
+
+  const handleSend = async () => {
+    const trimmedInput = input.trim()
+
+    if (!trimmedInput || !selectedChatId || isSending) return
+
+    const optimisticUserMessage: Message = {
+      id: `${selectedChatId}-user-${Date.now()}`,
+      role: 'user',
+      content: trimmedInput
+    }
+
+    const currentMessages = messagesByChatId[selectedChatId] ?? []
+    const updatedMessages = [...currentMessages, optimisticUserMessage]
+
+    setMessagesForChat(selectedChatId, updatedMessages)
+
+    setLocalChats((prev) =>
+      prev.map((chat) =>
+        chat.id === selectedChatId
+          ? {
+              ...chat,
+              lastMessage: trimmedInput,
+              updatedAt: 'Hoy'
+            }
+          : chat
+      )
+    )
+
     setInput('')
+    setIsSending(true)
+
+    try {
+      const result = await sendMessage(selectedChatId, trimmedInput)
+
+      const assistantMessage: Message = {
+        id: `${selectedChatId}-assistant-${Date.now()}`,
+        role: 'assistant',
+        content: result.reply
+      }
+
+      const finalMessages = [...updatedMessages, assistantMessage]
+      setMessagesForChat(selectedChatId, finalMessages)
+
+      const refreshedChat = await getChatItemById(selectedChatId)
+
+      setLocalChats((prev) =>
+        prev.map((chat) => (chat.id === selectedChatId ? refreshedChat : chat))
+      )
+    } catch (error) {
+      console.error('Error enviando mensaje:', error)
+
+      const errorMessage: Message = {
+        id: `${selectedChatId}-assistant-error-${Date.now()}`,
+        role: 'assistant',
+        content: 'Ha ocurrido un error al procesar el mensaje.'
+      }
+
+      setMessagesForChat(selectedChatId, [...updatedMessages, errorMessage])
+    } finally {
+      setIsSending(false)
+    }
   }
 
   return (
@@ -136,9 +184,13 @@ const HomePage = () => {
       >
         <div className="flex h-full flex-col">
           <div className="border-b border-white/10 bg-white/[0.03] p-4">
-            <button className="group flex w-full items-center justify-center gap-2 rounded-2xl border border-white/15 bg-white/[0.08] px-4 py-3 text-sm font-medium shadow-[0_10px_30px_rgba(0,0,0,0.18)] transition hover:border-white/30 hover:bg-white hover:text-black">
+            <button
+              onClick={handleCreateChat}
+              disabled={isCreatingChat}
+              className="group flex w-full items-center justify-center gap-2 rounded-2xl border border-white/15 bg-white/[0.08] px-4 py-3 text-sm font-medium shadow-[0_10px_30px_rgba(0,0,0,0.18)] transition hover:border-white/30 hover:bg-white hover:text-black disabled:cursor-not-allowed disabled:opacity-50"
+            >
               <Plus size={18} />
-              Nuevo chat
+              {isCreatingChat ? 'Creando...' : 'Nuevo chat'}
             </button>
 
             <div className="relative mt-4">
@@ -156,36 +208,42 @@ const HomePage = () => {
           </div>
 
           <div className="flex-1 overflow-y-auto p-3">
-            <div className="space-y-2">
-              {filteredChats.map((chat) => {
-                const isActive = chat.id === selectedChatId
+            {filteredChats.length === 0 ? (
+              <div className="flex h-full items-center justify-center text-sm text-slate-400">
+                No hay chats disponibles.
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {filteredChats.map((chat) => {
+                  const isActive = chat.id === selectedChatId
 
-                return (
-                  <button
-                    key={chat.id}
-                    onClick={() => setSelectedChatId(chat.id)}
-                    className={`group w-full rounded-2xl border p-4 text-left backdrop-blur-xl transition ${
-                      isActive
-                        ? 'border-cyan-300/20 bg-white/[0.12] shadow-[0_8px_30px_rgba(34,211,238,0.08)]'
-                        : 'border-white/5 bg-white/[0.04] hover:border-white/15 hover:bg-white/[0.08]'
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <h3 className="line-clamp-1 text-sm font-medium text-white">
-                        {chat.title}
-                      </h3>
-                      <span className="shrink-0 text-xs text-slate-400">
-                        {chat.updatedAt}
-                      </span>
-                    </div>
+                  return (
+                    <button
+                      key={chat.id}
+                      onClick={() => handleSelectChat(chat.id)}
+                      className={`group w-full rounded-2xl border p-4 text-left backdrop-blur-xl transition ${
+                        isActive
+                          ? 'border-cyan-300/20 bg-white/[0.12] shadow-[0_8px_30px_rgba(34,211,238,0.08)]'
+                          : 'border-white/5 bg-white/[0.04] hover:border-white/15 hover:bg-white/[0.08]'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <h3 className="line-clamp-1 text-sm font-medium text-white">
+                          {chat.title}
+                        </h3>
+                        <span className="shrink-0 text-xs text-slate-400">
+                          {chat.updatedAt}
+                        </span>
+                      </div>
 
-                    <p className="mt-2 line-clamp-2 text-sm text-slate-300/80">
-                      {chat.lastMessage}
-                    </p>
-                  </button>
-                )
-              })}
-            </div>
+                      <p className="mt-2 line-clamp-2 text-sm text-slate-300/80">
+                        {chat.lastMessage}
+                      </p>
+                    </button>
+                  )
+                })}
+              </div>
+            )}
           </div>
         </div>
       </aside>
@@ -239,7 +297,11 @@ const HomePage = () => {
 
             <div className="flex-1 overflow-y-auto px-6 py-6">
               <div className="mx-auto flex max-w-4xl flex-col gap-4">
-                {messages.length > 0 ? (
+                {isLoadingMessages ? (
+                  <div className="flex h-full items-center justify-center text-slate-400">
+                    Cargando mensajes...
+                  </div>
+                ) : messages.length > 0 ? (
                   messages.map((message) => {
                     const isUser = message.role === 'user'
 
@@ -290,7 +352,7 @@ const HomePage = () => {
 
                 <button
                   onClick={handleSend}
-                  disabled={!input.trim()}
+                  disabled={!input.trim() || !selectedChatId || isSending}
                   className="flex h-[54px] w-[54px] items-center justify-center rounded-[20px] border border-white/10 bg-white/[0.1] shadow-[0_12px_30px_rgba(0,0,0,0.2)] backdrop-blur-xl transition hover:bg-white hover:text-black disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   <Send size={18} />

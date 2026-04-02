@@ -5,10 +5,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from services.user_profile_service import get_all_user_profile, get_user_profile_value, parse_llm_profile_output, upsert_user_profile_values
-
-
 router = APIRouter(prefix="/user-profile", tags=["user-profile"])
-
 
 class UserProfileLLMRequest(BaseModel):
     llm_output: str
@@ -18,7 +15,7 @@ class UserProfileManualRequest(BaseModel):
     data: dict[str, object]
 
 
-@router.get("")
+@router.get("/")
 def read_user_profile():
     items = get_all_user_profile()
     return {
@@ -53,23 +50,6 @@ def save_user_profile_from_llm(req: UserProfileLLMRequest):
             "ok": True,
             "saved_keys": list(parsed.keys()),
             "count": len(parsed),
-            "items": items,
-        }
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-
-@router.post("/onboarding/manual")
-def save_user_profile_manual(req: UserProfileManualRequest):
-    """
-    Guarda directamente un dict ya validado.
-    """
-    try:
-        items = upsert_user_profile_values(req.data)
-        return {
-            "ok": True,
-            "saved_keys": list(req.data.keys()),
-            "count": len(req.data),
             "items": items,
         }
     except Exception as e:

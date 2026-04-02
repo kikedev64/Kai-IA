@@ -1,11 +1,9 @@
-# api/routers/chat.py
 import json
 import uuid
 from datetime import datetime, timezone, timedelta
-
 from fastapi import APIRouter, HTTPException, Query
-
 from services.chat_summary_service import generate_chat_summary_from_text
+from services.user_profile_service import get_user_profile_as_dict
 
 try:
     from zoneinfo import ZoneInfo
@@ -233,7 +231,13 @@ def chat_endpoint(
         messages = [
             {"role": "system", "content": system_prompt},
             now_context_system_message(),
-        ] + sanitized
+        ]
+
+        user_profile_msg = user_profile_system_message()
+        if user_profile_msg:
+            messages.append(user_profile_msg)
+
+        messages += sanitized
 
         if DEBUG_TOOLS:
             print(f"\n=== [{request_id}] CHAT START {start_ts} ===")
@@ -241,6 +245,7 @@ def chat_endpoint(
             print(f"[{request_id}] USER: {user_input}")
             print(f"[{request_id}] user_message_count: {user_message_count}")
             print(f"[{request_id}] is_first_user_message: {is_first_user_message}")
+            print(f"[{request_id}] user_profile_loaded: {user_profile_msg is not None}")
 
         for step in range(MAX_TOOL_STEPS):
             msg = call_lm_studio(messages)
@@ -415,3 +420,24 @@ def get_chat_by_id(chat_id: str):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    
+def user_profile_system_message() -> dict | None:
+    try:
+        user_profile = get_user_profile_as_dict()
+    except Exception:
+        return None
+
+    if not user_profile:
+        return None
+
+    return {
+        "role": "system",
+        "content": (
+            "CONTEXTO PERSISTENTE DEL USUARIO (OBLIGATORIO):\n"
+            "- Esta información describe al usuario y debe usarse como contexto en todas las respuestas.\n"
+            "- No la menciones literalmente salvo que sea útil o el usuario pregunte por ella.\n"
+            "- No digas que viene de una base de datos ni de un perfil interno.\n"
+            "- Úsala para personalizar tono, continuidad, preferencias y contexto.\n\n"
+            f"{json.dumps(user_profile, ensure_ascii=False, indent=2)}"
+        ),
+    }

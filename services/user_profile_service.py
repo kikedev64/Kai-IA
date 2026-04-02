@@ -108,7 +108,6 @@ def get_user_profile_as_dict() -> dict[str, object]:
         key = item["key"]
         value = item["value"]
 
-        # intenta parsear JSON si aplica
         if isinstance(value, str):
             try:
                 parsed = json.loads(value)

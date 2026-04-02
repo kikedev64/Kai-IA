@@ -74,7 +74,10 @@ if (process.contextIsolated) {
         ipcRenderer.invoke('startup:reset-and-open-onboarding'),
 
       completeOnboardingAndOpenMain: (): Promise<boolean> =>
-        ipcRenderer.invoke('startup:complete-onboarding-and-open-main')
+        ipcRenderer.invoke('startup:complete-onboarding-and-open-main'),
+
+      getServerUrl: () => ipcRenderer.invoke('config:getServerUrl'),
+      getServerPort: () => ipcRenderer.invoke('config:getServerPort')
     })
   } catch (error) {
     console.error(error)

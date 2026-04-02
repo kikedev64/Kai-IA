@@ -1,6 +1,8 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { AlertTriangle, CheckCircle2, Loader2, RotateCcw, X } from 'lucide-react'
 import logo from '../../assets/logo.png'
+import { loadInitialChatBootstrap } from '../../services/assistant.services'
+import { useChatBootstrap } from '../../context/chat-bootstrap.context'
 
 type StartupStatus = {
   step: string
@@ -21,6 +23,12 @@ export default function SplashPage(): React.JSX.Element {
     message: 'Iniciando Kai IA...'
   })
 
+  const [isLoadingInitialChats, setIsLoadingInitialChats] = useState(false)
+  const [chatBootstrapError, setChatBootstrapError] = useState<string | null>(null)
+
+  const { setBootstrapData } = useChatBootstrap()
+  const hasBootstrappedChatsRef = useRef(false)
+
   useEffect(() => {
     const unsubscribe = window.startupApi.onStatus((payload) => {
       setStatus(payload)
@@ -29,8 +37,40 @@ export default function SplashPage(): React.JSX.Element {
     return () => unsubscribe()
   }, [])
 
-  const isError = status.step === 'error'
-  const isSuccess = status.step === 'bootstrap-ok'
+  useEffect(() => {
+    const bootstrapChats = async () => {
+      if (status.step !== 'bootstrap-ok') return
+      if (hasBootstrappedChatsRef.current) return
+
+      hasBootstrappedChatsRef.current = true
+      setIsLoadingInitialChats(true)
+      setChatBootstrapError(null)
+
+      try {
+        const data = await loadInitialChatBootstrap()
+        setBootstrapData(data)
+      } catch (error) {
+        console.error('Error cargando chats iniciales:', error)
+        setChatBootstrapError('No se pudieron cargar los chats iniciales')
+      } finally {
+        setIsLoadingInitialChats(false)
+      }
+    }
+
+    void bootstrapChats()
+  }, [status.step, setBootstrapData])
+
+  const isError = status.step === 'error' || !!chatBootstrapError
+  const isSuccess =
+    status.step === 'bootstrap-ok' &&
+    !isLoadingInitialChats &&
+    !chatBootstrapError
+
+  const effectiveMessage = chatBootstrapError
+    ? chatBootstrapError
+    : isLoadingInitialChats
+      ? 'Cargando conversaciones iniciales...'
+      : status.message
 
   const statusIcon = useMemo(() => {
     if (isError) {
@@ -49,6 +89,12 @@ export default function SplashPage(): React.JSX.Element {
     : isSuccess
       ? 'bg-emerald-500/12 text-emerald-100'
       : 'bg-cyan-400/12 text-cyan-100'
+
+  const effectiveStepLabel = chatBootstrapError
+    ? 'Error'
+    : isLoadingInitialChats
+      ? 'Cargando datos'
+      : STEP_LABELS[status.step] ?? 'Procesando'
 
   const handleResetConfiguration = async () => {
     const confirmed = window.confirm(
@@ -118,13 +164,13 @@ export default function SplashPage(): React.JSX.Element {
                 className={`flex shrink-0 items-center gap-2 rounded-full px-3 py-1.5 text-[11px] font-medium ${badgeClasses}`}
               >
                 {statusIcon}
-                <span>{STEP_LABELS[status.step] ?? 'Procesando'}</span>
+                <span>{effectiveStepLabel}</span>
               </div>
             </div>
 
             <div className="mt-4">
               <p className="line-clamp-2 text-sm leading-6 text-slate-200">
-                {status.message}
+                {effectiveMessage}
               </p>
 
               {!isError && !isSuccess && (

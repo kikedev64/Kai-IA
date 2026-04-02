@@ -1,4 +1,5 @@
-import { HashRouter, Routes, Route } from 'react-router-dom'
+import { HashRouter, Route, Routes } from 'react-router-dom'
+import { ChatBootstrapProvider } from './context/chat-bootstrap.context'
 import OnboardingFlow from './pages/onboarding/OnboardingFlow'
 import HomePage from './pages/home/HomePage'
 import SplashPage from './pages/splash/SplashPage'
@@ -13,13 +14,18 @@ function App(): React.JSX.Element {
   }
 
   return (
-    <HashRouter>
-      <Routes>
-        <Route path="/splash" element={<SplashPage />} />
-        <Route path="/onboarding" element={<OnboardingFlow onFinish={handleOnboardingFinish} />} />
-        <Route path="/" element={<HomePage />} />
-      </Routes>
-    </HashRouter>
+    <ChatBootstrapProvider>
+      <HashRouter>
+        <Routes>
+          <Route path="/splash" element={<SplashPage />} />
+          <Route
+            path="/onboarding"
+            element={<OnboardingFlow onFinish={handleOnboardingFinish} />}
+          />
+          <Route path="/" element={<HomePage />} />
+        </Routes>
+      </HashRouter>
+    </ChatBootstrapProvider>
   )
 }
 
