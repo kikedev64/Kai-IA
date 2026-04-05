@@ -7,6 +7,37 @@ import {
 } from '../../services/assistant.services'
 import { useChatBootstrap } from '../../context/chat-bootstrap.context'
 import type { ChatItem, Message } from '../../types/assistant'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
+
+const MarkdownContent = ({ content }: { content: string }) => (
+  <ReactMarkdown
+    remarkPlugins={[remarkGfm]}
+    components={{
+      p: ({ children }) => <p className="mb-2 last:mb-0 text-sm leading-7 text-slate-100 break-words">{children}</p>,
+      strong: ({ children }) => <strong className="font-semibold text-white">{children}</strong>,
+      em: ({ children }) => <em className="italic text-slate-200">{children}</em>,
+      code: ({ inline, children }: { inline?: boolean; children?: React.ReactNode }) =>
+        inline ? (
+          <code className="rounded bg-white/10 px-1.5 py-0.5 text-xs font-mono text-cyan-200 break-all">{children}</code>
+        ) : (
+          <pre className="my-2 overflow-x-auto rounded-xl bg-black/40 p-3 text-xs font-mono text-slate-200 border border-white/10">
+            <code className="whitespace-pre-wrap">{children}</code>
+          </pre>
+        ),
+      ul: ({ children }) => <ul className="mb-2 ml-4 list-disc space-y-1 text-sm text-slate-100">{children}</ul>,
+      ol: ({ children }) => <ol className="mb-2 ml-4 list-decimal space-y-1 text-sm text-slate-100">{children}</ol>,
+      li: ({ children }) => <li className="leading-6 break-words">{children}</li>,
+      a: ({ href, children }) => <a href={href} target="_blank" rel="noopener noreferrer" className="text-cyan-300 underline break-all hover:text-cyan-200">{children}</a>,
+      blockquote: ({ children }) => <blockquote className="my-2 border-l-2 border-cyan-400/50 pl-3 text-slate-300 italic">{children}</blockquote>,
+      h1: ({ children }) => <h1 className="mb-2 text-base font-semibold text-white">{children}</h1>,
+      h2: ({ children }) => <h2 className="mb-2 text-sm font-semibold text-white">{children}</h2>,
+      h3: ({ children }) => <h3 className="mb-1 text-sm font-medium text-white">{children}</h3>,
+    }}
+  >
+    {content}
+  </ReactMarkdown>
+)
 
 const HomePage = (): React.JSX.Element => {
   const [sidebarOpen, setSidebarOpen] = useState(true)
@@ -16,7 +47,6 @@ const HomePage = (): React.JSX.Element => {
   const [isCreatingChat, setIsCreatingChat] = useState(false)
   const [isLoadingMessages, setIsLoadingMessages] = useState(false)
   const [streamingContent, setStreamingContent] = useState<string>('')
-  const messagesEndRef = useRef<HTMLDivElement>(null)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
 
   const {
@@ -356,14 +386,13 @@ const HomePage = (): React.JSX.Element => {
                               <span>{isUser ? 'Tú' : 'Kai'}</span>
                             </div>
                             <p className="whitespace-pre-wrap text-sm leading-7 text-slate-100">
-                              {message.content}
+                              <MarkdownContent content={message.content} />
                             </p>
                           </div>
                         </div>
                       )
                     })}
 
-                    {/* Mensaje en streaming */}
                     {streamingContent && (
                       <div className="flex justify-start">
                         <div className="max-w-[80%] rounded-[24px] border border-white/10 bg-white/[0.06] px-4 py-3 shadow-[0_10px_30px_rgba(0,0,0,0.18)] backdrop-blur-xl">
@@ -372,7 +401,7 @@ const HomePage = (): React.JSX.Element => {
                             <span>Kai</span>
                           </div>
                           <p className="whitespace-pre-wrap text-sm leading-7 text-slate-100">
-                            {streamingContent}
+                            <MarkdownContent content={streamingContent} />
                             <span className="ml-0.5 inline-block h-4 w-0.5 animate-pulse bg-cyan-300" />
                           </p>
                         </div>
