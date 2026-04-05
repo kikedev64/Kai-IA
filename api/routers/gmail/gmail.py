@@ -1,10 +1,8 @@
 from __future__ import annotations
 from fastapi import APIRouter, HTTPException, Query, UploadFile, File, Form
 from googleapiclient.errors import HttpError
-from lmstudio import BaseModel
 from api.schemas.gmail import GmailSendRequest, GmailSendResponse, GmailReadEmailsResponse,GmailThreadResponse
 from core.models.email import Email
-from services.gmail.history_reader import check_history_changes, get_history_ids, get_latest_history_id, read_history_since
 from services.gmail.send import send_email,send_email_with_attachments
 from services.gmail.full_read import read_email_by_id, read_last_emails_by_subject,read_last_emails_full, read_last_emails_from_sender, read_thread_from_message_id
 from core.config import get_email_max_total_size_attachment

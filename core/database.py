@@ -1,6 +1,5 @@
 from pathlib import Path
 import json
-import os
 import sqlite3
 
 DB_PATH = Path("data/kai.db")
