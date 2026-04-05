@@ -22,8 +22,18 @@ const HomePage = (): React.JSX.Element => {
     selectedChatId,
     messagesByChatId,
     setSelectedChatId,
-    setMessagesForChat
+    setMessagesForChat,
+    isReady
   } = useChatBootstrap()
+
+
+  if (!isReady) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-[#020617] text-slate-400 text-sm">
+        Cargando...
+      </div>
+    )
+  }
 
   const [localChats, setLocalChats] = useState<ChatItem[]>(chats)
 

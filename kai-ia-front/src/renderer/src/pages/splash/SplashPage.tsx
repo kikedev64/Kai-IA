@@ -104,6 +104,7 @@ export default function SplashPage(): React.JSX.Element {
     if (!confirmed) return
 
     try {
+      localStorage.removeItem('kai_bootstrap') // ← línea nueva
       await window.startupApi.resetAndOpenOnboarding()
     } catch (error) {
       console.error('Error reiniciando configuración:', error)
