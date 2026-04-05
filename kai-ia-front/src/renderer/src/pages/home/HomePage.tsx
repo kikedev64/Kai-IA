@@ -12,6 +12,7 @@ import remarkGfm from 'remark-gfm'
 import remarkMath from 'remark-math'
 import rehypeKatex from 'rehype-katex'
 import 'katex/dist/katex.min.css'
+import { createNewEmailWatcher } from '@renderer/services/new_email_watcher.service'
 
 function normalizeLatex(content: string): string {
   return content
@@ -61,6 +62,7 @@ const HomePage = (): React.JSX.Element => {
   const [streamingContent, setStreamingContent] = useState<string>('')
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const emailWatcherRef = useRef<ReturnType<typeof createNewEmailWatcher> | null>(null)
 
   const {
     chats,
@@ -76,6 +78,27 @@ const HomePage = (): React.JSX.Element => {
   useEffect(() => {
     setLocalChats(chats)
   }, [chats])
+
+  useEffect(() => {
+    const watcher = createNewEmailWatcher({
+      intervalMs: 20000,
+      onNewEmail: async (email) => {
+        console.log('Correo nuevo detectado:', email)
+      },
+      onError: (error) => {
+        console.error('Error en vigilancia de correos:', error)
+      }
+    })
+
+    emailWatcherRef.current = watcher
+
+    void watcher.start()
+
+    return () => {
+      watcher.stop()
+      emailWatcherRef.current = null
+    }
+  }, [])
 
   useEffect(() => {
     const loadMessagesForSelectedChat = async () => {
