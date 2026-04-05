@@ -60,6 +60,7 @@ const HomePage = (): React.JSX.Element => {
   const [isLoadingMessages, setIsLoadingMessages] = useState(false)
   const [streamingContent, setStreamingContent] = useState<string>('')
   const scrollContainerRef = useRef<HTMLDivElement>(null)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   const {
     chats,
@@ -162,6 +163,9 @@ const HomePage = (): React.JSX.Element => {
       )
     )
     setInput('')
+    if (textareaRef.current) {
+      textareaRef.current.style.height = '72px'
+    }
     setIsSending(true)
     setStreamingContent('')
 
@@ -267,11 +271,11 @@ const HomePage = (): React.JSX.Element => {
       </div>
 
       <aside
-        className={`relative z-10 border-r border-white/10 bg-white/[0.045] backdrop-blur-2xl transition-all duration-300 ${
+        className={`relative z-10 shrink-0 border-r border-white/10 bg-white/[0.045] backdrop-blur-2xl transition-all duration-300 ${
           sidebarOpen ? 'w-[330px]' : 'w-0 overflow-hidden border-r-0'
         }`}
       >
-        <div className="flex h-full flex-col">
+        <div className="flex h-full flex-col overflow-hidden">
           <div className="border-b border-white/10 bg-white/[0.03] p-4">
             <button
               onClick={handleCreateChat}
@@ -449,14 +453,21 @@ const HomePage = (): React.JSX.Element => {
 
             <div className="border-t border-white/10 px-6 py-4">
               <div className="mx-auto flex max-w-4xl items-end gap-3">
-                <div className="relative flex-1 overflow-hidden rounded-[24px] border border-white/10 bg-white/[0.06] shadow-[0_12px_30px_rgba(0,0,0,0.18)] backdrop-blur-2xl">
+                <div className="relative flex-1 rounded-[24px] border border-white/10 bg-white/[0.06] shadow-[0_12px_30px_rgba(0,0,0,0.18)] backdrop-blur-2xl">
                   <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/25 to-transparent" />
                   <textarea
                     value={input}
-                    onChange={(e) => setInput(e.target.value)}
+                    ref={textareaRef}
+                    onChange={(e) => {
+                      setInput(e.target.value)
+                      e.target.style.height = 'auto'
+                      e.target.style.height = `${e.target.scrollHeight}px`
+                    }}
                     onKeyDown={handleKeyDown}
                     placeholder="Escribe un mensaje para Kai..."
-                    className="max-h-40 min-h-[72px] w-full resize-none bg-transparent px-4 py-4 text-sm text-white outline-none placeholder:text-slate-500"
+                    rows={1}
+                    className="w-full resize-none bg-transparent px-4 py-4 text-sm text-white outline-none placeholder:text-slate-500 overflow-hidden"
+                    style={{ minHeight: '72px' }}
                   />
                 </div>
                 <button
