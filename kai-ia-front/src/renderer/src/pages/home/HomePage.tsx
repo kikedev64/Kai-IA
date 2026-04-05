@@ -9,10 +9,22 @@ import { useChatBootstrap } from '../../context/chat-bootstrap.context'
 import type { ChatItem, Message } from '../../types/assistant'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import remarkMath from 'remark-math'
+import rehypeKatex from 'rehype-katex'
+import 'katex/dist/katex.min.css'
+
+function normalizeLatex(content: string): string {
+  return content
+    .replace(/\\\[/g, '$$')
+    .replace(/\\\]/g, '$$')
+    .replace(/\\\(/g, '$')
+    .replace(/\\\)/g, '$')
+}
 
 const MarkdownContent = ({ content }: { content: string }) => (
   <ReactMarkdown
-    remarkPlugins={[remarkGfm]}
+    remarkPlugins={[remarkGfm, remarkMath]}
+    rehypePlugins={[rehypeKatex]}
     components={{
       p: ({ children }) => <p className="mb-2 last:mb-0 text-sm leading-7 text-slate-100 break-words">{children}</p>,
       strong: ({ children }) => <strong className="font-semibold text-white">{children}</strong>,
@@ -386,7 +398,7 @@ const HomePage = (): React.JSX.Element => {
                               <span>{isUser ? 'Tú' : 'Kai'}</span>
                             </div>
                             <p className="whitespace-pre-wrap text-sm leading-7 text-slate-100">
-                              <MarkdownContent content={message.content} />
+                              <MarkdownContent content={normalizeLatex(message.content)} />
                             </p>
                           </div>
                         </div>
@@ -401,7 +413,7 @@ const HomePage = (): React.JSX.Element => {
                             <span>Kai</span>
                           </div>
                           <p className="whitespace-pre-wrap text-sm leading-7 text-slate-100">
-                            <MarkdownContent content={streamingContent} />
+                            <MarkdownContent content={normalizeLatex(streamingContent)} />
                             <span className="ml-0.5 inline-block h-4 w-0.5 animate-pulse bg-cyan-300" />
                           </p>
                         </div>

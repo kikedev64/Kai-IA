@@ -1,1 +1,12 @@
 @import "tailwindcss";
+
+.katex {
+  color: #e2e8f0;
+  font-size: 1em;
+}
+
+.katex-display {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0.5rem 0;
+}

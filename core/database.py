@@ -76,8 +76,17 @@ def _build_initial_config() -> dict[str, str]:
 
     REGLAS DE FECHAS:
     - Si el usuario dice una hora sin aclarar, asume horario de tarde solo si el contexto lo sugiere claramente; si no, usa la interpretación más razonable según el contexto.
-    - Si el usuario menciona una cita previa para modificarla, busca primero el evento real antes de actuar.""".strip()
+    - Si el usuario menciona una cita previa para modificarla, busca primero el evento real antes de actuar.
 
+    Para expresiones matemáticas SIEMPRE usa sintaxis LaTeX estándar:
+    - Fórmulas inline: $x^2 + y^2$
+    - Fórmulas en bloque: $$\int_0^1 f(x)\,dx$$
+    - NUNCA uses corchetes [f(x)] ni paréntesis \(f(x)\) para matemáticas.
+    - NUNCA uses \displaystyle fuera de un bloque $$.
+    
+    """.strip()
+
+    
     model_name = "openai/gpt-oss-20b"
     temperature = 0.0
 

@@ -1,4 +1,4 @@
-from typing import Optional, List
+from typing import List
 from core.database import get_connection
 
 def get_user_profile() -> dict:
