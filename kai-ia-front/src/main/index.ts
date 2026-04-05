@@ -6,6 +6,7 @@ import icon from '../../resources/icon.png?asset'
 import { registerConfigIpc } from './ipc/config.ipc'
 import { resolveStartup } from './services/startup'
 import { configRepository } from './db/config.repository'
+import { registerNotificationsIpc } from './ipc/notifications.ipc'
 
 let splashWindow: BrowserWindow | null = null
 let mainWindow: BrowserWindow | null = null
@@ -180,6 +181,9 @@ app.whenReady().then(() => {
   electronApp.setAppUserModelId('com.kai.ia')
 
   registerConfigIpc()
+  registerNotificationsIpc({
+    getMainWindow: () => mainWindow
+  })
 
   app.on('browser-window-created', (_, window) => {
     optimizer.watchWindowShortcuts(window)

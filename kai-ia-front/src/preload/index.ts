@@ -79,6 +79,11 @@ if (process.contextIsolated) {
       getServerUrl: () => ipcRenderer.invoke('config:getServerUrl'),
       getServerPort: () => ipcRenderer.invoke('config:getServerPort')
     })
+
+    contextBridge.exposeInMainWorld('systemNotificationsApi', {
+      show: async (payload: { title: string; body: string; silent?: boolean }) =>
+        ipcRenderer.invoke('system-notifications:show', payload)
+    })
   } catch (error) {
     console.error(error)
   }

@@ -27,6 +27,7 @@ declare global {
       getOnboardingCompleted: () => Promise<boolean>
       setOnboardingCompleted: (value: boolean) => Promise<boolean>
       resetOnboardingState: () => Promise<boolean>
+      
     }
 
     startupApi: {
@@ -36,6 +37,14 @@ declare global {
       getCurrentStatus: () => Promise<{ step: string; message: string }>
       resetAndOpenOnboarding: () => Promise<boolean>
       completeOnboardingAndOpenMain: () => Promise<boolean>
+    }
+
+     systemNotificationsApi: {
+      show: (payload: {
+        title: string
+        body: string
+        silent?: boolean
+      }) => Promise<{ ok: boolean; error?: string }>
     }
   }
 }

@@ -356,7 +356,7 @@ const HomePage = (): React.JSX.Element => {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <button className="rounded-2xl border border-white/10 bg-white/[0.08] px-4 py-2 text-sm backdrop-blur-xl transition hover:bg-white hover:text-black">
+            <button onClick={() => window.systemNotificationsApi?.show({ title: 'Próximamente', body: 'Esta función estará disponible en una versión futura.' })} className="rounded-2xl border border-white/10 bg-white/[0.08] px-4 py-2 text-sm backdrop-blur-xl transition hover:bg-white hover:text-black">
               Próximamente
             </button>
             <button className="rounded-2xl border border-white/10 bg-white/[0.08] p-2.5 backdrop-blur-xl transition hover:bg-white hover:text-black">
@@ -401,9 +401,9 @@ const HomePage = (): React.JSX.Element => {
                               {isUser ? <User size={14} /> : <Bot size={14} />}
                               <span>{isUser ? 'Tú' : 'Kai'}</span>
                             </div>
-                            <p className="whitespace-pre-wrap text-sm leading-7 text-slate-100">
+                            <div className="whitespace-pre-wrap text-sm leading-7 text-slate-100">
                               <MarkdownContent content={normalizeLatex(message.content)} />
-                            </p>
+                            </div>
                           </div>
                         </div>
                       )
@@ -416,10 +416,10 @@ const HomePage = (): React.JSX.Element => {
                             <Bot size={14} />
                             <span>Kai</span>
                           </div>
-                          <p className="whitespace-pre-wrap text-sm leading-7 text-slate-100">
+                          <div className="whitespace-pre-wrap text-sm leading-7 text-slate-100">
                             <MarkdownContent content={normalizeLatex(streamingContent)} />
                             <span className="ml-0.5 inline-block h-4 w-0.5 animate-pulse bg-cyan-300" />
-                          </p>
+                          </div>
                         </div>
                       </div>
                     )}
