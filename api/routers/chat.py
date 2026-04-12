@@ -165,7 +165,9 @@ def _fallback_title_from_user_input(user_input: str) -> str:
     return title or "Nuevo chat"
 
 
-def _ensure_chat_title(chat_id: str, user_input: str, is_first_user_message: bool, request_id: str) -> None:
+def _ensure_chat_title(
+    chat_id: str, user_input: str, is_first_user_message: bool, request_id: str
+) -> None:
     if not is_first_user_message:
         return
 
@@ -256,7 +258,9 @@ def chat_endpoint(
             if DEBUG_TOOLS:
                 print(f"\n[{request_id}] STEP {step} - MODEL MESSAGE")
                 print(f"[{request_id}] content: {repr(msg.content)}")
-                print(f"[{request_id}] tool_calls: {len(tool_calls) if tool_calls else 0}")
+                print(
+                    f"[{request_id}] tool_calls: {len(tool_calls) if tool_calls else 0}"
+                )
 
             if not tool_calls:
                 content = (msg.content or "").strip()
@@ -266,7 +270,9 @@ def chat_endpoint(
                     if DEBUG_TOOLS:
                         print(f"\n[{request_id}] LEGACY TOOL JSON DETECTED (content)")
                         print(f"[{request_id}] legacy tool: {legacy_tc.get('name')}")
-                        print(f"[{request_id}] legacy args: {json.dumps(legacy_tc.get('arguments'), ensure_ascii=False)}")
+                        print(
+                            f"[{request_id}] legacy args: {json.dumps(legacy_tc.get('arguments'), ensure_ascii=False)}"
+                        )
 
                     name = legacy_tc["name"]
                     args = legacy_tc.get("arguments") or {}
@@ -306,17 +312,23 @@ def chat_endpoint(
 
                     if final2:
                         add_message(chat_id, "assistant", final2)
-                        _ensure_chat_title(chat_id, user_input, is_first_user_message, request_id)
+                        _ensure_chat_title(
+                            chat_id, user_input, is_first_user_message, request_id
+                        )
 
                     if DEBUG_TOOLS:
-                        print(f"\n[{request_id}] FINAL (after legacy tool exec): {final2}")
+                        print(
+                            f"\n[{request_id}] FINAL (after legacy tool exec): {final2}"
+                        )
                         print(f"=== [{request_id}] CHAT END ===\n")
 
                     return {"reply": final2, "chat_id": chat_id}
 
                 if content:
                     add_message(chat_id, "assistant", content)
-                    _ensure_chat_title(chat_id, user_input, is_first_user_message, request_id)
+                    _ensure_chat_title(
+                        chat_id, user_input, is_first_user_message, request_id
+                    )
 
                 if DEBUG_TOOLS:
                     print(f"\n[{request_id}] FINAL: {content}")
@@ -324,7 +336,11 @@ def chat_endpoint(
 
                 return {"reply": content, "chat_id": chat_id}
 
-            assistant_payload = {"role": "assistant", "content": msg.content, "tool_calls": []}
+            assistant_payload = {
+                "role": "assistant",
+                "content": msg.content,
+                "tool_calls": [],
+            }
 
             for tc in tool_calls:
                 assistant_payload["tool_calls"].append(
@@ -351,7 +367,9 @@ def chat_endpoint(
                 if DEBUG_TOOLS:
                     print(f"\n[{request_id}] TOOL RESULT <- {tc.function.name}")
                     print(f"[{request_id}] tool_call_id: {tc.id}")
-                    print(f"[{request_id}] result: {json.dumps(result, ensure_ascii=False, indent=2)}")
+                    print(
+                        f"[{request_id}] result: {json.dumps(result, ensure_ascii=False, indent=2)}"
+                    )
 
                 if isinstance(result, dict) and result.get("status") == "auth_expired":
                     final_auth_reply = result.get("message") or (
@@ -366,7 +384,7 @@ def chat_endpoint(
                         print(f"=== [{request_id}] CHAT END ===\n")
 
                     return {"reply": final_auth_reply, "chat_id": chat_id}
-                
+
                 tool_msg = {
                     "role": "tool",
                     "tool_call_id": tc.id,
@@ -376,7 +394,9 @@ def chat_endpoint(
                 add_message(chat_id, "tool", tool_msg["content"])
                 messages.append(tool_msg)
 
-                gmail_context_msg = build_gmail_context_message(tc.function.name, result)
+                gmail_context_msg = build_gmail_context_message(
+                    tc.function.name, result
+                )
                 if gmail_context_msg:
                     messages.append(gmail_context_msg)
 
@@ -409,10 +429,10 @@ def ask_llm(req: AskRequest):
     except Exception as e:
         if "No models loaded" in str(e):
             raise HTTPException(
-                status_code=503,
-                detail="No hay ningún modelo cargado en LM Studio."
+                status_code=503, detail="No hay ningún modelo cargado en LM Studio."
             )
         raise HTTPException(status_code=500, detail=str(e))
+
 
 @router.get("/chats")
 def get_chats():
@@ -421,7 +441,8 @@ def get_chats():
         return {"chats": chats}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-    
+
+
 @router.get("/chats/{chat_id}")
 def get_chat_by_id(chat_id: str):
     try:
@@ -435,6 +456,7 @@ def get_chat_by_id(chat_id: str):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
 
 def split_text_for_stream(text: str):
     # Puedes hacerlo por caracteres, por palabras o por bloques.
@@ -454,6 +476,79 @@ def assistant_chat_stream(
     limit_history: int = Query(50, ge=1, le=200),
 ):
     request_id = str(uuid.uuid4())[:8]
+
+    def stream_text(text: str):
+        for chunk in split_text_for_stream(text):
+            payload = {"type": "token", "content": chunk}
+            yield f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
+            time.sleep(0.02)
+
+    def done_event():
+        return f"data: {json.dumps({'type': 'done'}, ensure_ascii=False)}\n\n"
+
+    def error_event(message: str):
+        return f"data: {json.dumps({'type': 'error', 'message': message}, ensure_ascii=False)}\n\n"
+
+    def is_garbage_text(text: str) -> bool:
+        if not text:
+            return False
+
+        stripped = text.strip()
+        if not stripped:
+            return False
+
+        if set(stripped) == {"?"}:
+            return True
+
+        if stripped.startswith("<|start|>assistant<|channel|>commentary"):
+            return True
+
+        return False
+
+    def fallback_text_from_tool_results(tool_results: list[tuple[str, dict]]) -> str:
+        if not tool_results:
+            return "He completado la operación."
+
+        last_tool_name, last_result = tool_results[-1]
+
+        if isinstance(last_result, dict) and last_result.get("status") == "error":
+            return f"He intentado completar la acción, pero ha ocurrido un error: {last_result.get('message', 'Error desconocido')}"
+
+        if last_tool_name == "freebusy_query":
+            data = last_result.get("data", {}) if isinstance(last_result, dict) else {}
+            calendars = data.get("calendars", {})
+            primary = calendars.get("primary", {})
+            busy = primary.get("busy", [])
+            if not busy:
+                return "Sí, esa fecha y hora aparecen libres en tu calendario."
+            return "No, en ese intervalo tienes ocupaciones en el calendario."
+
+        if last_tool_name == "create_meet_invitation":
+            data = last_result.get("data", {}) if isinstance(last_result, dict) else {}
+            meet_link = data.get("meet_link")
+            summary = data.get("summary", "la reunión")
+            if meet_link:
+                return (
+                    f"Listo, he creado {summary} con Google Meet. Enlace: {meet_link}"
+                )
+            return f"Listo, he creado {summary} en el calendario."
+
+        if last_tool_name == "send_email":
+            data = last_result.get("data", {}) if isinstance(last_result, dict) else {}
+            email_data = data.get("email", {})
+            to_value = email_data.get("to", "")
+            subject = email_data.get("subject", "")
+            if to_value and subject:
+                return f"Listo, he enviado el correo a {to_value} con el asunto: {subject}."
+            return "Listo, he enviado el correo."
+
+        if last_tool_name == "get_full_email":
+            data = last_result.get("data", {}) if isinstance(last_result, dict) else {}
+            summary = data.get("summary")
+            if summary:
+                return str(summary)
+
+        return "He completado la operación correctamente."
 
     def event_generator():
         try:
@@ -489,29 +584,60 @@ def assistant_chat_stream(
                 print(f"[{request_id}] chat_id: {chat_id}")
                 print(f"[{request_id}] USER: {prompt}")
 
+            executed_tool_results: list[tuple[str, dict]] = []
+
             for step in range(MAX_TOOL_STEPS):
                 msg = call_lm_studio(messages, use_tools=True)
+                content = (msg.content or "").strip()
                 tool_calls = getattr(msg, "tool_calls", None) or []
 
                 if DEBUG_TOOLS:
                     print(f"\n[{request_id}] STEP {step} - MODEL MESSAGE")
-                    print(f"[{request_id}] content: {repr(msg.content)}")
+                    print(f"[{request_id}] content: {repr(content)}")
                     print(f"[{request_id}] tool_calls: {len(tool_calls)}")
 
-                # Si no hay tools, devolvemos directamente
+                # Caso 1: el modelo ya responde con texto final normal
+                if not tool_calls and content and not is_garbage_text(content):
+                    add_message(chat_id, "assistant", content)
+                    _ensure_chat_title(
+                        chat_id, prompt, is_first_user_message, request_id
+                    )
+
+                    yield from stream_text(content)
+                    yield done_event()
+                    return
+
+                # Caso 2: no hay tool_calls pero el texto es basura / pseudo-tool / vacío
+                # Forzamos una última respuesta solo cuando ya hay resultados de tools previos.
                 if not tool_calls:
-                    final_text = (msg.content or "").strip()
+                    if executed_tool_results:
+                        forced_final = call_lm_studio(messages, use_tools=False)
+                        final_text = (forced_final.content or "").strip()
 
-                    if final_text:
+                        if DEBUG_TOOLS:
+                            print(
+                                f"\n[{request_id}] FORCED FINAL AFTER TOOL CHAIN: {repr(final_text)}"
+                            )
+
+                        if is_garbage_text(final_text) or not final_text:
+                            final_text = fallback_text_from_tool_results(
+                                executed_tool_results
+                            )
+
                         add_message(chat_id, "assistant", final_text)
-                        _ensure_chat_title(chat_id, prompt, is_first_user_message, request_id)
+                        _ensure_chat_title(
+                            chat_id, prompt, is_first_user_message, request_id
+                        )
 
-                    for chunk in split_text_for_stream(final_text):
-                        payload = {"type": "token", "content": chunk}
-                        yield f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
-                        time.sleep(0.02)
+                        yield from stream_text(final_text)
+                        yield done_event()
+                        return
 
-                    yield f"data: {json.dumps({'type': 'done'}, ensure_ascii=False)}\n\n"
+                    # Si ni hay tools ni contenido útil, devolvemos error controlado
+                    message = "No he podido generar una respuesta válida."
+                    add_message(chat_id, "assistant", message)
+                    yield from stream_text(message)
+                    yield done_event()
                     return
 
                 assistant_payload = {
@@ -534,28 +660,28 @@ def assistant_chat_stream(
 
                 messages.append(assistant_payload)
 
-                used_gmail_tool = False
-
                 for tc in tool_calls:
                     result = handle_tool_call(tc)
+                    executed_tool_results.append((tc.function.name, result))
 
                     if DEBUG_TOOLS:
                         print(f"\n[{request_id}] TOOL RESULT <- {tc.function.name}")
-                        print(f"[{request_id}] result: {json.dumps(result, ensure_ascii=False)[:1000]}")
+                        print(
+                            f"[{request_id}] result: {json.dumps(result, ensure_ascii=False)[:1500]}"
+                        )
 
-                    if isinstance(result, dict) and result.get("status") == "auth_expired":
+                    if (
+                        isinstance(result, dict)
+                        and result.get("status") == "auth_expired"
+                    ):
                         final_auth_reply = result.get("message") or (
                             "No puedo acceder a tus servicios de Google porque la sesión ha expirado."
                         )
 
                         add_message(chat_id, "assistant", final_auth_reply)
 
-                        for chunk in split_text_for_stream(final_auth_reply):
-                            payload = {"type": "token", "content": chunk}
-                            yield f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
-                            time.sleep(0.02)
-
-                        yield f"data: {json.dumps({'type': 'done'}, ensure_ascii=False)}\n\n"
+                        yield from stream_text(final_auth_reply)
+                        yield done_event()
                         return
 
                     tool_msg = {
@@ -567,45 +693,23 @@ def assistant_chat_stream(
                     add_message(chat_id, "tool", tool_msg["content"])
                     messages.append(tool_msg)
 
-                    gmail_context_msg = build_gmail_context_message(tc.function.name, result)
+                    gmail_context_msg = build_gmail_context_message(
+                        tc.function.name, result
+                    )
                     if gmail_context_msg:
                         messages.append(gmail_context_msg)
 
-                # Igual que en /chat: instrucción post-tool + repetir intención del usuario
+                # Muy importante:
+                # añadimos la instrucción post-tool, pero NO forzamos final aquí.
+                # Dejamos que el bucle continúe por si el modelo necesita otra tool.
                 messages.append(post_tool_instruction_message(prompt))
                 messages.append({"role": "user", "content": prompt})
 
-                # IMPORTANTE: aquí forzamos respuesta final SIN tools
-                forced_final = call_lm_studio(messages, use_tools=False)
-                final_text = (forced_final.content or "").strip()
-
-                if DEBUG_TOOLS:
-                    print(f"\n[{request_id}] FORCED FINAL AFTER TOOL: {repr(final_text)}")
-
-                # Fallback defensivo por si vuelve a salir basura tipo ??????
-                if final_text and set(final_text) == {"?"}:
-                    final_text = (
-                        "He revisado los correos recientes, pero el modelo no ha podido redactar bien la respuesta final. "
-                        "Puedo resumírtelos mejor si reduzco el número de correos o compacto más el contexto."
-                    )
-
-                if final_text:
-                    add_message(chat_id, "assistant", final_text)
-                    _ensure_chat_title(chat_id, prompt, is_first_user_message, request_id)
-
-                for chunk in split_text_for_stream(final_text):
-                    payload = {"type": "token", "content": chunk}
-                    yield f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
-                    time.sleep(0.02)
-
-                yield f"data: {json.dumps({'type': 'done'}, ensure_ascii=False)}\n\n"
-                return
-
-            yield f"data: {json.dumps({'type': 'error', 'message': 'Se alcanzó el máximo de tool steps'}, ensure_ascii=False)}\n\n"
+            yield error_event("Se alcanzó el máximo de tool steps")
 
         except Exception as e:
             print(f"[{request_id}] ERROR EN /chat/stream: {repr(e)}")
-            yield f"data: {json.dumps({'type': 'error', 'message': str(e)}, ensure_ascii=False)}\n\n"
+            yield error_event(str(e))
 
     return StreamingResponse(
         event_generator(),
@@ -616,6 +720,8 @@ def assistant_chat_stream(
             "X-Accel-Buffering": "no",
         },
     )
+
+
 def user_profile_system_message() -> dict | None:
     try:
         user_profile = get_user_profile_as_dict()
