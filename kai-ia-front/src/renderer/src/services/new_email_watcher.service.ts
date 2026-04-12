@@ -79,17 +79,22 @@ export function createNewEmailWatcher(
   let running = false
   let polling = false
   let currentHistoryId: string | null = null
+
+  // Persistidos entre sesiones
   const processedIds = loadProcessedIds()
+
+  // Solo en memoria de esta sesión
+  const sessionNotifiedIds = new Set<string>()
 
   const notifyNewEmail = async (email: GmailApiEmail): Promise<void> => {
     await showSystemNotification({
-        title: 'Nuevo correo recibido',
-        body: buildNotificationBody(email),
-        silent: false,
-        data: {
-            type: 'email',
-            messageId: email.id
-        }
+      title: 'Nuevo correo recibido',
+      body: buildNotificationBody(email),
+      silent: false,
+      data: {
+        type: 'email',
+        messageId: email.id
+      }
     })
 
     if (options.onNewEmail) {
@@ -106,10 +111,10 @@ export function createNewEmailWatcher(
         currentHistoryId = loadStoredHistoryId()
       }
 
+      // Primer arranque: fijamos baseline y NO notificamos históricos
       if (!currentHistoryId) {
         currentHistoryId = await getLatestHistoryId()
         saveStoredHistoryId(currentHistoryId)
-        polling = false
         return
       }
 
@@ -126,7 +131,6 @@ export function createNewEmailWatcher(
           currentHistoryId = nextFromCheck
           saveStoredHistoryId(currentHistoryId)
         }
-        polling = false
         return
       }
 
@@ -136,22 +140,22 @@ export function createNewEmailWatcher(
       })
 
       const messageIds = extractAddedMessageIds(readResult)
-      const nextHistoryId =
-        extractNewestHistoryId(readResult) ??
-        nextFromCheck ??
-        currentHistoryId
+      const nextHistoryId = extractNewestHistoryId(readResult) ?? nextFromCheck ?? currentHistoryId
 
+      // Notificamos solo correos nuevos desde que la app está abierta
       for (const messageId of messageIds) {
-        if (processedIds.has(messageId)) {
-          continue
-        }
+        if (!messageId) continue
+        if (processedIds.has(messageId)) continue
+        if (sessionNotifiedIds.has(messageId)) continue
 
         try {
           const email = await readEmailById(messageId)
-          await notifyNewEmail(email)
 
+          sessionNotifiedIds.add(messageId)
           processedIds.add(messageId)
           saveProcessedIds(processedIds)
+
+          await notifyNewEmail(email)
         } catch (error) {
           options.onError?.(error)
         }

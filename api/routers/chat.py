@@ -12,7 +12,7 @@ try:
 except Exception:
     ZoneInfo = None  # fallback
 
-from api.schemas.chat import AskRequest, ChatStream
+from api.schemas.chat import AskRequest
 from core.config import get_system_prompt_default
 from llm.lmstudio_client import ask_without_context, call_lm_studio
 from tools.tools_handler import handle_tool_call
@@ -104,21 +104,37 @@ def now_context_system_message() -> dict:
         ),
     }
 
+def should_store_assistant_message(text: str) -> bool:
+    if not text:
+        return False
+
+    stripped = text.strip()
+    if not stripped:
+        return False
+
+    if stripped.startswith("<|start|>assistant<|channel|>commentary"):
+        return False
+
+    if set(stripped) == {"?"}:
+        return False
+
+    return True
 
 def post_tool_instruction_message(user_input: str) -> dict:
+    compact = " ".join((user_input or "").strip().split())
+    if len(compact) > 220:
+        compact = compact[:220].rstrip() + "..."
+
     return {
         "role": "system",
         "content": (
-            "INSTRUCCIONES POST-TOOL (OBLIGATORIAS):\n"
-            f"- Pregunta original del usuario: {user_input}\n"
-            "- Usa el resultado de la herramienta para responder directamente a esa pregunta.\n"
-            "- No digas que el usuario ha compartido datos; los datos vienen de la herramienta.\n"
-            "- Si ya hay información suficiente, responde directamente.\n"
-            "- No vuelvas a invocar la misma herramienta si ya tienes resultados suficientes.\n"
-            "- No hagas preguntas genéricas como '¿en qué puedo ayudarte?' o '¿qué quieres hacer con esto?'.\n"
+            "INSTRUCCIONES POST-TOOL:\n"
+            f"- Tarea del usuario: {compact}\n"
+            "- Usa el resultado de la herramienta para continuar.\n"
+            "- No repitas la misma herramienta si ya tienes suficiente información.\n"
+            "- Responde directamente o continúa con la siguiente acción necesaria.\n"
         ),
     }
-
 
 def build_gmail_context_message(tool_name: str, result: dict) -> dict | None:
     if tool_name not in GMAIL_CONTEXT_TOOLS:
@@ -289,7 +305,6 @@ def chat_endpoint(
 
                     fake_tc = _TC(name, args)
                     result = handle_tool_call(fake_tc)
-                    add_message(chat_id, "tool", json.dumps(result, ensure_ascii=False))
 
                     messages.append({"role": "assistant", "content": None})
                     messages.append(
@@ -305,12 +320,11 @@ def chat_endpoint(
                         messages.append(gmail_context_msg)
 
                     messages.append(post_tool_instruction_message(user_input))
-                    messages.append({"role": "user", "content": user_input})
 
                     msg2 = call_lm_studio(messages)
                     final2 = (msg2.content or "").strip()
 
-                    if final2:
+                    if should_store_assistant_message(final2):
                         add_message(chat_id, "assistant", final2)
                         _ensure_chat_title(
                             chat_id, user_input, is_first_user_message, request_id
@@ -324,7 +338,7 @@ def chat_endpoint(
 
                     return {"reply": final2, "chat_id": chat_id}
 
-                if content:
+                if should_store_assistant_message(content):
                     add_message(chat_id, "assistant", content)
                     _ensure_chat_title(
                         chat_id, user_input, is_first_user_message, request_id
@@ -391,7 +405,6 @@ def chat_endpoint(
                     "content": json.dumps(result, ensure_ascii=False),
                 }
 
-                add_message(chat_id, "tool", tool_msg["content"])
                 messages.append(tool_msg)
 
                 gmail_context_msg = build_gmail_context_message(
@@ -623,8 +636,9 @@ def assistant_chat_stream(
                             final_text = fallback_text_from_tool_results(
                                 executed_tool_results
                             )
-
-                        add_message(chat_id, "assistant", final_text)
+                        if should_store_assistant_message(final_text):
+                            add_message(chat_id, "assistant", final_text)
+                            
                         _ensure_chat_title(
                             chat_id, prompt, is_first_user_message, request_id
                         )
@@ -690,7 +704,6 @@ def assistant_chat_stream(
                         "content": json.dumps(result, ensure_ascii=False),
                     }
 
-                    add_message(chat_id, "tool", tool_msg["content"])
                     messages.append(tool_msg)
 
                     gmail_context_msg = build_gmail_context_message(
@@ -703,7 +716,6 @@ def assistant_chat_stream(
                 # añadimos la instrucción post-tool, pero NO forzamos final aquí.
                 # Dejamos que el bucle continúe por si el modelo necesita otra tool.
                 messages.append(post_tool_instruction_message(prompt))
-                messages.append({"role": "user", "content": prompt})
 
             yield error_event("Se alcanzó el máximo de tool steps")
 

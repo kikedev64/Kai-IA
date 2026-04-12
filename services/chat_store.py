@@ -23,6 +23,9 @@ def ensure_session(chat_id: str, system_prompt: str) -> None:
 
 
 def add_message(chat_id: str, role: str, content: str) -> None:
+    if role not in {"user", "assistant"}:
+        return
+
     conn = get_connection()
     cur = conn.cursor()
 
@@ -46,7 +49,6 @@ def add_message(chat_id: str, role: str, content: str) -> None:
     conn.commit()
     conn.close()
 
-
 def get_messages(chat_id: str, limit: int = 50) -> list[dict[str, Any]]:
     conn = get_connection()
     cur = conn.cursor()
@@ -56,6 +58,7 @@ def get_messages(chat_id: str, limit: int = 50) -> list[dict[str, Any]]:
         SELECT role, content
         FROM chat_messages
         WHERE chat_id = ?
+          AND role IN ('user', 'assistant')
         ORDER BY id DESC
         LIMIT ?
         """,
@@ -194,6 +197,7 @@ def get_full_chat_by_id(chat_id: str) -> dict[str, Any] | None:
             created_at
         FROM chat_messages
         WHERE chat_id = ?
+          AND role IN ('user', 'assistant')
         ORDER BY id ASC
         """,
         (chat_id,),

@@ -9,6 +9,8 @@ import remarkMath from 'remark-math'
 import rehypeKatex from 'rehype-katex'
 import 'katex/dist/katex.min.css'
 import { createNewEmailWatcher } from '@renderer/services/new_email_watcher.service'
+import { GmailApiEmail } from '@renderer/services/gmail_email.service'
+import EmailActionModal from '@renderer/components/email/EmailActionModal'
 
 function normalizeLatex(content: string): string {
   return content
@@ -80,6 +82,10 @@ const HomePage = (): React.JSX.Element => {
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const emailWatcherRef = useRef<ReturnType<typeof createNewEmailWatcher> | null>(null)
+  const [emailActionOpen, setEmailActionOpen] = useState(false)
+  const [selectedEmailForAction, setSelectedEmailForAction] = useState<GmailApiEmail | null>(null)
+  const [isSubmittingEmailAction, setIsSubmittingEmailAction] = useState(false)
+  const pendingEmailsRef = useRef<Map<string, GmailApiEmail>>(new Map())
 
   const {
     chats,
@@ -92,6 +98,124 @@ const HomePage = (): React.JSX.Element => {
 
   const [localChats, setLocalChats] = useState<ChatItem[]>(chats)
 
+  const openEmailActionModal = (email: GmailApiEmail) => {
+    setSelectedEmailForAction(email)
+    setEmailActionOpen(true)
+  }
+
+  const sendPromptToChatStream = async (chatId: string, promptText: string) => {
+    const optimisticUserMessage: Message = {
+      id: `${chatId}-user-${Date.now()}`,
+      role: 'user',
+      content: promptText
+    }
+
+    setMessagesForChat(chatId, [optimisticUserMessage])
+    setIsSending(true)
+    setStreamingContent('')
+
+    try {
+      const baseUrl = await window.configApi.getServerUrl()
+      const port = await window.configApi.getServerPort()
+      const url = `${baseUrl || 'http://localhost'}:${port || 8000}`
+
+      const params = new URLSearchParams({
+        chat_id: chatId,
+        prompt: promptText,
+        limit_history: '10'
+      })
+
+      const response = await fetch(`${url}/assistant/chat/stream?${params.toString()}`, {
+        method: 'POST',
+        headers: {
+          Accept: 'text/event-stream'
+        }
+      })
+
+      if (!response.ok || !response.body) {
+        throw new Error(`Stream no disponible (${response.status})`)
+      }
+
+      const reader = response.body.getReader()
+      const decoder = new TextDecoder()
+
+      let accumulated = ''
+      let buffer = ''
+      let streamFinished = false
+
+      while (!streamFinished) {
+        const { done, value } = await reader.read()
+
+        if (done) break
+
+        buffer += decoder.decode(value, { stream: true })
+
+        const events = buffer.split('\n\n')
+        buffer = events.pop() ?? ''
+
+        for (const event of events) {
+          const lines = event
+            .split('\n')
+            .map((line) => line.trim())
+            .filter(Boolean)
+
+          for (const line of lines) {
+            if (!line.startsWith('data:')) continue
+
+            const rawData = line.slice(5).trim()
+            if (!rawData) continue
+
+            let payload: { type?: string; content?: string; message?: string }
+
+            try {
+              payload = JSON.parse(rawData)
+            } catch (parseError) {
+              console.error('Error parseando SSE:', rawData, parseError)
+              continue
+            }
+
+            if (payload.type === 'token') {
+              accumulated += payload.content ?? ''
+              setStreamingContent(accumulated)
+            } else if (payload.type === 'done') {
+              streamFinished = true
+              break
+            } else if (payload.type === 'error') {
+              throw new Error(payload.message || 'Error recibido desde el stream')
+            }
+          }
+
+          if (streamFinished) break
+        }
+      }
+
+      const assistantMessage: Message = {
+        id: `${chatId}-assistant-${Date.now()}`,
+        role: 'assistant',
+        content: accumulated.trim() || 'No se recibió contenido desde el asistente.'
+      }
+
+      setMessagesForChat(chatId, [optimisticUserMessage, assistantMessage])
+      setStreamingContent('')
+
+      const refreshedChat = await getChatItemById(chatId)
+      setLocalChats((prev) => prev.map((chat) => (chat.id === chatId ? refreshedChat : chat)))
+    } catch (error) {
+      console.error('Error enviando mensaje:', error)
+
+      const errorMessage: Message = {
+        id: `${chatId}-assistant-error-${Date.now()}`,
+        role: 'assistant',
+        content: 'Ha ocurrido un error al procesar el mensaje.'
+      }
+
+      setMessagesForChat(chatId, [optimisticUserMessage, errorMessage])
+      setStreamingContent('')
+    } finally {
+      setIsSending(false)
+    }
+  }
+
   useEffect(() => {
     setLocalChats(chats)
   }, [chats])
@@ -101,6 +225,10 @@ const HomePage = (): React.JSX.Element => {
       intervalMs: 20000,
       onNewEmail: async (email) => {
         console.log('Correo nuevo detectado:', email)
+
+        if (!email?.id) return
+
+        pendingEmailsRef.current.set(email.id, email)
       },
       onError: (error) => {
         console.error('Error en vigilancia de correos:', error)
@@ -108,12 +236,21 @@ const HomePage = (): React.JSX.Element => {
     })
 
     emailWatcherRef.current = watcher
-
     void watcher.start()
+
+    const unsubscribe = window.systemNotificationsApi?.onEmailNotificationClick?.((payload) => {
+      if (!payload || !payload.messageId) return
+
+      const email = pendingEmailsRef.current.get(payload.messageId)
+      if (!email) return
+
+      openEmailActionModal(email)
+    })
 
     return () => {
       watcher.stop()
       emailWatcherRef.current = null
+      unsubscribe?.()
     }
   }, [])
 
@@ -153,6 +290,44 @@ const HomePage = (): React.JSX.Element => {
 
   const selectedChat = localChats.find((chat) => chat.id === selectedChatId) ?? null
   const messages = selectedChatId ? (messagesByChatId[selectedChatId] ?? []) : []
+
+  const handleEmailActionSubmit = async (userPrompt: string) => {
+    if (!selectedEmailForAction?.id || isSubmittingEmailAction) return
+
+    try {
+      setIsSubmittingEmailAction(true)
+
+      const newChatId = await createChat()
+
+      const optimisticChat: ChatItem = {
+        id: newChatId,
+        title: 'Acción sobre correo',
+        lastMessage: userPrompt,
+        updatedAt: 'Hoy'
+      }
+
+      setLocalChats((prev) => [optimisticChat, ...prev])
+      setMessagesForChat(newChatId, [])
+      setSelectedChatId(newChatId)
+
+      const fullInstruction = [
+        `Trabaja sobre el correo con ID ${selectedEmailForAction.id}.`,
+        'Debes operar sobre ese correo original.',
+        'Si la acción implica responder al correo, debes usar la herramienta reply_email y no send_email.',
+        'Si necesitas leer el contenido completo del correo, usa get_full_email con ese ID.',
+        `Acción solicitada por el usuario: ${userPrompt}`
+      ].join('\n')
+
+      setEmailActionOpen(false)
+      setSelectedEmailForAction(null)
+
+      await sendPromptToChatStream(newChatId, fullInstruction)
+    } catch (error) {
+      console.error('Error ejecutando acción sobre correo:', error)
+    } finally {
+      setIsSubmittingEmailAction(false)
+    }
+  }
 
   const handleCreateChat = async () => {
     try {
@@ -216,7 +391,7 @@ const HomePage = (): React.JSX.Element => {
       const params = new URLSearchParams({
         chat_id: selectedChatId,
         prompt: trimmedInput,
-        limit_history: '50'
+        limit_history: '10'
       })
 
       const response = await fetch(`${url}/assistant/chat/stream?${params.toString()}`, {
@@ -588,6 +763,17 @@ const HomePage = (): React.JSX.Element => {
           </div>
         </main>
       </div>
+      <EmailActionModal
+        email={selectedEmailForAction}
+        open={emailActionOpen}
+        loading={false}
+        submitting={isSubmittingEmailAction}
+        onClose={() => {
+          setEmailActionOpen(false)
+          setSelectedEmailForAction(null)
+        }}
+        onSubmit={handleEmailActionSubmit}
+      />
     </div>
   )
 }
