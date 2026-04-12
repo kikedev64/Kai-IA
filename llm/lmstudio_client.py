@@ -11,31 +11,42 @@ client = openai.OpenAI(
     api_key=os.getenv("API_KEY_OPEN_AI")
 )
 
-def call_lm_studio(messages: list):
-    response = client.chat.completions.create(
-        model=get_model_name(),
-        messages=messages,
-        tools=TOOLS,
-        tool_choice="auto",
-        temperature=get_temperature(),
-        timeout=60,
-    )
+def call_lm_studio(messages: list, use_tools: bool = True):
+    kwargs = {
+        "model": get_model_name(),
+        "messages": messages,
+        "temperature": get_temperature(),
+        "timeout": 60,
+    }
+
+    if use_tools:
+        kwargs["tools"] = TOOLS
+        kwargs["tool_choice"] = "auto"
+
+    response = client.chat.completions.create(**kwargs)
     return response.choices[0].message
 
 def call_lm_studio_stream(messages: list) -> Iterator[str]:
-    """Igual que call_lm_studio pero devuelve tokens uno a uno via generator."""
+    """
+    Stream SOLO de texto final.
+    No usar tools aquí hasta implementar tool-calls en streaming de verdad.
+    """
     stream = client.chat.completions.create(
         model=get_model_name(),
         messages=messages,
-        tools=TOOLS,
-        tool_choice="auto",
         temperature=get_temperature(),
         timeout=60,
         stream=True,
     )
+
     for chunk in stream:
-        delta = chunk.choices[0].delta if chunk.choices else None
-        if delta and delta.content:
+        if not chunk.choices:
+            continue
+
+        choice = chunk.choices[0]
+        delta = choice.delta
+
+        if delta and getattr(delta, "content", None):
             yield delta.content
 
 def ask_without_context(req: AskRequest):
@@ -49,14 +60,18 @@ def ask_without_context(req: AskRequest):
                     detail=f"Prompt por defecto no válido: {req.system_prompt}"
                 )
             messages.append({"role": "system", "content": selected_prompt})
+
         messages.append({"role": "user", "content": req.prompt})
+
         response = client.chat.completions.create(
             model=get_model_name(),
             messages=messages,
             temperature=0.2,
         )
+
         content = response.choices[0].message.content or ""
         return {"reply": content.strip()}
+
     except HTTPException:
         raise
     except Exception as e:
@@ -66,8 +81,6 @@ def ask_without_context(req: AskRequest):
 def check_llm_service() -> bool:
     try:
         models = client.models.list()
-        if not models.data:
-            return False
-        return True
+        return bool(models.data)
     except Exception:
         return False

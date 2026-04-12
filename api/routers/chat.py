@@ -1,4 +1,5 @@
 import json
+import time
 import uuid
 from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter, HTTPException, Query
@@ -11,9 +12,9 @@ try:
 except Exception:
     ZoneInfo = None  # fallback
 
-from api.schemas.chat import AskRequest
+from api.schemas.chat import AskRequest, ChatStream
 from core.config import get_system_prompt_default
-from llm.lmstudio_client import ask_without_context, call_lm_studio, call_lm_studio_stream
+from llm.lmstudio_client import ask_without_context, call_lm_studio
 from tools.tools_handler import handle_tool_call
 from tools.gmail.email_response_builders import build_emails_context_block
 from services.chat_store import (
@@ -435,145 +436,186 @@ def get_chat_by_id(chat_id: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+def split_text_for_stream(text: str):
+    # Puedes hacerlo por caracteres, por palabras o por bloques.
+    # Por palabras queda bastante natural.
+    words = text.split(" ")
+    for i, word in enumerate(words):
+        if i == 0:
+            yield word
+        else:
+            yield " " + word
+
+
 @router.post("/chat/stream")
-def chat_stream_endpoint(
-    user_input: str,
+def assistant_chat_stream(
+    prompt: str,
     chat_id: str = Query(..., min_length=1),
     limit_history: int = Query(50, ge=1, le=200),
 ):
-    """
-    Igual que /chat pero devuelve la respuesta token a token via SSE.
-    Solo hace streaming en la respuesta final — los tool calls se resuelven
-    internamente igual que antes (sin streaming) y luego el texto final sí llega token a token.
-    """
     request_id = str(uuid.uuid4())[:8]
 
-    system_prompt = get_system_prompt(chat_id) or get_system_prompt_default()
-    ensure_session(chat_id, system_prompt)
-    add_message(chat_id, "user", user_input)
+    def event_generator():
+        try:
+            system_prompt = get_system_prompt(chat_id) or get_system_prompt_default()
+            ensure_session(chat_id, system_prompt)
 
-    user_message_count = count_user_messages(chat_id)
-    is_first_user_message = user_message_count == 1
+            add_message(chat_id, "user", prompt)
 
-    history = get_messages(chat_id, limit=limit_history)
-    sanitized = [m for m in history if not (m["role"] == "assistant" and is_legacy_tool_json(m["content"]))]
+            user_message_count = count_user_messages(chat_id)
+            is_first_user_message = user_message_count == 1
 
-    messages = [
-        {"role": "system", "content": system_prompt},
-        now_context_system_message(),
-    ]
-    user_profile_msg = user_profile_system_message()
-    if user_profile_msg:
-        messages.append(user_profile_msg)
-    messages += sanitized
+            history = get_messages(chat_id, limit=limit_history)
 
-    def generate():
-        nonlocal messages
-        full_reply = ""
+            sanitized: list[dict] = []
+            for m in history:
+                if m["role"] == "assistant" and is_legacy_tool_json(m["content"]):
+                    continue
+                sanitized.append(m)
 
-        # Resolver tool calls primero (sin streaming), igual que /chat
-        for step in range(MAX_TOOL_STEPS):
-            msg = call_lm_studio(messages)
-            tool_calls = getattr(msg, "tool_calls", None)
+            messages = [
+                {"role": "system", "content": system_prompt},
+                now_context_system_message(),
+            ]
 
-            if not tool_calls:
-                # Sin tool calls — aquí sí hacemos streaming
-                content = (msg.content or "").strip()
+            user_profile_msg = user_profile_system_message()
+            if user_profile_msg:
+                messages.append(user_profile_msg)
 
-                legacy_tc = extract_legacy_tool_call(content)
-                if legacy_tc:
-                    # Tool call legacy en texto — resolver sin streaming y luego streamear respuesta
-                    name = legacy_tc["name"]
-                    args = legacy_tc.get("arguments") or {}
+            messages += sanitized
 
-                    class _Fn:
-                        def __init__(self, n, a):
-                            self.name = n
-                            self.arguments = __import__('json').dumps(a, ensure_ascii=False)
+            if DEBUG_TOOLS:
+                print(f"\n=== [{request_id}] STREAM CHAT START ===")
+                print(f"[{request_id}] chat_id: {chat_id}")
+                print(f"[{request_id}] USER: {prompt}")
 
-                    class _TC:
-                        def __init__(self, n, a):
-                            self.id = "legacy"
-                            self.function = _Fn(n, a)
+            for step in range(MAX_TOOL_STEPS):
+                msg = call_lm_studio(messages, use_tools=True)
+                tool_calls = getattr(msg, "tool_calls", None) or []
 
-                    fake_tc = _TC(name, args)
-                    result = handle_tool_call(fake_tc)
-                    add_message(chat_id, "tool", __import__('json').dumps(result, ensure_ascii=False))
+                if DEBUG_TOOLS:
+                    print(f"\n[{request_id}] STEP {step} - MODEL MESSAGE")
+                    print(f"[{request_id}] content: {repr(msg.content)}")
+                    print(f"[{request_id}] tool_calls: {len(tool_calls)}")
 
-                    messages.append({"role": "assistant", "content": None})
-                    messages.append({"role": "tool", "tool_call_id": "legacy", "content": __import__('json').dumps(result, ensure_ascii=False)})
+                # Si no hay tools, devolvemos directamente
+                if not tool_calls:
+                    final_text = (msg.content or "").strip()
 
-                    gmail_ctx = build_gmail_context_message(name, result)
-                    if gmail_ctx:
-                        messages.append(gmail_ctx)
-                    messages.append(post_tool_instruction_message(user_input))
-                    messages.append({"role": "user", "content": user_input})
+                    if final_text:
+                        add_message(chat_id, "assistant", final_text)
+                        _ensure_chat_title(chat_id, prompt, is_first_user_message, request_id)
 
-                # Ahora sí: streamear la respuesta final token a token
-                for token in call_lm_studio_stream(messages):
-                    full_reply += token
-                    yield f"data: {token}\n\n"
+                    for chunk in split_text_for_stream(final_text):
+                        payload = {"type": "token", "content": chunk}
+                        yield f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
+                        time.sleep(0.02)
 
-                break
+                    yield f"data: {json.dumps({'type': 'done'}, ensure_ascii=False)}\n\n"
+                    return
 
-            # Hay tool calls — resolverlos igual que /chat normal
-            assistant_payload = {
-                "role": "assistant",
-                "content": msg.content,
-                "tool_calls": [
-                    {
-                        "id": tc.id,
-                        "type": "function",
-                        "function": {"name": tc.function.name, "arguments": tc.function.arguments},
-                    }
-                    for tc in tool_calls
-                ],
-            }
-            messages.append(assistant_payload)
-
-            auth_expired = False
-            for tc in tool_calls:
-                result = handle_tool_call(tc)
-
-                if isinstance(result, dict) and result.get("status") == "auth_expired":
-                    final_auth_reply = result.get("message") or "La sesión de Google ha expirado."
-                    add_message(chat_id, "assistant", final_auth_reply)
-                    for token in final_auth_reply:
-                        yield f"data: {token}\n\n"
-                    auth_expired = True
-                    full_reply = final_auth_reply
-                    break
-
-                tool_msg = {
-                    "role": "tool",
-                    "tool_call_id": tc.id,
-                    "content": __import__('json').dumps(result, ensure_ascii=False),
+                assistant_payload = {
+                    "role": "assistant",
+                    "content": msg.content or "",
+                    "tool_calls": [],
                 }
-                add_message(chat_id, "tool", tool_msg["content"])
-                messages.append(tool_msg)
 
-                gmail_ctx = build_gmail_context_message(tc.function.name, result)
-                if gmail_ctx:
-                    messages.append(gmail_ctx)
-                messages.append(post_tool_instruction_message(user_input))
-                messages.append({"role": "user", "content": user_input})
+                for tc in tool_calls:
+                    assistant_payload["tool_calls"].append(
+                        {
+                            "id": tc.id,
+                            "type": "function",
+                            "function": {
+                                "name": tc.function.name,
+                                "arguments": tc.function.arguments,
+                            },
+                        }
+                    )
 
-            if auth_expired:
-                break
+                messages.append(assistant_payload)
 
-        # Guardar respuesta completa y actualizar título
-        if full_reply:
-            add_message(chat_id, "assistant", full_reply)
-            _ensure_chat_title(chat_id, user_input, is_first_user_message, request_id)
+                used_gmail_tool = False
 
-        # Señal de fin para que el frontend sepa que terminó
-        yield "data: [DONE]\n\n"
+                for tc in tool_calls:
+                    result = handle_tool_call(tc)
 
-    return StreamingResponse(generate(), media_type="text/event-stream", headers={
-        "Cache-Control": "no-cache",
-        "X-Accel-Buffering": "no",
-    })
-    
+                    if DEBUG_TOOLS:
+                        print(f"\n[{request_id}] TOOL RESULT <- {tc.function.name}")
+                        print(f"[{request_id}] result: {json.dumps(result, ensure_ascii=False)[:1000]}")
+
+                    if isinstance(result, dict) and result.get("status") == "auth_expired":
+                        final_auth_reply = result.get("message") or (
+                            "No puedo acceder a tus servicios de Google porque la sesión ha expirado."
+                        )
+
+                        add_message(chat_id, "assistant", final_auth_reply)
+
+                        for chunk in split_text_for_stream(final_auth_reply):
+                            payload = {"type": "token", "content": chunk}
+                            yield f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
+                            time.sleep(0.02)
+
+                        yield f"data: {json.dumps({'type': 'done'}, ensure_ascii=False)}\n\n"
+                        return
+
+                    tool_msg = {
+                        "role": "tool",
+                        "tool_call_id": tc.id,
+                        "content": json.dumps(result, ensure_ascii=False),
+                    }
+
+                    add_message(chat_id, "tool", tool_msg["content"])
+                    messages.append(tool_msg)
+
+                    gmail_context_msg = build_gmail_context_message(tc.function.name, result)
+                    if gmail_context_msg:
+                        messages.append(gmail_context_msg)
+
+                # Igual que en /chat: instrucción post-tool + repetir intención del usuario
+                messages.append(post_tool_instruction_message(prompt))
+                messages.append({"role": "user", "content": prompt})
+
+                # IMPORTANTE: aquí forzamos respuesta final SIN tools
+                forced_final = call_lm_studio(messages, use_tools=False)
+                final_text = (forced_final.content or "").strip()
+
+                if DEBUG_TOOLS:
+                    print(f"\n[{request_id}] FORCED FINAL AFTER TOOL: {repr(final_text)}")
+
+                # Fallback defensivo por si vuelve a salir basura tipo ??????
+                if final_text and set(final_text) == {"?"}:
+                    final_text = (
+                        "He revisado los correos recientes, pero el modelo no ha podido redactar bien la respuesta final. "
+                        "Puedo resumírtelos mejor si reduzco el número de correos o compacto más el contexto."
+                    )
+
+                if final_text:
+                    add_message(chat_id, "assistant", final_text)
+                    _ensure_chat_title(chat_id, prompt, is_first_user_message, request_id)
+
+                for chunk in split_text_for_stream(final_text):
+                    payload = {"type": "token", "content": chunk}
+                    yield f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
+                    time.sleep(0.02)
+
+                yield f"data: {json.dumps({'type': 'done'}, ensure_ascii=False)}\n\n"
+                return
+
+            yield f"data: {json.dumps({'type': 'error', 'message': 'Se alcanzó el máximo de tool steps'}, ensure_ascii=False)}\n\n"
+
+        except Exception as e:
+            print(f"[{request_id}] ERROR EN /chat/stream: {repr(e)}")
+            yield f"data: {json.dumps({'type': 'error', 'message': str(e)}, ensure_ascii=False)}\n\n"
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
 def user_profile_system_message() -> dict | None:
     try:
         user_profile = get_user_profile_as_dict()

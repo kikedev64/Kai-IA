@@ -277,7 +277,7 @@ def handle_tool_call(tool_call):
 
             data_mail = AskRequest(
                 prompt=prompt,
-                system_prompt=DEFAULT_PROMPTS.RESUME_MAIL
+                system_prompt="resume_mail"
             )
 
             summary = ask_without_context(data_mail)

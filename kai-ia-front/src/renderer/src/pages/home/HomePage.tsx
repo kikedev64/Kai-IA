@@ -1,10 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { Menu, Plus, Search, Settings, Send, Bot, User, Sparkles } from 'lucide-react'
-import {
-  createChat,
-  getChatItemById,
-  getChatMessages
-} from '../../services/assistant.services'
+import { createChat, getChatItemById, getChatMessages } from '../../services/assistant.services'
 import { useChatBootstrap } from '../../context/chat-bootstrap.context'
 import type { ChatItem, Message } from '../../types/assistant'
 import ReactMarkdown from 'react-markdown'
@@ -27,25 +23,46 @@ const MarkdownContent = ({ content }: { content: string }) => (
     remarkPlugins={[remarkGfm, remarkMath]}
     rehypePlugins={[rehypeKatex]}
     components={{
-      p: ({ children }) => <p className="mb-2 last:mb-0 text-sm leading-7 text-slate-100 break-words">{children}</p>,
+      p: ({ children }) => (
+        <p className="mb-2 last:mb-0 text-sm leading-7 text-slate-100 break-words">{children}</p>
+      ),
       strong: ({ children }) => <strong className="font-semibold text-white">{children}</strong>,
       em: ({ children }) => <em className="italic text-slate-200">{children}</em>,
       code: ({ inline, children }: { inline?: boolean; children?: React.ReactNode }) =>
         inline ? (
-          <code className="rounded bg-white/10 px-1.5 py-0.5 text-xs font-mono text-cyan-200 break-all">{children}</code>
+          <code className="rounded bg-white/10 px-1.5 py-0.5 text-xs font-mono text-cyan-200 break-all">
+            {children}
+          </code>
         ) : (
           <pre className="my-2 overflow-x-auto rounded-xl bg-black/40 p-3 text-xs font-mono text-slate-200 border border-white/10">
             <code className="whitespace-pre-wrap">{children}</code>
           </pre>
         ),
-      ul: ({ children }) => <ul className="mb-2 ml-4 list-disc space-y-1 text-sm text-slate-100">{children}</ul>,
-      ol: ({ children }) => <ol className="mb-2 ml-4 list-decimal space-y-1 text-sm text-slate-100">{children}</ol>,
+      ul: ({ children }) => (
+        <ul className="mb-2 ml-4 list-disc space-y-1 text-sm text-slate-100">{children}</ul>
+      ),
+      ol: ({ children }) => (
+        <ol className="mb-2 ml-4 list-decimal space-y-1 text-sm text-slate-100">{children}</ol>
+      ),
       li: ({ children }) => <li className="leading-6 break-words">{children}</li>,
-      a: ({ href, children }) => <a href={href} target="_blank" rel="noopener noreferrer" className="text-cyan-300 underline break-all hover:text-cyan-200">{children}</a>,
-      blockquote: ({ children }) => <blockquote className="my-2 border-l-2 border-cyan-400/50 pl-3 text-slate-300 italic">{children}</blockquote>,
+      a: ({ href, children }) => (
+        <a
+          href={href}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-cyan-300 underline break-all hover:text-cyan-200"
+        >
+          {children}
+        </a>
+      ),
+      blockquote: ({ children }) => (
+        <blockquote className="my-2 border-l-2 border-cyan-400/50 pl-3 text-slate-300 italic">
+          {children}
+        </blockquote>
+      ),
       h1: ({ children }) => <h1 className="mb-2 text-base font-semibold text-white">{children}</h1>,
       h2: ({ children }) => <h2 className="mb-2 text-sm font-semibold text-white">{children}</h2>,
-      h3: ({ children }) => <h3 className="mb-1 text-sm font-medium text-white">{children}</h3>,
+      h3: ({ children }) => <h3 className="mb-1 text-sm font-medium text-white">{children}</h3>
     }}
   >
     {content}
@@ -130,13 +147,12 @@ const HomePage = (): React.JSX.Element => {
     if (!term) return localChats
     return localChats.filter(
       (chat) =>
-        chat.title.toLowerCase().includes(term) ||
-        chat.lastMessage.toLowerCase().includes(term)
+        chat.title.toLowerCase().includes(term) || chat.lastMessage.toLowerCase().includes(term)
     )
   }, [search, localChats])
 
   const selectedChat = localChats.find((chat) => chat.id === selectedChatId) ?? null
-  const messages = selectedChatId ? messagesByChatId[selectedChatId] ?? [] : []
+  const messages = selectedChatId ? (messagesByChatId[selectedChatId] ?? []) : []
 
   const handleCreateChat = async () => {
     try {
@@ -180,15 +196,15 @@ const HomePage = (): React.JSX.Element => {
     setMessagesForChat(selectedChatId, updatedMessages)
     setLocalChats((prev) =>
       prev.map((chat) =>
-        chat.id === selectedChatId
-          ? { ...chat, lastMessage: trimmedInput, updatedAt: 'Hoy' }
-          : chat
+        chat.id === selectedChatId ? { ...chat, lastMessage: trimmedInput, updatedAt: 'Hoy' } : chat
       )
     )
+
     setInput('')
     if (textareaRef.current) {
       textareaRef.current.style.height = '72px'
     }
+
     setIsSending(true)
     setStreamingContent('')
 
@@ -199,40 +215,83 @@ const HomePage = (): React.JSX.Element => {
 
       const params = new URLSearchParams({
         chat_id: selectedChatId,
-        user_input: trimmedInput,
+        prompt: trimmedInput,
         limit_history: '50'
       })
 
       const response = await fetch(`${url}/assistant/chat/stream?${params.toString()}`, {
-        method: 'POST'
+        method: 'POST',
+        headers: {
+          Accept: 'text/event-stream'
+        }
       })
 
-      if (!response.ok || !response.body) throw new Error('Stream no disponible')
+      if (!response.ok || !response.body) {
+        throw new Error(`Stream no disponible (${response.status})`)
+      }
 
       const reader = response.body.getReader()
       const decoder = new TextDecoder()
+
       let accumulated = ''
+      let buffer = ''
+      let streamFinished = false
 
-      while (true) {
+      while (!streamFinished) {
         const { done, value } = await reader.read()
-        if (done) break
 
-        const chunk = decoder.decode(value, { stream: true })
-        const lines = chunk.split('\n')
+        if (done) {
+          break
+        }
 
-        for (const line of lines) {
-          if (!line.startsWith('data: ')) continue
-          const token = line.slice(6)
-          if (token === '[DONE]') break
-          accumulated += token
-          setStreamingContent(accumulated)
+        buffer += decoder.decode(value, { stream: true })
+
+        const events = buffer.split('\n\n')
+        buffer = events.pop() ?? ''
+
+        for (const event of events) {
+          const lines = event
+            .split('\n')
+            .map((line) => line.trim())
+            .filter(Boolean)
+
+          for (const line of lines) {
+            if (!line.startsWith('data:')) continue
+
+            const rawData = line.slice(5).trim()
+            if (!rawData) continue
+
+            let payload: { type?: string; content?: string; message?: string }
+
+            try {
+              payload = JSON.parse(rawData)
+            } catch (parseError) {
+              console.error('Error parseando SSE:', rawData, parseError)
+              continue
+            }
+
+            if (payload.type === 'token') {
+              accumulated += payload.content ?? ''
+              setStreamingContent(accumulated)
+            } else if (payload.type === 'done') {
+              streamFinished = true
+              break
+            } else if (payload.type === 'error') {
+              throw new Error(payload.message || 'Error recibido desde el stream')
+            }
+          }
+
+          if (streamFinished) break
         }
       }
+
+      const finalAssistantContent =
+        accumulated.trim() || 'No se recibió contenido desde el asistente.'
 
       const assistantMessage: Message = {
         id: `${selectedChatId}-assistant-${Date.now()}`,
         role: 'assistant',
-        content: accumulated
+        content: finalAssistantContent
       }
 
       setMessagesForChat(selectedChatId, [...updatedMessages, assistantMessage])
@@ -244,11 +303,13 @@ const HomePage = (): React.JSX.Element => {
       )
     } catch (error) {
       console.error('Error enviando mensaje:', error)
+
       const errorMessage: Message = {
         id: `${selectedChatId}-assistant-error-${Date.now()}`,
         role: 'assistant',
         content: 'Ha ocurrido un error al procesar el mensaje.'
       }
+
       setMessagesForChat(selectedChatId, [
         ...(messagesByChatId[selectedChatId] ?? []),
         errorMessage
@@ -323,7 +384,9 @@ const HomePage = (): React.JSX.Element => {
             </div>
           </div>
 
-            <div className="flex-1 overflow-y-auto p-3 scrollbar-none [&::-webkit-scrollbar]:hidden">            {filteredChats.length === 0 ? (
+          <div className="flex-1 overflow-y-auto p-3 scrollbar-none [&::-webkit-scrollbar]:hidden">
+            {' '}
+            {filteredChats.length === 0 ? (
               <div className="flex h-full items-center justify-center text-sm text-slate-400">
                 No hay chats disponibles.
               </div>
@@ -379,7 +442,15 @@ const HomePage = (): React.JSX.Element => {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={() => window.systemNotificationsApi?.show({ title: 'Próximamente', body: 'Esta función estará disponible en una versión futura.' })} className="rounded-2xl border border-white/10 bg-white/[0.08] px-4 py-2 text-sm backdrop-blur-xl transition hover:bg-white hover:text-black">
+            <button
+              onClick={() =>
+                window.systemNotificationsApi?.show({
+                  title: 'Próximamente',
+                  body: 'Esta función estará disponible en una versión futura.'
+                })
+              }
+              className="rounded-2xl border border-white/10 bg-white/[0.08] px-4 py-2 text-sm backdrop-blur-xl transition hover:bg-white hover:text-black"
+            >
               Próximamente
             </button>
             <button className="rounded-2xl border border-white/10 bg-white/[0.08] p-2.5 backdrop-blur-xl transition hover:bg-white hover:text-black">
@@ -398,7 +469,10 @@ const HomePage = (): React.JSX.Element => {
               <p className="mt-1 text-sm text-slate-400">Conversación activa con Kai</p>
             </div>
 
-            <div ref={scrollContainerRef} className="flex-1 overflow-y-auto px-6 py-6 [&::-webkit-scrollbar]:hidden">
+            <div
+              ref={scrollContainerRef}
+              className="flex-1 overflow-y-auto px-6 py-6 [&::-webkit-scrollbar]:hidden"
+            >
               <div className="mx-auto flex max-w-4xl flex-col gap-4">
                 {isLoadingMessages ? (
                   <div className="flex h-full items-center justify-center text-slate-400">
@@ -456,9 +530,18 @@ const HomePage = (): React.JSX.Element => {
                             <span>Kai</span>
                           </div>
                           <div className="flex items-center gap-1.5">
-                            <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-slate-400" style={{ animationDelay: '0ms' }} />
-                            <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-slate-400" style={{ animationDelay: '150ms' }} />
-                            <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-slate-400" style={{ animationDelay: '300ms' }} />
+                            <span
+                              className="h-1.5 w-1.5 animate-bounce rounded-full bg-slate-400"
+                              style={{ animationDelay: '0ms' }}
+                            />
+                            <span
+                              className="h-1.5 w-1.5 animate-bounce rounded-full bg-slate-400"
+                              style={{ animationDelay: '150ms' }}
+                            />
+                            <span
+                              className="h-1.5 w-1.5 animate-bounce rounded-full bg-slate-400"
+                              style={{ animationDelay: '300ms' }}
+                            />
                           </div>
                         </div>
                       </div>

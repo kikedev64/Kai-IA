@@ -10,3 +10,7 @@ class ChatResetRequest(BaseModel):
 class AskRequest(BaseModel):
     prompt: str
     system_prompt: str | None = None
+
+class ChatStream(BaseModel):
+    chat_id: str
+    prompt: str
