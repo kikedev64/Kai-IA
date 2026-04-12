@@ -141,7 +141,7 @@ def api_read_last_emails_by_subject(
         raise HTTPException(status_code=e.resp.status, detail=str(e))
 
 
-@router.get("/thread/from-message/{message_id}/{clean_body}", response_model=GmailThreadResponse)
+@router.get("/thread/from-message/{message_id}", response_model=GmailThreadResponse)
 def api_read_thread_from_message_id(message_id: str):
     try:
         thread = read_thread_from_message_id(message_id=message_id)

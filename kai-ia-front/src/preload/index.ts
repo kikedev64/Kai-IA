@@ -81,8 +81,32 @@ if (process.contextIsolated) {
     })
 
     contextBridge.exposeInMainWorld('systemNotificationsApi', {
-      show: async (payload: { title: string; body: string; silent?: boolean }) =>
-        ipcRenderer.invoke('system-notifications:show', payload)
+      show: async (payload: {
+        title: string
+        body: string
+        silent?: boolean
+        data?: {
+          type?: 'email'
+          messageId?: string
+        }
+      }) => ipcRenderer.invoke('system-notifications:show', payload),
+
+      onEmailNotificationClick: (
+        callback: (payload: { messageId: string }) => void
+      ) => {
+        const listener = (
+          _event: Electron.IpcRendererEvent,
+          payload: { messageId: string }
+        ) => {
+          callback(payload)
+        }
+
+        ipcRenderer.on('system-notifications:email-clicked', listener)
+
+        return () => {
+          ipcRenderer.removeListener('system-notifications:email-clicked', listener)
+        }
+      }
     })
   } catch (error) {
     console.error(error)

@@ -86,7 +86,7 @@ def _build_initial_config() -> dict[str, str]:
     """.strip()
 
     
-    model_name = "openai/gpt-oss-20b"
+    model_name = "openai-gpt-oss-20b-abliterated-uncensored-neo-imatrix"
     temperature = 0.0
 
     default_prompt_resume_mail = (

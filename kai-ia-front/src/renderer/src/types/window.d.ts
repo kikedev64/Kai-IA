@@ -39,12 +39,20 @@ declare global {
       completeOnboardingAndOpenMain: () => Promise<boolean>
     }
 
-     systemNotificationsApi: {
+    systemNotificationsApi: {
       show: (payload: {
         title: string
         body: string
         silent?: boolean
+        data?: {
+          type?: 'email'
+          messageId?: string
+        }
       }) => Promise<{ ok: boolean; error?: string }>
+
+      onEmailNotificationClick: (
+        callback: (payload: { messageId: string }) => void
+      ) => () => void
     }
   }
 }

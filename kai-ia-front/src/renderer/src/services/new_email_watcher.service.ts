@@ -83,9 +83,13 @@ export function createNewEmailWatcher(
 
   const notifyNewEmail = async (email: GmailApiEmail): Promise<void> => {
     await showSystemNotification({
-      title: 'Nuevo correo recibido',
-      body: buildNotificationBody(email),
-      silent: false
+        title: 'Nuevo correo recibido',
+        body: buildNotificationBody(email),
+        silent: false,
+        data: {
+            type: 'email',
+            messageId: email.id
+        }
     })
 
     if (options.onNewEmail) {
