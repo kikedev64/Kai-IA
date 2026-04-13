@@ -86,41 +86,8 @@ def _build_initial_config() -> dict[str, str]:
     """.strip()
 
     
-    model_name = "openai-gpt-oss-20b-abliterated-uncensored-neo-imatrix"
+    model_name = "qwen/qwen3-14b"
     temperature = 0.0
-
-    default_prompt_resume_mail = (
-        "Tu unica tarea es leer el correo y hacer un resumen completo, "
-        "detallado y exhaustivo de el, indicando tambien quien lo envia. "
-        "NO OLVIDES NINGUN DETALLE DE ESPACIO, LUGAR O TIEMPO."
-    )
-    default_prompts_basic_user_information_json = (
-        "Vas a recibir un texto con información personal del usuario.\n\n"
-        
-        "Tu tarea es extraer la información relevante y devolverla en formato JSON válido, "
-        "estructurado para poder guardarse en una base de datos.\n\n"
-        
-        "Reglas:\n"
-        "- Devuelve SOLO JSON válido (sin explicaciones, sin texto adicional).\n"
-        "- Usa claves en inglés y valores en español cuando corresponda.\n"
-        "- No inventes información.\n"
-        "- Si un dato no aparece, no lo incluyas.\n"
-        "- Usa nombres de claves claros y consistentes.\n\n"
-        
-        "Posibles campos (usa solo los que existan):\n"
-        "- name\n"
-        "- age\n"
-        "- job\n"
-        "- study\n"
-        "- location\n"
-        "- interests\n"
-        "- goals\n\n"
-        
-        "Ejemplo:\n"
-        "Input: Me llamo Marcos, tengo 24 años y estudio diseño gráfico.\n"
-        "Output:\n"
-        "{\"name\": \"Marcos\", \"age\": 24, \"study\": \"Diseño gráfico\"}\n"
-    )
 
     return {
         "google_scopes": json.dumps(google_scopes, ensure_ascii=False),
@@ -129,9 +96,7 @@ def _build_initial_config() -> dict[str, str]:
         "email_max_total_size_attachment": str(email_max_total_size_attachment),
         "system_prompt_default": system_prompt_default,
         "model_name": model_name,
-        "temperature": str(temperature),
-        "default_prompts.resume_mail": default_prompt_resume_mail,
-        "default_prompts.basic_user_information_json": default_prompts_basic_user_information_json
+        "temperature": str(temperature)
     }
 
 
@@ -190,11 +155,6 @@ def init_db() -> None:
     cur.execute("""
     CREATE INDEX IF NOT EXISTS idx_chat_messages_chat_id_created_at
     ON chat_messages(chat_id, created_at)
-    """)
-
-    cur.execute("""
-    CREATE INDEX IF NOT EXISTS idx_google_accounts_email
-    ON google_accounts(email)
     """)
 
     _seed_initial_config(cur)

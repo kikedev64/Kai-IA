@@ -12,8 +12,6 @@ def check_database() -> bool:
     required_tables = {
         "chat_sessions",
         "chat_messages",
-        "google_accounts",
-        "gmail_sync_state",
         "app_config",
         "user_profile",
     }

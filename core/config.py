@@ -104,15 +104,20 @@ class DEFAULT_PROMPTS:
             "default_prompts.basic_user_information_json",
             (
                 "Vas a recibir un texto con información personal del usuario.\n\n"
-                "Tu tarea es extraer la información relevante y devolverla en formato JSON válido, "
-                "estructurado para poder guardarse en una base de datos.\n\n"
+                "Tu tarea es extraer la información relevante y devolverla en formato JSON válido.\n\n"
+
                 "Reglas:\n"
-                "- Devuelve SOLO JSON válido (sin explicaciones, sin texto adicional).\n"
-                "- Usa claves en inglés y valores en español cuando corresponda.\n"
+                "- Devuelve SOLO JSON válido (sin explicaciones).\n"
+                "- Usa claves en inglés y valores en español.\n"
                 "- No inventes información.\n"
-                "- Si un dato no aparece, no lo incluyas.\n"
-                "- Usa nombres de claves claros y consistentes.\n\n"
-                "Posibles campos (usa solo los que existan):\n"
+                "- Si un dato no aparece, no lo incluyas.\n\n"
+
+                "IMPORTANTE (desambiguación):\n"
+                "- Si el usuario está estudiando algo → usa 'study'.\n"
+                "- Solo usa 'job' si el usuario indica claramente que trabaja.\n"
+                "- Si menciona curso/año (ej: 'cuarto año') → inclúyelo dentro de 'study'.\n\n"
+
+                "Campos posibles:\n"
                 "- name\n"
                 "- age\n"
                 "- job\n"
@@ -120,6 +125,7 @@ class DEFAULT_PROMPTS:
                 "- location\n"
                 "- interests\n"
                 "- goals\n\n"
+
                 "Ejemplo:\n"
                 "Input: Me llamo Marcos, tengo 24 años y estudio diseño gráfico.\n"
                 "Output:\n"

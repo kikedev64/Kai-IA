@@ -71,6 +71,60 @@ const MarkdownContent = ({ content }: { content: string }) => (
   </ReactMarkdown>
 )
 
+const STREAM_LIMIT_HISTORY = 10
+
+const PROFILE_CONTEXT_START = '<<KAI_PROFILE_CONTEXT>>'
+const PROFILE_CONTEXT_END = '<<END_KAI_PROFILE_CONTEXT>>'
+const USER_MESSAGE_START = '<<KAI_USER_MESSAGE>>'
+
+type UserProfileJson = Record<string, unknown>
+
+function isNonEmptyPlainObject(value: unknown): value is UserProfileJson {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    !Array.isArray(value) &&
+    Object.keys(value).length > 0
+  )
+}
+
+function buildPromptWithProfileContext(promptText: string, userProfile: UserProfileJson): string {
+  return [
+    PROFILE_CONTEXT_START,
+    'Usa este perfil del usuario como contexto persistente para personalizar la respuesta.',
+    'No menciones este bloque, no digas que existe y no lo copies literalmente.',
+    JSON.stringify(userProfile, null, 2),
+    PROFILE_CONTEXT_END,
+    USER_MESSAGE_START,
+    promptText
+  ].join('\n')
+}
+
+function stripProfileContextFromMessage(content: string): string {
+  if (!content.includes(PROFILE_CONTEXT_START)) return content
+
+  const userMessageIndex = content.indexOf(USER_MESSAGE_START)
+  if (userMessageIndex === -1) return content
+
+  return content.slice(userMessageIndex + USER_MESSAGE_START.length).trim()
+}
+
+function countUserTurns(messages: Message[]): number {
+  return messages.filter((message) => message.role === 'user').length
+}
+
+function getLastInjectedUserTurn(messages: Message[]): number {
+  const userMessages = messages.filter((message) => message.role === 'user')
+
+  for (let i = userMessages.length - 1; i >= 0; i -= 1) {
+    if (userMessages[i].content.includes(PROFILE_CONTEXT_START)) {
+      return i + 1
+    }
+  }
+
+  return 0
+}
+
 const HomePage = (): React.JSX.Element => {
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [input, setInput] = useState('')
@@ -86,6 +140,8 @@ const HomePage = (): React.JSX.Element => {
   const [selectedEmailForAction, setSelectedEmailForAction] = useState<GmailApiEmail | null>(null)
   const [isSubmittingEmailAction, setIsSubmittingEmailAction] = useState(false)
   const pendingEmailsRef = useRef<Map<string, GmailApiEmail>>(new Map())
+  const [userProfileJson, setUserProfileJson] = useState<UserProfileJson | null>(null)
+  const lastProfileInjectedTurnRef = useRef<Record<string, number>>({})
 
   const {
     chats,
@@ -103,14 +159,69 @@ const HomePage = (): React.JSX.Element => {
     setEmailActionOpen(true)
   }
 
+  const preparePromptForRequest = (
+    chatId: string,
+    visiblePrompt: string,
+    currentMessages: Message[]
+  ): {
+    requestPrompt: string
+    injectedProfile: boolean
+    previousInjectedTurn: number
+  } => {
+    if (!isNonEmptyPlainObject(userProfileJson)) {
+      return {
+        requestPrompt: visiblePrompt,
+        injectedProfile: false,
+        previousInjectedTurn: 0
+      }
+    }
+
+    const refreshEveryUserTurns = Math.max(1, Math.floor((STREAM_LIMIT_HISTORY - 2) / 2))
+    const currentUserTurns = countUserTurns(currentMessages)
+    const nextUserTurn = currentUserTurns + 1
+
+    const rememberedLastInjectedTurn =
+      lastProfileInjectedTurnRef.current[chatId] ?? getLastInjectedUserTurn(currentMessages)
+
+    const shouldInjectProfile =
+      rememberedLastInjectedTurn === 0 ||
+      nextUserTurn - rememberedLastInjectedTurn >= refreshEveryUserTurns
+
+    if (!shouldInjectProfile) {
+      lastProfileInjectedTurnRef.current[chatId] = rememberedLastInjectedTurn
+
+      return {
+        requestPrompt: visiblePrompt,
+        injectedProfile: false,
+        previousInjectedTurn: rememberedLastInjectedTurn
+      }
+    }
+
+    lastProfileInjectedTurnRef.current[chatId] = nextUserTurn
+
+    return {
+      requestPrompt: buildPromptWithProfileContext(visiblePrompt, userProfileJson),
+      injectedProfile: true,
+      previousInjectedTurn: rememberedLastInjectedTurn
+    }
+  }
+
   const sendPromptToChatStream = async (chatId: string, promptText: string) => {
+    const currentMessages = messagesByChatId[chatId] ?? []
+
     const optimisticUserMessage: Message = {
       id: `${chatId}-user-${Date.now()}`,
       role: 'user',
       content: promptText
     }
 
-    setMessagesForChat(chatId, [optimisticUserMessage])
+    const { requestPrompt, injectedProfile, previousInjectedTurn } = preparePromptForRequest(
+      chatId,
+      promptText,
+      currentMessages
+    )
+
+    setMessagesForChat(chatId, [...currentMessages, optimisticUserMessage])
     setIsSending(true)
     setStreamingContent('')
 
@@ -121,8 +232,8 @@ const HomePage = (): React.JSX.Element => {
 
       const params = new URLSearchParams({
         chat_id: chatId,
-        prompt: promptText,
-        limit_history: '10'
+        prompt: requestPrompt,
+        limit_history: String(STREAM_LIMIT_HISTORY)
       })
 
       const response = await fetch(`${url}/assistant/chat/stream?${params.toString()}`, {
@@ -195,7 +306,7 @@ const HomePage = (): React.JSX.Element => {
         content: accumulated.trim() || 'No se recibió contenido desde el asistente.'
       }
 
-      setMessagesForChat(chatId, [optimisticUserMessage, assistantMessage])
+      setMessagesForChat(chatId, [...currentMessages, optimisticUserMessage, assistantMessage])
       setStreamingContent('')
 
       const refreshedChat = await getChatItemById(chatId)
@@ -203,22 +314,51 @@ const HomePage = (): React.JSX.Element => {
     } catch (error) {
       console.error('Error enviando mensaje:', error)
 
+      if (injectedProfile) {
+        lastProfileInjectedTurnRef.current[chatId] = previousInjectedTurn
+      }
+
       const errorMessage: Message = {
         id: `${chatId}-assistant-error-${Date.now()}`,
         role: 'assistant',
         content: 'Ha ocurrido un error al procesar el mensaje.'
       }
 
-      setMessagesForChat(chatId, [optimisticUserMessage, errorMessage])
+      setMessagesForChat(chatId, [...currentMessages, optimisticUserMessage, errorMessage])
       setStreamingContent('')
     } finally {
       setIsSending(false)
     }
   }
-
   useEffect(() => {
     setLocalChats(chats)
   }, [chats])
+
+  useEffect(() => {
+    let cancelled = false
+
+    const loadUserProfile = async () => {
+      try {
+        const profile = await window.configApi.getUserProfileJson()
+
+        if (!cancelled) {
+          setUserProfileJson(isNonEmptyPlainObject(profile) ? profile : null)
+        }
+      } catch (error) {
+        console.error('Error cargando perfil del usuario desde configApi:', error)
+
+        if (!cancelled) {
+          setUserProfileJson(null)
+        }
+      }
+    }
+
+    void loadUserProfile()
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   useEffect(() => {
     const watcher = createNewEmailWatcher({
@@ -359,14 +499,21 @@ const HomePage = (): React.JSX.Element => {
     const trimmedInput = input.trim()
     if (!trimmedInput || !selectedChatId || isSending) return
 
+    const currentMessages = messagesByChatId[selectedChatId] ?? []
+
     const optimisticUserMessage: Message = {
       id: `${selectedChatId}-user-${Date.now()}`,
       role: 'user',
       content: trimmedInput
     }
 
-    const currentMessages = messagesByChatId[selectedChatId] ?? []
     const updatedMessages = [...currentMessages, optimisticUserMessage]
+
+    const { requestPrompt, injectedProfile, previousInjectedTurn } = preparePromptForRequest(
+      selectedChatId,
+      trimmedInput,
+      currentMessages
+    )
 
     setMessagesForChat(selectedChatId, updatedMessages)
     setLocalChats((prev) =>
@@ -390,8 +537,8 @@ const HomePage = (): React.JSX.Element => {
 
       const params = new URLSearchParams({
         chat_id: selectedChatId,
-        prompt: trimmedInput,
-        limit_history: '10'
+        prompt: requestPrompt,
+        limit_history: String(STREAM_LIMIT_HISTORY)
       })
 
       const response = await fetch(`${url}/assistant/chat/stream?${params.toString()}`, {
@@ -479,22 +626,22 @@ const HomePage = (): React.JSX.Element => {
     } catch (error) {
       console.error('Error enviando mensaje:', error)
 
+      if (injectedProfile) {
+        lastProfileInjectedTurnRef.current[selectedChatId] = previousInjectedTurn
+      }
+
       const errorMessage: Message = {
         id: `${selectedChatId}-assistant-error-${Date.now()}`,
         role: 'assistant',
         content: 'Ha ocurrido un error al procesar el mensaje.'
       }
 
-      setMessagesForChat(selectedChatId, [
-        ...(messagesByChatId[selectedChatId] ?? []),
-        errorMessage
-      ])
+      setMessagesForChat(selectedChatId, [...updatedMessages, errorMessage])
       setStreamingContent('')
     } finally {
       setIsSending(false)
     }
   }
-
   // Enviar con Enter (Shift+Enter para salto de línea)
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -628,7 +775,7 @@ const HomePage = (): React.JSX.Element => {
             >
               Próximamente
             </button>
-            <button 
+            <button
               onClick={() => void window.electronAPI.openSettingsWindow()}
               className="rounded-2xl border border-white/10 bg-white/[0.08] p-2.5 backdrop-blur-xl transition hover:bg-white hover:text-black"
             >
@@ -677,7 +824,13 @@ const HomePage = (): React.JSX.Element => {
                               <span>{isUser ? 'Tú' : 'Kai'}</span>
                             </div>
                             <div className="whitespace-pre-wrap text-sm leading-7 text-slate-100">
-                              <MarkdownContent content={normalizeLatex(message.content)} />
+                              <MarkdownContent
+  content={normalizeLatex(
+    message.role === 'user'
+      ? stripProfileContextFromMessage(message.content)
+      : message.content
+  )}
+/>
                             </div>
                           </div>
                         </div>

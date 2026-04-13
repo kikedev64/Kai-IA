@@ -194,7 +194,6 @@ export default function SplashPage(): React.JSX.Element {
                     <p className="text-xs leading-5 text-red-100/90">
                       Revisa backend, base de datos y modelo local.
                     </p>
-
                     <div className="flex items-center gap-2">
                       <button
                         onClick={handleResetConfiguration}

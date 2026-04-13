@@ -18,7 +18,6 @@ from api.routers.health import router as health_router
 from core.runtime_config import set_runtime_config
 from services.config.config_loader import get_all_config_as_dict
 from api.routers.app import router as app_router
-from api.routers.user_profile import router as user_profile_router
 
 
 @asynccontextmanager
@@ -57,4 +56,3 @@ app.include_router(chat_router)
 app.include_router(config_router)
 app.include_router(health_router)
 app.include_router(app_router)
-app.include_router(user_profile_router)
