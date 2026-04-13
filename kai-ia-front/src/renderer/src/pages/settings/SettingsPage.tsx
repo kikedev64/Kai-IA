@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import {
   Menu,
   Settings,
@@ -6,38 +6,37 @@ import {
   RefreshCw,
   Bot,
   Mail,
-  CalendarDays,
-  CheckSquare,
   FolderOpen,
   KeyRound,
   SlidersHorizontal,
   ShieldCheck,
-  Search
+  Search,
+  UserRound,
+  Link2
 } from 'lucide-react'
+import {
+  type BackendSettings,
+  getBackendSettings,
+  getLocalSettings,
+  regenerateUserProfile,
+  saveBackendSettings,
+  saveLocalSettings
+} from '../../services/settings.service'
 
 type SettingsSectionId =
   | 'general'
+  | 'profile'
   | 'model'
   | 'google'
   | 'gmail'
-  | 'calendar'
-  | 'tasks'
-  | 'drive'
   | 'prompts'
 
 type SettingsForm = {
-  system_prompt_default: string
-  model_name: string
-  temperature: string
-  google_redirect_uri: string
-  google_credentials_file: string
-  google_token_file: string
-  google_scopes: string
-  email_max_total_size_attachment: string
-  default_prompts_resume_mail: string
-  default_prompts_basic_user_information_json: string
-  default_prompts_chat_summary: string
-}
+  server_url: string
+  server_port: string
+  user_profile_raw: string
+  user_profile_json: string
+} & BackendSettings
 
 type SectionItem = {
   id: SettingsSectionId
@@ -50,44 +49,32 @@ const SECTION_ITEMS: SectionItem[] = [
   {
     id: 'general',
     label: 'General',
-    description: 'Parámetros globales del asistente',
-    icon: <SlidersHorizontal size={16} />
+    description: 'URL, puerto y parámetros globales',
+    icon: <Link2 size={16} />
+  },
+  {
+    id: 'profile',
+    label: 'Perfil',
+    description: 'Texto base y JSON del usuario',
+    icon: <UserRound size={16} />
   },
   {
     id: 'model',
     label: 'Modelo',
-    description: 'LLM, temperatura y comportamiento base',
+    description: 'LLM, temperatura y system prompt',
     icon: <Bot size={16} />
   },
   {
     id: 'google',
     label: 'Google',
-    description: 'OAuth, credenciales y token',
+    description: 'OAuth, credenciales, token y scopes',
     icon: <ShieldCheck size={16} />
   },
   {
     id: 'gmail',
     label: 'Gmail',
-    description: 'Opciones de correo y límites',
+    description: 'Límites del servicio de correo',
     icon: <Mail size={16} />
-  },
-  {
-    id: 'calendar',
-    label: 'Calendar',
-    description: 'Configuración del calendario',
-    icon: <CalendarDays size={16} />
-  },
-  {
-    id: 'tasks',
-    label: 'Tasks',
-    description: 'Recordatorios y listas',
-    icon: <CheckSquare size={16} />
-  },
-  {
-    id: 'drive',
-    label: 'Drive',
-    description: 'Archivos y rutas relacionadas',
-    icon: <FolderOpen size={16} />
   },
   {
     id: 'prompts',
@@ -97,23 +84,22 @@ const SECTION_ITEMS: SectionItem[] = [
   }
 ]
 
-const DEFAULT_FORM: SettingsForm = {
-  system_prompt_default:
-    'Eres Kai IA, una secretaria personal de alto nivel que ayuda al usuario con correo, calendario, tareas y documentos.',
-  model_name: 'openai/gpt-oss-20b',
-  temperature: '0',
+const EMPTY_FORM: SettingsForm = {
+  server_url: 'http://localhost',
+  server_port: '8000',
+  user_profile_raw: '',
+  user_profile_json: '{}',
   google_redirect_uri: 'http://localhost:8000/auth/google/callback',
-  google_credentials_file: 'C:\\KaiIA\\credentials.json',
-  google_token_file: 'C:\\KaiIA\\token.json',
-  google_scopes:
-    '["https://www.googleapis.com/auth/gmail.modify","https://www.googleapis.com/auth/calendar","https://www.googleapis.com/auth/drive.readonly"]',
+  google_scopes: '[]',
+  google_credentials_file: '',
+  google_token_file: '',
   email_max_total_size_attachment: '18874368',
-  default_prompts_resume_mail:
-    'Tu única tarea es leer el correo y hacer un resumen completo, detallado y exhaustivo.',
-  default_prompts_basic_user_information_json:
-    'Extrae la información relevante del usuario y devuélvela en JSON válido.',
-  default_prompts_chat_summary:
-    'Genera un título corto, claro y descriptivo para el chat en español.'
+  system_prompt_default: '',
+  model_name: '',
+  temperature: '0',
+  'default_prompts.resume_mail': '',
+  'default_prompts.basic_user_information_json': '',
+  'default_prompts.chat_summary': ''
 }
 
 function FieldLabel({ title, subtitle }: { title: string; subtitle?: string }): React.JSX.Element {
@@ -190,9 +176,13 @@ const SettingsPage = (): React.JSX.Element => {
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [activeSection, setActiveSection] = useState<SettingsSectionId>('general')
   const [search, setSearch] = useState('')
-  const [form, setForm] = useState<SettingsForm>(DEFAULT_FORM)
-  const [initialForm] = useState<SettingsForm>(DEFAULT_FORM)
+  const [form, setForm] = useState<SettingsForm>(EMPTY_FORM)
+  const [initialForm, setInitialForm] = useState<SettingsForm>(EMPTY_FORM)
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [regeneratingProfile, setRegeneratingProfile] = useState(false)
   const [saveMessage, setSaveMessage] = useState('')
+  const [errorMessage, setErrorMessage] = useState('')
 
   const hasChanges = useMemo(() => {
     return JSON.stringify(form) !== JSON.stringify(initialForm)
@@ -216,13 +206,147 @@ const SettingsPage = (): React.JSX.Element => {
     }))
   }
 
-  const handleReset = () => {
-    setForm(DEFAULT_FORM)
-    setSaveMessage('Cambios visuales restablecidos.')
+  const loadAllSettings = async () => {
+    setLoading(true)
+    setErrorMessage('')
+    setSaveMessage('')
+
+    try {
+      const local = await getLocalSettings()
+      const backend = await getBackendSettings({
+        serverUrl: local.server_url,
+        serverPort: local.server_port
+      })
+
+      const nextForm: SettingsForm = {
+        ...local,
+        ...backend
+      }
+
+      setForm(nextForm)
+      setInitialForm(nextForm)
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : 'No se pudo cargar la configuración'
+      )
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const handleFakeSave = () => {
-    setSaveMessage('Plantilla visual: guardado no conectado todavía.')
+  useEffect(() => {
+    void loadAllSettings()
+  }, [])
+
+  const handleReset = () => {
+    setForm(initialForm)
+    setSaveMessage('Cambios visuales descartados.')
+    setErrorMessage('')
+  }
+
+  const handleReload = async () => {
+    await loadAllSettings()
+  }
+
+  const handleRegenerateProfile = async () => {
+    setErrorMessage('')
+    setSaveMessage('')
+
+    if (!form.user_profile_raw.trim()) {
+      setErrorMessage('Introduce primero un texto base del usuario para regenerar el perfil.')
+      return
+    }
+
+    try {
+      setRegeneratingProfile(true)
+
+      const profile = await regenerateUserProfile(form.user_profile_raw, {
+        serverUrl: form.server_url,
+        serverPort: form.server_port
+      })
+
+      updateField('user_profile_json', JSON.stringify(profile, null, 2))
+      setSaveMessage('User profile regenerado correctamente. Guarda para persistirlo.')
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : 'No se pudo regenerar el user profile'
+      )
+    } finally {
+      setRegeneratingProfile(false)
+    }
+  }
+
+  const handleSave = async () => {
+    setErrorMessage('')
+    setSaveMessage('')
+
+    try {
+      const parsedPort = Number(form.server_port)
+      if (!form.server_url.trim()) {
+        throw new Error('La URL del backend no puede estar vacía')
+      }
+      if (!Number.isFinite(parsedPort)) {
+        throw new Error('El puerto del backend no es válido')
+      }
+
+      let parsedUserProfile: Record<string, unknown> = {}
+      try {
+        const parsed = JSON.parse(form.user_profile_json || '{}')
+        if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+          throw new Error()
+        }
+        parsedUserProfile = parsed as Record<string, unknown>
+      } catch {
+        throw new Error('El user profile JSON no es válido')
+      }
+
+      const backendPayload: BackendSettings = {
+        google_redirect_uri: form.google_redirect_uri,
+        google_scopes: form.google_scopes,
+        google_credentials_file: form.google_credentials_file,
+        google_token_file: form.google_token_file,
+        email_max_total_size_attachment: form.email_max_total_size_attachment,
+        system_prompt_default: form.system_prompt_default,
+        model_name: form.model_name,
+        temperature: form.temperature,
+        'default_prompts.resume_mail': form['default_prompts.resume_mail'],
+        'default_prompts.basic_user_information_json':
+          form['default_prompts.basic_user_information_json'],
+        'default_prompts.chat_summary': form['default_prompts.chat_summary']
+      }
+
+      setSaving(true)
+
+      const savedBackend = await saveBackendSettings(backendPayload, {
+        serverUrl: form.server_url,
+        serverPort: form.server_port
+      })
+
+      await saveLocalSettings({
+        server_url: form.server_url,
+        server_port: form.server_port,
+        user_profile_raw: form.user_profile_raw,
+        user_profile_json: parsedUserProfile
+      })
+
+      const nextForm: SettingsForm = {
+        server_url: form.server_url,
+        server_port: form.server_port,
+        user_profile_raw: form.user_profile_raw,
+        user_profile_json: JSON.stringify(parsedUserProfile, null, 2),
+        ...savedBackend
+      }
+
+      setForm(nextForm)
+      setInitialForm(nextForm)
+      setSaveMessage('Configuración guardada correctamente.')
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : 'No se pudo guardar la configuración'
+      )
+    } finally {
+      setSaving(false)
+    }
   }
 
   const renderSectionContent = () => {
@@ -231,18 +355,73 @@ const SettingsPage = (): React.JSX.Element => {
         return (
           <SectionCard
             title="Configuración general"
-            description="Parámetros base del comportamiento del sistema."
+            description="URL y puerto del backend que utilizará la aplicación."
           >
             <div>
               <FieldLabel
-                title="System prompt por defecto"
-                subtitle="Prompt principal que usará Kai IA al iniciar un chat."
+                title="URL del backend"
+                subtitle="Ejemplo: http://localhost"
+              />
+              <TextInput
+                value={form.server_url}
+                onChange={(value) => updateField('server_url', value)}
+                placeholder="http://localhost"
+              />
+            </div>
+
+            <div>
+              <FieldLabel
+                title="Puerto del backend"
+                subtitle="Ejemplo: 8000"
+              />
+              <TextInput
+                value={form.server_port}
+                onChange={(value) => updateField('server_port', value)}
+                placeholder="8000"
+              />
+            </div>
+          </SectionCard>
+        )
+
+      case 'profile':
+        return (
+          <SectionCard
+            title="Perfil del usuario"
+            description="Texto base y JSON local del usuario. Este bloque vive en Electron, no en el backend."
+          >
+            <div>
+              <FieldLabel
+                title="Texto base del usuario"
+                subtitle="Se usará para regenerar el user profile cuando lo necesites."
               />
               <TextArea
-                value={form.system_prompt_default}
-                onChange={(value) => updateField('system_prompt_default', value)}
-                rows={8}
-                placeholder="Escribe aquí el prompt por defecto del sistema..."
+                value={form.user_profile_raw}
+                onChange={(value) => updateField('user_profile_raw', value)}
+                rows={10}
+                placeholder="Me llamo Enrique, prefiero que me llamen Kike, estudio Ingeniería Informática..."
+              />
+            </div>
+
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleRegenerateProfile}
+                disabled={regeneratingProfile || saving}
+                className="rounded-2xl border border-white/10 bg-white/[0.08] px-4 py-2 text-sm transition hover:bg-white hover:text-black disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {regeneratingProfile ? 'Regenerando...' : 'Regenerar user profile'}
+              </button>
+            </div>
+
+            <div>
+              <FieldLabel
+                title="JSON del user profile"
+                subtitle="Puedes editarlo manualmente si hace falta."
+              />
+              <TextArea
+                value={form.user_profile_json}
+                onChange={(value) => updateField('user_profile_json', value)}
+                rows={14}
+                placeholder='{"name":"Kike","study":"Ingeniería Informática"}'
               />
             </div>
           </SectionCard>
@@ -251,27 +430,37 @@ const SettingsPage = (): React.JSX.Element => {
       case 'model':
         return (
           <SectionCard
-            title="Configuración del modelo"
-            description="Ajusta el modelo principal y sus parámetros de generación."
+            title="Modelo y comportamiento"
+            description="Modelo principal, temperatura y system prompt global."
           >
             <div>
-              <FieldLabel title="Nombre del modelo" subtitle="Ejemplo: openai/gpt-oss-20b" />
+              <FieldLabel title="Nombre del modelo" subtitle="Ejemplo: qwen/qwen3-14b" />
               <TextInput
                 value={form.model_name}
                 onChange={(value) => updateField('model_name', value)}
-                placeholder="openai/gpt-oss-20b"
+                placeholder="qwen/qwen3-14b"
+              />
+            </div>
+
+            <div>
+              <FieldLabel title="Temperature" subtitle="0 = más determinista" />
+              <TextInput
+                value={form.temperature}
+                onChange={(value) => updateField('temperature', value)}
+                placeholder="0"
               />
             </div>
 
             <div>
               <FieldLabel
-                title="Temperature"
-                subtitle="Controla la creatividad. 0 = más determinista."
+                title="System prompt por defecto"
+                subtitle="Prompt principal de Kai IA."
               />
-              <TextInput
-                value={form.temperature}
-                onChange={(value) => updateField('temperature', value)}
-                placeholder="0"
+              <TextArea
+                value={form.system_prompt_default}
+                onChange={(value) => updateField('system_prompt_default', value)}
+                rows={18}
+                placeholder="Escribe aquí el prompt principal..."
               />
             </div>
           </SectionCard>
@@ -281,12 +470,12 @@ const SettingsPage = (): React.JSX.Element => {
         return (
           <SectionCard
             title="Integración con Google"
-            description="Parámetros OAuth, token y credenciales."
+            description="OAuth, credenciales, token y scopes."
           >
             <div>
               <FieldLabel
                 title="Redirect URI"
-                subtitle="URL de callback para la autenticación OAuth."
+                subtitle="URL de callback para OAuth."
               />
               <TextInput
                 value={form.google_redirect_uri}
@@ -296,29 +485,38 @@ const SettingsPage = (): React.JSX.Element => {
             </div>
 
             <div>
-              <FieldLabel title="Fichero de credenciales" subtitle="Ruta al credentials.json." />
+              <FieldLabel
+                title="Fichero de credenciales"
+                subtitle="Ruta absoluta al credentials.json."
+              />
               <TextInput
                 value={form.google_credentials_file}
                 onChange={(value) => updateField('google_credentials_file', value)}
-                placeholder="C:\\ruta\\credentials.json"
+                placeholder="C:\\KaiIA\\credentials.json"
               />
             </div>
 
             <div>
-              <FieldLabel title="Fichero de token" subtitle="Ruta al token.json." />
+              <FieldLabel
+                title="Fichero de token"
+                subtitle="Ruta absoluta al token.json."
+              />
               <TextInput
                 value={form.google_token_file}
                 onChange={(value) => updateField('google_token_file', value)}
-                placeholder="C:\\ruta\\token.json"
+                placeholder="C:\\KaiIA\\token.json"
               />
             </div>
 
             <div>
-              <FieldLabel title="Scopes" subtitle="Lista JSON de scopes de Google." />
+              <FieldLabel
+                title="Scopes"
+                subtitle="Debe ser un JSON válido con una lista."
+              />
               <TextArea
                 value={form.google_scopes}
                 onChange={(value) => updateField('google_scopes', value)}
-                rows={8}
+                rows={10}
                 placeholder='["https://www.googleapis.com/auth/gmail.modify"]'
               />
             </div>
@@ -329,7 +527,7 @@ const SettingsPage = (): React.JSX.Element => {
         return (
           <SectionCard
             title="Configuración de Gmail"
-            description="Límites y comportamiento del servicio de correo."
+            description="Límite máximo total de adjuntos."
           >
             <div>
               <FieldLabel
@@ -345,76 +543,37 @@ const SettingsPage = (): React.JSX.Element => {
           </SectionCard>
         )
 
-      case 'calendar':
-        return (
-          <SectionCard
-            title="Google Calendar"
-            description="Bloque visual preparado para futuras opciones."
-          >
-            <div className="rounded-2xl border border-dashed border-white/10 bg-black/20 p-4 text-sm text-slate-400">
-              Aquí podrás añadir zona horaria por defecto, duración de eventos, recordatorios,
-              Google Meet automático y más.
-            </div>
-          </SectionCard>
-        )
-
-      case 'tasks':
-        return (
-          <SectionCard
-            title="Google Tasks"
-            description="Bloque visual preparado para futuras opciones."
-          >
-            <div className="rounded-2xl border border-dashed border-white/10 bg-black/20 p-4 text-sm text-slate-400">
-              Aquí podrás añadir lista por defecto, comportamiento de recordatorios y opciones de
-              sincronización.
-            </div>
-          </SectionCard>
-        )
-
-      case 'drive':
-        return (
-          <SectionCard
-            title="Google Drive"
-            description="Bloque visual preparado para futuras opciones."
-          >
-            <div className="rounded-2xl border border-dashed border-white/10 bg-black/20 p-4 text-sm text-slate-400">
-              Aquí podrás añadir límites, formatos por defecto, políticas de búsqueda y control de
-              exportaciones.
-            </div>
-          </SectionCard>
-        )
-
       case 'prompts':
         return (
           <SectionCard
             title="Prompts internos"
-            description="Prompts específicos usados por el sistema."
+            description="Prompts específicos del backend."
           >
             <div>
               <FieldLabel
                 title="Prompt: resumen de correo"
-                subtitle="Usado para resumir un email completo."
+                subtitle="Usado para resumir emails completos."
               />
               <TextArea
-                value={form.default_prompts_resume_mail}
-                onChange={(value) => updateField('default_prompts_resume_mail', value)}
-                rows={6}
-                placeholder="Prompt para resume_mail..."
+                value={form['default_prompts.resume_mail']}
+                onChange={(value) => updateField('default_prompts.resume_mail', value)}
+                rows={8}
+                placeholder="Prompt para resumen de correo..."
               />
             </div>
 
             <div>
               <FieldLabel
                 title="Prompt: información básica del usuario"
-                subtitle="Usado para generar JSON de perfil."
+                subtitle="Usado para generar el JSON del perfil."
               />
               <TextArea
-                value={form.default_prompts_basic_user_information_json}
+                value={form['default_prompts.basic_user_information_json']}
                 onChange={(value) =>
-                  updateField('default_prompts_basic_user_information_json', value)
+                  updateField('default_prompts.basic_user_information_json', value)
                 }
-                rows={8}
-                placeholder="Prompt para basic_user_information..."
+                rows={12}
+                placeholder="Prompt para perfil del usuario..."
               />
             </div>
 
@@ -424,10 +583,10 @@ const SettingsPage = (): React.JSX.Element => {
                 subtitle="Usado para generar títulos cortos automáticamente."
               />
               <TextArea
-                value={form.default_prompts_chat_summary}
-                onChange={(value) => updateField('default_prompts_chat_summary', value)}
-                rows={6}
-                placeholder="Prompt para chat_summary..."
+                value={form['default_prompts.chat_summary']}
+                onChange={(value) => updateField('default_prompts.chat_summary', value)}
+                rows={8}
+                placeholder="Prompt para títulos de chat..."
               />
             </div>
           </SectionCard>
@@ -436,6 +595,14 @@ const SettingsPage = (): React.JSX.Element => {
       default:
         return null
     }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-[#020617] text-slate-300">
+        Cargando configuración...
+      </div>
+    )
   }
 
   return (
@@ -533,26 +700,37 @@ const SettingsPage = (): React.JSX.Element => {
               </div>
               <div>
                 <h1 className="text-sm font-semibold md:text-base">Configuración</h1>
-                <p className="text-xs text-slate-400">Plantilla visual de parámetros del sistema</p>
+                <p className="text-xs text-slate-400">Local + runtime del backend</p>
               </div>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
             <button
-              onClick={handleReset}
-              className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.08] px-4 py-2 text-sm backdrop-blur-xl transition hover:bg-white hover:text-black"
+              onClick={handleReload}
+              disabled={loading || saving || regeneratingProfile}
+              className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.08] px-4 py-2 text-sm backdrop-blur-xl transition hover:bg-white hover:text-black disabled:cursor-not-allowed disabled:opacity-40"
             >
               <RefreshCw size={16} />
-              Restablecer
+              Recargar
             </button>
 
             <button
-              onClick={handleFakeSave}
-              className="flex items-center gap-2 rounded-2xl border border-cyan-300/20 bg-cyan-400/10 px-4 py-2 text-sm text-cyan-100 backdrop-blur-xl transition hover:bg-cyan-300 hover:text-black"
+              onClick={handleReset}
+              disabled={saving || regeneratingProfile}
+              className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.08] px-4 py-2 text-sm backdrop-blur-xl transition hover:bg-white hover:text-black disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <FolderOpen size={16} />
+              Descartar
+            </button>
+
+            <button
+              onClick={handleSave}
+              disabled={saving || regeneratingProfile}
+              className="flex items-center gap-2 rounded-2xl border border-cyan-300/20 bg-cyan-400/10 px-4 py-2 text-sm text-cyan-100 backdrop-blur-xl transition hover:bg-cyan-300 hover:text-black disabled:cursor-not-allowed disabled:opacity-40"
             >
               <Save size={16} />
-              Guardar
+              {saving ? 'Guardando...' : 'Guardar'}
             </button>
           </div>
         </header>
@@ -572,14 +750,20 @@ const SettingsPage = (): React.JSX.Element => {
             <div className="flex-1 overflow-y-auto px-6 py-6 [&::-webkit-scrollbar]:hidden">
               <div className="mx-auto flex max-w-5xl flex-col gap-4">
                 {saveMessage ? (
-                  <div className="rounded-2xl border border-white/10 bg-white/[0.05] px-4 py-3 text-sm text-slate-200">
+                  <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-100">
                     {saveMessage}
+                  </div>
+                ) : null}
+
+                {errorMessage ? (
+                  <div className="rounded-2xl border border-red-400/20 bg-red-400/10 px-4 py-3 text-sm text-red-100">
+                    {errorMessage}
                   </div>
                 ) : null}
 
                 {hasChanges ? (
                   <div className="rounded-2xl border border-cyan-300/10 bg-cyan-400/5 px-4 py-3 text-sm text-cyan-100">
-                    Hay cambios visuales sin persistir.
+                    Hay cambios sin guardar.
                   </div>
                 ) : null}
 

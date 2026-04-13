@@ -1,20 +1,73 @@
+from __future__ import annotations
+
+import json
 from typing import Any
 
-_RUNTIME_CONFIG: dict[str, Any] = {}
+from core.database import get_connection
 
 
-def set_runtime_config(data: dict[str, Any]) -> None:
-    global _RUNTIME_CONFIG
-    _RUNTIME_CONFIG = dict(data)
+def get_runtime_config_value(key: str, default: Any = None) -> Any:
+    conn = get_connection()
+    try:
+        row = conn.execute(
+            "SELECT value FROM app_config WHERE key = ?",
+            (key,),
+        ).fetchone()
+
+        if row is None:
+            return default
+
+        return row["value"]
+    finally:
+        conn.close()
 
 
-def get_runtime_config_value(key: str, default=None):
-    return _RUNTIME_CONFIG.get(key, default)
+def _normalize_runtime_value(value: Any) -> str | None:
+    if value is None:
+        return None
+
+    if isinstance(value, (dict, list)):
+        return json.dumps(value, ensure_ascii=False)
+
+    if isinstance(value, bool):
+        return "true" if value else "false"
+
+    return str(value)
 
 
-def update_runtime_config_value(key: str, value: Any) -> None:
-    _RUNTIME_CONFIG[key] = value
+def set_runtime_config_value(key: str, value: Any) -> None:
+    normalized = _normalize_runtime_value(value)
+
+    conn = get_connection()
+    try:
+        conn.execute(
+            """
+            INSERT INTO app_config (key, value, updated_at)
+            VALUES (?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(key) DO UPDATE SET
+                value = excluded.value,
+                updated_at = CURRENT_TIMESTAMP
+            """,
+            (key, normalized),
+        )
+        conn.commit()
+    finally:
+        conn.close()
 
 
-def get_all_runtime_config() -> dict[str, Any]:
-    return dict(_RUNTIME_CONFIG)
+def set_runtime_config_values(values: dict[str, Any]) -> None:
+    conn = get_connection()
+    try:
+        conn.executemany(
+            """
+            INSERT INTO app_config (key, value, updated_at)
+            VALUES (?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(key) DO UPDATE SET
+                value = excluded.value,
+                updated_at = CURRENT_TIMESTAMP
+            """,
+            [(key, _normalize_runtime_value(value)) for key, value in values.items()],
+        )
+        conn.commit()
+    finally:
+        conn.close()
