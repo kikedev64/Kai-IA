@@ -1,5 +1,6 @@
 import { app, ipcMain } from 'electron'
 import { configRepository } from '../db/config.repository'
+import { getBackendBaseUrl } from '../db/database'
 
 export function registerConfigIpc(): void {
     ipcMain.handle('config:is-first-run', () => {
@@ -69,5 +70,85 @@ export function registerConfigIpc(): void {
     ipcMain.handle('app:quit', () => {
         app.quit()
     })
+
+    ipcMain.handle('config:get-all-backend', async () => {
+        const baseUrl = await getBackendBaseUrl()
+        const res = await fetch(`${baseUrl}/config`)
+
+        if (!res.ok) {
+            throw new Error(`Error obteniendo configuración backend: ${res.status}`)
+        }
+
+        return await res.json()
+    })
+
+    ipcMain.handle('config:get-backend', async (_event, key: string) => {
+        const baseUrl = await getBackendBaseUrl()
+        const url = new URL(`${baseUrl}/config`)
+        url.searchParams.set('key', key)
+
+        const res = await fetch(url.toString())
+
+        if (!res.ok) {
+            throw new Error(`Error obteniendo la key ${key}: ${res.status}`)
+        }
+
+        return await res.json()
+    })
+
+    ipcMain.handle(
+        'config:set-backend',
+        async (_event, payload: { key: string; value: string }) => {
+            const baseUrl = await getBackendBaseUrl()
+
+            const res = await fetch(`${baseUrl}/config`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(payload)
+            })
+
+            if (!res.ok) {
+                throw new Error(`Error guardando configuración backend: ${res.status}`)
+            }
+
+            return await res.json()
+        }
+        
+    )
+
+    ipcMain.handle(
+        'config:set-many-backend',
+        async (_event, entries: Record<string, string>) => {
+            const baseUrl = await getBackendBaseUrl()
+
+            const results: Array<{ key: string; value: string; updated_at?: string }> = []
+
+            for (const [key, value] of Object.entries(entries)) {
+                const res = await fetch(`${baseUrl}/config`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ key, value })
+                })
+
+                if (!res.ok) {
+                    throw new Error(`Error guardando ${key}: ${res.status}`)
+                }
+
+                const json = await res.json()
+                if (json?.item) {
+                    results.push(json.item)
+                }
+            }
+
+            return {
+                ok: true,
+                items: results
+            }
+        }
+    )
 
 }
