@@ -4,7 +4,8 @@ declare global {
   interface Window {
     electronAPI: {
       openGoogleOAuthPopup: (authUrl: string) => Promise<{ closed: true }>
-      closeApp: () => Promise<boolean>      
+      closeApp: () => Promise<boolean>
+      openSettingsWindow: () => Promise<boolean>
     }
 
     configApi: {

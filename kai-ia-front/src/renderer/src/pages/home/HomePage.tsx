@@ -628,7 +628,10 @@ const HomePage = (): React.JSX.Element => {
             >
               Próximamente
             </button>
-            <button className="rounded-2xl border border-white/10 bg-white/[0.08] p-2.5 backdrop-blur-xl transition hover:bg-white hover:text-black">
+            <button 
+              onClick={() => void window.electronAPI.openSettingsWindow()}
+              className="rounded-2xl border border-white/10 bg-white/[0.08] p-2.5 backdrop-blur-xl transition hover:bg-white hover:text-black"
+            >
               <Settings size={18} />
             </button>
           </div>

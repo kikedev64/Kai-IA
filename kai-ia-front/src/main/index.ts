@@ -11,6 +11,7 @@ import { registerNotificationsIpc } from './ipc/notifications.ipc'
 let splashWindow: BrowserWindow | null = null
 let mainWindow: BrowserWindow | null = null
 let onboardingWindow: BrowserWindow | null = null
+let settingsWindow: BrowserWindow | null = null
 
 let currentStartupStatus = {
   step: 'starting',
@@ -90,6 +91,30 @@ function createSplashWindow(): void {
   })
 
   loadRendererRoute(splashWindow, '/splash')
+}
+
+function createSettingsWindow(): void {
+  if (settingsWindow && !settingsWindow.isDestroyed()) {
+    settingsWindow.focus()
+    return
+  }
+
+  settingsWindow = createBaseWindow({
+    width: 1180,
+    height: 820,
+    title: 'Configuración - Kai IA',
+    resizable: true
+  })
+
+  settingsWindow.on('ready-to-show', () => {
+    settingsWindow?.show()
+  })
+
+  settingsWindow.on('closed', () => {
+    settingsWindow = null
+  })
+
+  loadRendererRoute(settingsWindow, '/settings')
 }
 
 function createMainWindow(): void {
@@ -187,6 +212,11 @@ app.whenReady().then(() => {
 
   app.on('browser-window-created', (_, window) => {
     optimizer.watchWindowShortcuts(window)
+  })
+
+  ipcMain.handle('window:open-settings', async () => {
+    createSettingsWindow()
+    return true
   })
 
   ipcMain.handle('startup:get-current-status', () => {

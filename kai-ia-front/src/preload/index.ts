@@ -11,7 +11,8 @@ if (process.contextIsolated) {
     contextBridge.exposeInMainWorld('electronAPI', {
       openGoogleOAuthPopup: (authUrl: string) =>
         ipcRenderer.invoke('oauth:open-google-popup', authUrl),
-      closeApp: () => ipcRenderer.invoke('app:quit')
+      closeApp: () => ipcRenderer.invoke('app:quit'),
+      openSettingsWindow: () => ipcRenderer.invoke('window:open-settings')
     })
 
     contextBridge.exposeInMainWorld('configApi', {

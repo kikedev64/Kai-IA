@@ -172,37 +172,6 @@ def init_db() -> None:
     """)
 
     cur.execute("""
-    CREATE TABLE IF NOT EXISTS google_accounts (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        provider_user_id TEXT,
-        email TEXT NOT NULL UNIQUE,
-        display_name TEXT,
-        access_token TEXT,
-        refresh_token TEXT,
-        token_expiry DATETIME,
-        scopes TEXT,
-        is_active INTEGER NOT NULL DEFAULT 1,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )
-    """)
-
-    cur.execute("""
-    CREATE TABLE IF NOT EXISTS gmail_sync_state (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        google_account_id INTEGER NOT NULL UNIQUE,
-        last_history_id TEXT,
-        last_sync_at DATETIME,
-        last_full_sync_at DATETIME,
-        sync_error TEXT,
-        watch_expiration DATETIME,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY(google_account_id) REFERENCES google_accounts(id) ON DELETE CASCADE
-    )
-    """)
-
-    cur.execute("""
     CREATE TABLE IF NOT EXISTS app_config (
         key TEXT PRIMARY KEY,
         value TEXT,

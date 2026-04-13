@@ -3,6 +3,7 @@ import { ChatBootstrapProvider } from './context/chat-bootstrap.context'
 import OnboardingFlow from './pages/onboarding/OnboardingFlow'
 import HomePage from './pages/home/HomePage'
 import SplashPage from './pages/splash/SplashPage'
+import SettingsPage from './pages/settings/SettingsPage'
 
 function App(): React.JSX.Element {
   const handleOnboardingFinish = async () => {
@@ -23,6 +24,7 @@ function App(): React.JSX.Element {
             element={<OnboardingFlow onFinish={handleOnboardingFinish} />}
           />
           <Route path="/" element={<HomePage />} />
+          <Route path="/settings" element={<SettingsPage />} />
         </Routes>
       </HashRouter>
     </ChatBootstrapProvider>
