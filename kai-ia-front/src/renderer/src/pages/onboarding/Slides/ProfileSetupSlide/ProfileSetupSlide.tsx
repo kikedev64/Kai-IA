@@ -26,7 +26,7 @@ const ProfileSetupSlide = ({ onNext, onPrev }: Props) => {
     setPreviewJson(null)
 
     try {
-      const res = await fetch('http://localhost:8000/assistant/ask', {
+      const res = await fetch(`${getBackendBaseURL()}/assistant/ask`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -196,3 +196,7 @@ const ProfileSetupSlide = ({ onNext, onPrev }: Props) => {
 }
 
 export default ProfileSetupSlide
+
+function getBackendBaseURL() {
+  throw new Error('Function not implemented.')
+}

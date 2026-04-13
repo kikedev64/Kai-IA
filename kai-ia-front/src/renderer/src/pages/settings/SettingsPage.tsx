@@ -8,7 +8,6 @@ import {
   Mail,
   FolderOpen,
   KeyRound,
-  SlidersHorizontal,
   ShieldCheck,
   Search,
   UserRound,
