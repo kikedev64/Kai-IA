@@ -17,9 +17,52 @@ type ShowSystemNotificationPayload = {
   data?: NotificationPayloadData
 }
 
+type EmailNotificationClickPayload = {
+  messageId: string
+}
+
 export function registerNotificationsIpc({
   getMainWindow
 }: RegisterNotificationsIpcParams): void {
+  let pendingEmailNotificationClick: EmailNotificationClickPayload | null = null
+
+  const sendEmailNotificationClick = (
+    mainWindow: BrowserWindow,
+    payload: EmailNotificationClickPayload
+  ): void => {
+    pendingEmailNotificationClick = payload
+
+    if (mainWindow.webContents.isLoading()) {
+      mainWindow.webContents.once('did-finish-load', () => {
+        if (pendingEmailNotificationClick) {
+          mainWindow.webContents.send(
+            'system-notifications:email-clicked',
+            pendingEmailNotificationClick
+          )
+        }
+      })
+      return
+    }
+
+    mainWindow.webContents.send('system-notifications:email-clicked', payload)
+  }
+
+  ipcMain.handle('system-notifications:get-pending-email-click', async () => {
+    const payload = pendingEmailNotificationClick
+    pendingEmailNotificationClick = null
+    return payload
+  })
+
+  ipcMain.handle(
+    'system-notifications:clear-pending-email-click',
+    async (_event, messageId?: string) => {
+      if (!messageId || pendingEmailNotificationClick?.messageId === messageId) {
+        pendingEmailNotificationClick = null
+      }
+      return true
+    }
+  )
+
   ipcMain.handle(
     'system-notifications:show',
     async (_event, payload: ShowSystemNotificationPayload) => {
@@ -53,7 +96,7 @@ export function registerNotificationsIpc({
           mainWindow.setAlwaysOnTop(false)
 
           if (payload.data?.type === 'email' && payload.data.messageId) {
-            mainWindow.webContents.send('system-notifications:email-clicked', {
+            sendEmailNotificationClick(mainWindow, {
               messageId: payload.data.messageId
             })
           }

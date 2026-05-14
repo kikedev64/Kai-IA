@@ -51,6 +51,9 @@ declare global {
         }
       }) => Promise<{ ok: boolean; error?: string }>
 
+      getPendingEmailNotificationClick: () => Promise<{ messageId: string } | null>
+      clearPendingEmailNotificationClick: (messageId?: string) => Promise<boolean>
+
       onEmailNotificationClick: (
         callback: (payload: { messageId: string }) => void
       ) => () => void

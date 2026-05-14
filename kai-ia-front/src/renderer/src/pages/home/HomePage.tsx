@@ -133,6 +133,7 @@ const HomePage = (): React.JSX.Element => {
   const [isCreatingChat, setIsCreatingChat] = useState(false)
   const [isLoadingMessages, setIsLoadingMessages] = useState(false)
   const [streamingContent, setStreamingContent] = useState<string>('')
+  const [streamingChatId, setStreamingChatId] = useState<string | null>(null)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const emailWatcherRef = useRef<ReturnType<typeof createNewEmailWatcher> | null>(null)
@@ -158,6 +159,32 @@ const HomePage = (): React.JSX.Element => {
     setIsEmailActionLoading(false)
     setSelectedEmailForAction(email)
     setEmailActionOpen(true)
+  }
+
+  const openEmailNotificationPayload = (payload: { messageId: string }) => {
+    if (!payload || !payload.messageId) return
+
+    const email = pendingEmailsRef.current.get(payload.messageId)
+    if (email) {
+      openEmailActionModal(email)
+      return
+    }
+
+    setSelectedEmailForAction(null)
+    setIsEmailActionLoading(true)
+    setEmailActionOpen(true)
+
+    void readEmailById(payload.messageId)
+      .then((loadedEmail) => {
+        pendingEmailsRef.current.set(loadedEmail.id, loadedEmail)
+        setSelectedEmailForAction(loadedEmail)
+      })
+      .catch((error) => {
+        console.error('Error cargando correo tras pulsar notificación:', error)
+      })
+      .finally(() => {
+        setIsEmailActionLoading(false)
+      })
   }
 
   const postChatStream = async (
@@ -255,6 +282,7 @@ const HomePage = (): React.JSX.Element => {
 
     setMessagesForChat(chatId, [...currentMessages, optimisticUserMessage])
     setIsSending(true)
+    setStreamingChatId(chatId)
     setStreamingContent('')
 
     try {
@@ -284,6 +312,7 @@ const HomePage = (): React.JSX.Element => {
       setStreamingContent('')
     } finally {
       setIsSending(false)
+      setStreamingChatId((currentChatId) => (currentChatId === chatId ? null : currentChatId))
     }
   }
 
@@ -334,6 +363,14 @@ const HomePage = (): React.JSX.Element => {
 
     emailWatcherRef.current = watcher
     void watcher.start()
+
+    void window.systemNotificationsApi
+      ?.getPendingEmailNotificationClick?.()
+      .then((payload) => {
+        if (payload) {
+          openEmailNotificationPayload(payload)
+        }
+      })
 
     const unsubscribe = window.systemNotificationsApi?.onEmailNotificationClick?.((payload) => {
       if (!payload || !payload.messageId) return
@@ -391,7 +428,7 @@ const HomePage = (): React.JSX.Element => {
     const container = scrollContainerRef.current
     if (!container) return
     container.scrollTop = container.scrollHeight
-  }, [messagesByChatId, streamingContent])
+  }, [messagesByChatId, streamingContent, selectedChatId, streamingChatId])
 
   const filteredChats = useMemo(() => {
     const term = search.trim().toLowerCase()
@@ -404,14 +441,21 @@ const HomePage = (): React.JSX.Element => {
 
   const selectedChat = localChats.find((chat) => chat.id === selectedChatId) ?? null
   const messages = selectedChatId ? (messagesByChatId[selectedChatId] ?? []) : []
+  const selectedChatIsStreaming = Boolean(isSending && selectedChatId === streamingChatId)
+  const selectedChatStreamingContent =
+    selectedChatId && selectedChatId === streamingChatId ? streamingContent : ''
 
   const handleEmailActionSubmit = async (userPrompt: string) => {
-    if (!selectedEmailForAction?.id || isSubmittingEmailAction) return
+    if (!selectedEmailForAction?.id || isSubmittingEmailAction || isSending) return
+
+    let streamStarted = false
 
     try {
       setIsSubmittingEmailAction(true)
+      setIsSending(true)
 
       const newChatId = await createChat()
+      streamStarted = true
 
       const optimisticChat: ChatItem = {
         id: newChatId,
@@ -423,6 +467,8 @@ const HomePage = (): React.JSX.Element => {
       setLocalChats((prev) => [optimisticChat, ...prev])
       setMessagesForChat(newChatId, [])
       setSelectedChatId(newChatId)
+      setStreamingChatId(newChatId)
+      setStreamingContent('')
 
       const fullInstruction = [
         `Trabaja sobre el correo con ID ${selectedEmailForAction.id}.`,
@@ -439,6 +485,11 @@ const HomePage = (): React.JSX.Element => {
     } catch (error) {
       console.error('Error ejecutando acción sobre correo:', error)
     } finally {
+      if (!streamStarted) {
+        setIsSending(false)
+        setStreamingChatId(null)
+        setStreamingContent('')
+      }
       setIsSubmittingEmailAction(false)
     }
   }
@@ -498,6 +549,7 @@ const HomePage = (): React.JSX.Element => {
     }
 
     setIsSending(true)
+    setStreamingChatId(chatId)
     setStreamingContent('')
 
     try {
@@ -528,6 +580,7 @@ const HomePage = (): React.JSX.Element => {
       setStreamingContent('')
     } finally {
       setIsSending(false)
+      setStreamingChatId((currentChatId) => (currentChatId === chatId ? null : currentChatId))
     }
   }
 
@@ -720,7 +773,7 @@ const HomePage = (): React.JSX.Element => {
                       )
                     })}
 
-                    {streamingContent && (
+                    {selectedChatStreamingContent && (
                       <div className="flex justify-start">
                         <div className="max-w-[80%] rounded-[24px] border border-white/10 bg-white/[0.06] px-4 py-3 shadow-[0_10px_30px_rgba(0,0,0,0.18)] backdrop-blur-xl">
                           <div className="mb-2 flex items-center gap-2 text-xs text-slate-300/80">
@@ -728,7 +781,7 @@ const HomePage = (): React.JSX.Element => {
                             <span>Kai</span>
                           </div>
                           <div className="whitespace-pre-wrap text-sm leading-7 text-slate-100">
-                            <MarkdownContent content={normalizeLatex(streamingContent)} />
+                            <MarkdownContent content={normalizeLatex(selectedChatStreamingContent)} />
                             <span className="ml-0.5 inline-block h-4 w-0.5 animate-pulse bg-cyan-300" />
                           </div>
                         </div>
@@ -736,7 +789,7 @@ const HomePage = (): React.JSX.Element => {
                     )}
 
                     {/* Indicador de espera antes de que llegue el primer token */}
-                    {isSending && !streamingContent && (
+                    {selectedChatIsStreaming && !selectedChatStreamingContent && (
                       <div className="flex justify-start">
                         <div className="rounded-[24px] border border-white/10 bg-white/[0.06] px-4 py-3 backdrop-blur-xl">
                           <div className="mb-2 flex items-center gap-2 text-xs text-slate-300/80">
@@ -761,7 +814,7 @@ const HomePage = (): React.JSX.Element => {
                       </div>
                     )}
 
-                    {messages.length === 0 && !streamingContent && !isSending && (
+                    {messages.length === 0 && !selectedChatStreamingContent && !selectedChatIsStreaming && (
                       <div className="flex h-full items-center justify-center text-slate-400">
                         No hay mensajes en este chat.
                       </div>
@@ -778,15 +831,16 @@ const HomePage = (): React.JSX.Element => {
                   <textarea
                     value={input}
                     ref={textareaRef}
+                    disabled={isSending}
                     onChange={(e) => {
                       setInput(e.target.value)
                       e.target.style.height = 'auto'
                       e.target.style.height = `${e.target.scrollHeight}px`
                     }}
                     onKeyDown={handleKeyDown}
-                    placeholder="Escribe un mensaje para Kai..."
+                    placeholder={isSending ? 'Kai está terminando una acción...' : 'Escribe un mensaje para Kai...'}
                     rows={1}
-                    className="w-full resize-none bg-transparent px-4 py-4 text-sm text-white outline-none placeholder:text-slate-500 overflow-hidden"
+                    className="w-full resize-none bg-transparent px-4 py-4 text-sm text-white outline-none placeholder:text-slate-500 overflow-hidden disabled:cursor-not-allowed disabled:opacity-60"
                     style={{ minHeight: '72px' }}
                   />
                 </div>
@@ -806,7 +860,7 @@ const HomePage = (): React.JSX.Element => {
         email={selectedEmailForAction}
         open={emailActionOpen}
         loading={isEmailActionLoading}
-        submitting={isSubmittingEmailAction}
+        submitting={isSubmittingEmailAction || isSending}
         onClose={() => {
           setEmailActionOpen(false)
           setSelectedEmailForAction(null)

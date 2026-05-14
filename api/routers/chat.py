@@ -592,6 +592,18 @@ def assistant_chat_stream(req: ChatStreamRequest):
                 return f"Listo, he enviado el correo a {to_value} con el asunto: {subject}."
             return "Listo, he enviado el correo."
 
+        if last_tool_name == "reply_email":
+            data = last_result.get("data", {}) if isinstance(last_result, dict) else {}
+            reply_data = data.get("reply", {})
+            to_value = reply_data.get("to", "")
+            subject = reply_data.get("subject", "")
+            if to_value and subject:
+                return (
+                    "Listo, he respondido el correo "
+                    f"a {to_value} con el asunto: {subject}. Gracias."
+                )
+            return "Listo, he respondido el correo. Gracias."
+
         if last_tool_name == "get_full_email":
             data = last_result.get("data", {}) if isinstance(last_result, dict) else {}
             summary = data.get("summary")
@@ -765,6 +777,29 @@ def assistant_chat_stream(req: ChatStreamRequest):
                             add_message(chat_id, "assistant", final_auth_reply)
 
                         yield from stream_text(final_auth_reply)
+                        yield done_event()
+                        return
+
+                    if (
+                        tc.function.name == "reply_email"
+                        and isinstance(result, dict)
+                        and result.get("status") == "success"
+                    ):
+                        final_reply = fallback_text_from_tool_results(
+                            [(tc.function.name, result)]
+                        )
+
+                        if should_store_assistant_message(final_reply):
+                            add_message(chat_id, "assistant", final_reply)
+
+                        _ensure_chat_title(
+                            chat_id,
+                            prompt,
+                            is_first_user_message,
+                            request_id,
+                        )
+
+                        yield from stream_text(final_reply)
                         yield done_event()
                         return
 

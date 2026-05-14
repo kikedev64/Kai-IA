@@ -92,6 +92,12 @@ if (process.contextIsolated) {
         }
       }) => ipcRenderer.invoke('system-notifications:show', payload),
 
+      getPendingEmailNotificationClick: (): Promise<{ messageId: string } | null> =>
+        ipcRenderer.invoke('system-notifications:get-pending-email-click'),
+
+      clearPendingEmailNotificationClick: (messageId?: string): Promise<boolean> =>
+        ipcRenderer.invoke('system-notifications:clear-pending-email-click', messageId),
+
       onEmailNotificationClick: (
         callback: (payload: { messageId: string }) => void
       ) => {
@@ -100,6 +106,10 @@ if (process.contextIsolated) {
           payload: { messageId: string }
         ) => {
           callback(payload)
+          void ipcRenderer.invoke(
+            'system-notifications:clear-pending-email-click',
+            payload.messageId
+          )
         }
 
         ipcRenderer.on('system-notifications:email-clicked', listener)
