@@ -1,5 +1,6 @@
-import { app, shell, BrowserWindow, ipcMain } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, dialog } from 'electron'
 import path from 'path'
+import { writeFile } from 'fs/promises'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 
@@ -12,6 +13,7 @@ let splashWindow: BrowserWindow | null = null
 let mainWindow: BrowserWindow | null = null
 let onboardingWindow: BrowserWindow | null = null
 let settingsWindow: BrowserWindow | null = null
+let debugWindow: BrowserWindow | null = null
 
 let currentStartupStatus = {
   step: 'starting',
@@ -117,6 +119,33 @@ function createSettingsWindow(): void {
   loadRendererRoute(settingsWindow, '/settings')
 }
 
+function createDebugWindow(chatId?: string): void {
+  const route = chatId ? `/debug-lab?chatId=${encodeURIComponent(chatId)}` : '/debug-lab'
+
+  if (debugWindow && !debugWindow.isDestroyed()) {
+    loadRendererRoute(debugWindow, route)
+    debugWindow.focus()
+    return
+  }
+
+  debugWindow = createBaseWindow({
+    width: 1280,
+    height: 860,
+    title: 'Kai IA - Debug Lab',
+    resizable: true
+  })
+
+  debugWindow.on('ready-to-show', () => {
+    debugWindow?.show()
+  })
+
+  debugWindow.on('closed', () => {
+    debugWindow = null
+  })
+
+  loadRendererRoute(debugWindow, route)
+}
+
 function createMainWindow(): void {
   mainWindow = createBaseWindow({
     width: 1200,
@@ -217,6 +246,58 @@ app.whenReady().then(() => {
   ipcMain.handle('window:open-settings', async () => {
     createSettingsWindow()
     return true
+  })
+
+  ipcMain.handle('window:open-debug-lab', async (_event, chatId?: string) => {
+    createDebugWindow(chatId)
+    return true
+  })
+
+  ipcMain.handle('debug-lab:export-pdf', async (_event, html: string) => {
+    try {
+      const saveDialogOptions = {
+        title: 'Guardar informe de Debug Lab',
+        defaultPath: `kai-debug-lab-${Date.now()}.pdf`,
+        filters: [{ name: 'PDF', extensions: ['pdf'] }]
+      }
+      const parentWindow = debugWindow ?? mainWindow
+      const result = parentWindow
+        ? await dialog.showSaveDialog(parentWindow, saveDialogOptions)
+        : await dialog.showSaveDialog(saveDialogOptions)
+
+      if (result.canceled || !result.filePath) {
+        return { ok: false, cancelled: true }
+      }
+
+      const reportWindow = new BrowserWindow({
+        show: false,
+        webPreferences: {
+          sandbox: false
+        }
+      })
+
+      await reportWindow.loadURL(
+        `data:text/html;charset=utf-8,${encodeURIComponent(html)}`
+      )
+      const pdf = await reportWindow.webContents.printToPDF({
+        printBackground: true,
+        pageSize: 'A4',
+        margins: {
+          marginType: 'default'
+        }
+      })
+
+      reportWindow.close()
+      await writeFile(result.filePath, pdf)
+
+      return { ok: true, path: result.filePath }
+    } catch (error) {
+      console.error('Error exportando Debug Lab a PDF:', error)
+      return {
+        ok: false,
+        error: error instanceof Error ? error.message : 'Error desconocido'
+      }
+    }
   })
 
   ipcMain.handle('startup:get-current-status', () => {

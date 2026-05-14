@@ -12,7 +12,9 @@ if (process.contextIsolated) {
       openGoogleOAuthPopup: (authUrl: string) =>
         ipcRenderer.invoke('oauth:open-google-popup', authUrl),
       closeApp: () => ipcRenderer.invoke('app:quit'),
-      openSettingsWindow: () => ipcRenderer.invoke('window:open-settings')
+      openSettingsWindow: () => ipcRenderer.invoke('window:open-settings'),
+      openDebugLabWindow: (chatId?: string) => ipcRenderer.invoke('window:open-debug-lab', chatId),
+      exportDebugLabPdf: (html: string) => ipcRenderer.invoke('debug-lab:export-pdf', html)
     })
 
     contextBridge.exposeInMainWorld('configApi', {

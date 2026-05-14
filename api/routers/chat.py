@@ -6,7 +6,8 @@ from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from services.chat_summary_service import generate_chat_summary_from_text
-from core.config import get_tool_activation_keywords
+from core.config import get_model_name, get_temperature, get_tool_activation_keywords
+from tools.tools_definition import TOOLS
 
 try:
     from zoneinfo import ZoneInfo
@@ -38,6 +39,7 @@ class ChatStreamRequest(BaseModel):
     prompt: str = Field(..., min_length=1)
     limit_history: int = Field(default=6, ge=1, le=20)
     profile_context: str | None = None
+    debug: bool = False
     
 DEBUG_TOOLS = True
 
@@ -525,18 +527,88 @@ def assistant_chat_stream(req: ChatStreamRequest):
     chat_id = req.chat_id
     limit_history = req.limit_history
     profile_context = (req.profile_context or "").strip() or None
+    debug_enabled = req.debug
+    stream_started_at = time.perf_counter()
 
     def stream_text(text: str):
-        for chunk in split_text_for_stream(text):
-            payload = {"type": "token", "content": chunk}
+        output_started_at = time.perf_counter()
+        for token_index, chunk in enumerate(split_text_for_stream(text), start=1):
+            payload = {
+                "type": "token",
+                "chat_id": chat_id,
+                "request_id": request_id,
+                "stage": "token",
+                "content": chunk,
+                "token_index": token_index,
+                "output_elapsed_ms": round((time.perf_counter() - output_started_at) * 1000, 2),
+                "elapsed_ms": round((time.perf_counter() - stream_started_at) * 1000, 2),
+            }
             yield f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
             time.sleep(0.02)
 
     def done_event():
-        return f"data: {json.dumps({'type': 'done'}, ensure_ascii=False)}\n\n"
+        payload = {
+            "type": "done",
+            "chat_id": chat_id,
+            "request_id": request_id,
+            "stage": "done",
+            "elapsed_ms": round((time.perf_counter() - stream_started_at) * 1000, 2),
+        }
+        return f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
 
     def error_event(message: str):
-        return f"data: {json.dumps({'type': 'error', 'message': message}, ensure_ascii=False)}\n\n"
+        payload = {
+            "type": "error",
+            "chat_id": chat_id,
+            "request_id": request_id,
+            "stage": "error",
+            "message": message,
+            "elapsed_ms": round((time.perf_counter() - stream_started_at) * 1000, 2),
+        }
+        return f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
+
+    def safe_debug_value(value, max_chars: int = 12000):
+        try:
+            json.dumps(value, ensure_ascii=False)
+            serializable = value
+        except Exception:
+            serializable = str(value)
+
+        text = json.dumps(serializable, ensure_ascii=False)
+        if len(text) <= max_chars:
+            return serializable
+
+        return {
+            "truncated": True,
+            "chars": len(text),
+            "preview": text[:max_chars],
+        }
+
+    def parse_tool_arguments(arguments):
+        if not isinstance(arguments, str):
+            return arguments
+        try:
+            return json.loads(arguments or "{}")
+        except Exception:
+            return {
+                "raw": arguments,
+                "parse_error": True,
+            }
+
+    def debug_event(stage: str, message: str, **data):
+        if not debug_enabled:
+            return None
+
+        payload = {
+            "type": "debug",
+            "chat_id": chat_id,
+            "request_id": request_id,
+            "stage": stage,
+            "message": message,
+            "elapsed_ms": round((time.perf_counter() - stream_started_at) * 1000, 2),
+            **data,
+        }
+        return f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
 
     def is_garbage_text(text: str) -> bool:
         if not text:
@@ -614,6 +686,32 @@ def assistant_chat_stream(req: ChatStreamRequest):
 
     def event_generator():
         try:
+            event = debug_event(
+                "backend_receive",
+                "FastAPI recibe el mensaje del renderer y empieza el flujo de chat.",
+                chat_id=chat_id,
+                prompt_preview=prompt[:500],
+                prompt_chars=len(prompt),
+                limit_history=limit_history,
+                profile_context_chars=len(profile_context or ""),
+            )
+            if event:
+                yield event
+
+            tokenize_started_at = time.perf_counter()
+            approximate_prompt_tokens = len(prompt.split())
+            tokenize_ms = round((time.perf_counter() - tokenize_started_at) * 1000, 4)
+            event = debug_event(
+                "tokenize",
+                "La entrada se divide en unidades aproximadas antes de enviarse al modelo.",
+                duration_ms=tokenize_ms,
+                prompt_chars=len(prompt),
+                prompt_tokens_estimate=approximate_prompt_tokens,
+                token_preview=prompt.split()[:24],
+            )
+            if event:
+                yield event
+
             system_prompt = get_system_prompt(chat_id) or get_system_prompt_default()
             ensure_session(chat_id, system_prompt)
 
@@ -661,6 +759,21 @@ def assistant_chat_stream(req: ChatStreamRequest):
             messages += sanitized
 
             use_tools = should_enable_tools(prompt)
+            event = debug_event(
+                "context",
+                "Kai prepara el contexto: system prompt, hora actual, perfil y memoria reciente.",
+                messages_count=len(messages),
+                history_messages=len(sanitized),
+                tools_enabled=use_tools,
+                limit_history=limit_history,
+                profile_context=bool(profile_context),
+                model=get_model_name(),
+                temperature=get_temperature(),
+                available_tools=[tool.get("function", {}).get("name") for tool in TOOLS],
+                messages=safe_debug_value(messages),
+            )
+            if event:
+                yield event
 
             if DEBUG_TOOLS:
                 print(f"\n=== [{request_id}] STREAM CHAT START ===")
@@ -674,9 +787,62 @@ def assistant_chat_stream(req: ChatStreamRequest):
             executed_tool_results: list[tuple[str, dict]] = []
 
             for step in range(MAX_TOOL_STEPS):
+                event = debug_event(
+                    "lmstudio_request",
+                    "Se envía una petición a LM Studio con el contexto y las tools disponibles.",
+                    step=step + 1,
+                    tools_enabled=use_tools,
+                    messages_count=len(messages),
+                    model=get_model_name(),
+                    temperature=get_temperature(),
+                    payload=safe_debug_value(
+                        {
+                            "model": get_model_name(),
+                            "temperature": get_temperature(),
+                            "messages": messages,
+                            "tools": TOOLS if use_tools else [],
+                            "tool_choice": "auto" if use_tools else None,
+                        }
+                    ),
+                )
+                if event:
+                    yield event
+
+                lmstudio_started_at = time.perf_counter()
                 msg = call_lm_studio(messages, use_tools=use_tools)
+                lmstudio_ms = round((time.perf_counter() - lmstudio_started_at) * 1000, 2)
                 content = clean_model_output(msg.content or "")
                 tool_calls = getattr(msg, "tool_calls", None) or []
+                event = debug_event(
+                    "lmstudio_response",
+                    "LM Studio devuelve texto directo o una propuesta de tool call.",
+                    step=step + 1,
+                    duration_ms=lmstudio_ms,
+                    content_chars=len(content),
+                    content=content,
+                    raw_message=safe_debug_value(
+                        {
+                            "content": msg.content,
+                            "tool_calls": [
+                                {
+                                    "id": tc.id,
+                                    "name": tc.function.name,
+                                    "arguments": tc.function.arguments,
+                                }
+                                for tc in tool_calls
+                            ],
+                        }
+                    ),
+                    tool_calls=[
+                        {
+                            "name": tc.function.name,
+                            "arguments": tc.function.arguments,
+                        }
+                        for tc in tool_calls
+                    ],
+                )
+                if event:
+                    yield event
 
                 if DEBUG_TOOLS:
                     print(f"\n[{request_id}] STEP {step} - MODEL MESSAGE")
@@ -759,8 +925,32 @@ def assistant_chat_stream(req: ChatStreamRequest):
                 messages.append(assistant_payload)
 
                 for tc in tool_calls:
+                    event = debug_event(
+                        "tool_selected",
+                        f"El modelo selecciona la tool {tc.function.name}.",
+                        step=step + 1,
+                        tool_name=tc.function.name,
+                        arguments=tc.function.arguments,
+                        parsed_arguments=safe_debug_value(parse_tool_arguments(tc.function.arguments)),
+                    )
+                    if event:
+                        yield event
+
+                    tool_started_at = time.perf_counter()
                     result = handle_tool_call(tc)
+                    tool_ms = round((time.perf_counter() - tool_started_at) * 1000, 2)
                     executed_tool_results.append((tc.function.name, result))
+                    event = debug_event(
+                        "tool_result",
+                        f"La tool {tc.function.name} termina y su resultado vuelve al contexto.",
+                        step=step + 1,
+                        tool_name=tc.function.name,
+                        status=result.get("status") if isinstance(result, dict) else None,
+                        duration_ms=tool_ms,
+                        result=safe_debug_value(result),
+                    )
+                    if event:
+                        yield event
 
                     if DEBUG_TOOLS:
                         print(f"\n[{request_id}] TOOL RESULT <- {tc.function.name}")

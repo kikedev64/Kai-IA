@@ -6,6 +6,10 @@ declare global {
       openGoogleOAuthPopup: (authUrl: string) => Promise<{ closed: true }>
       closeApp: () => Promise<boolean>
       openSettingsWindow: () => Promise<boolean>
+      openDebugLabWindow: (chatId?: string) => Promise<boolean>
+      exportDebugLabPdf: (
+        html: string
+      ) => Promise<{ ok: boolean; path?: string; cancelled?: boolean; error?: string }>
     }
 
     configApi: {

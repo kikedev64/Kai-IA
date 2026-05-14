@@ -11,6 +11,10 @@ import 'katex/dist/katex.min.css'
 import { createNewEmailWatcher } from '@renderer/services/new_email_watcher.service'
 import { readEmailById, type GmailApiEmail } from '@renderer/services/gmail_email.service'
 import EmailActionModal from '@renderer/components/email/EmailActionModal'
+import {
+  publishDebugLabEvent,
+  type DebugLabEvent
+} from '@renderer/services/debug_lab.service'
 
 function normalizeLatex(content: string): string {
   return content
@@ -207,7 +211,8 @@ const HomePage = (): React.JSX.Element => {
         chat_id: chatId,
         prompt: promptText,
         limit_history: STREAM_LIMIT_HISTORY,
-        profile_context: profileContext
+        profile_context: profileContext,
+        debug: true
       })
     })
 
@@ -244,10 +249,10 @@ const HomePage = (): React.JSX.Element => {
           const rawData = line.slice(5).trim()
           if (!rawData) continue
 
-          let payload: { type?: string; content?: string; message?: string }
+          let payload: DebugLabEvent
 
           try {
-            payload = JSON.parse(rawData)
+            payload = JSON.parse(rawData) as DebugLabEvent
           } catch (parseError) {
             console.error('Error parseando SSE:', rawData, parseError)
             continue
@@ -256,7 +261,16 @@ const HomePage = (): React.JSX.Element => {
           if (payload.type === 'token') {
             accumulated += payload.content ?? ''
             setStreamingContent(accumulated)
-          } else if (payload.type === 'done') {
+          }
+
+          publishDebugLabEvent({
+            chatId,
+            event: payload,
+            output: accumulated,
+            createdAt: Date.now()
+          })
+
+          if (payload.type === 'done') {
             streamFinished = true
             break
           } else if (payload.type === 'error') {
@@ -707,15 +721,10 @@ const HomePage = (): React.JSX.Element => {
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={() =>
-                window.systemNotificationsApi?.show({
-                  title: 'Próximamente',
-                  body: 'Esta función estará disponible en una versión futura.'
-                })
-              }
+              onClick={() => void window.electronAPI.openDebugLabWindow(selectedChatId ?? undefined)}
               className="rounded-2xl border border-white/10 bg-white/[0.08] px-4 py-2 text-sm backdrop-blur-xl transition hover:bg-white hover:text-black"
             >
-              Próximamente
+              Debug Lab
             </button>
             <button
               onClick={() => void window.electronAPI.openSettingsWindow()}
