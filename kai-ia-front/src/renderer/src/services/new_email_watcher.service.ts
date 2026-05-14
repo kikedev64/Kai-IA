@@ -21,25 +21,8 @@ type NewEmailWatcherController = {
   isRunning: () => boolean
 }
 
-const STORAGE_HISTORY_ID_KEY = 'kai_gmail_history_id'
 const STORAGE_PROCESSED_IDS_KEY = 'kai_processed_email_ids'
 const MAX_PROCESSED_IDS = 300
-
-function loadStoredHistoryId(): string | null {
-  try {
-    return localStorage.getItem(STORAGE_HISTORY_ID_KEY)
-  } catch {
-    return null
-  }
-}
-
-function saveStoredHistoryId(historyId: string): void {
-  try {
-    localStorage.setItem(STORAGE_HISTORY_ID_KEY, historyId)
-  } catch {
-    // noop
-  }
-}
 
 function loadProcessedIds(): Set<string> {
   try {
@@ -87,6 +70,10 @@ export function createNewEmailWatcher(
   const sessionNotifiedIds = new Set<string>()
 
   const notifyNewEmail = async (email: GmailApiEmail): Promise<void> => {
+    if (options.onNewEmail) {
+      await options.onNewEmail(email)
+    }
+
     await showSystemNotification({
       title: 'Nuevo correo recibido',
       body: buildNotificationBody(email),
@@ -96,10 +83,6 @@ export function createNewEmailWatcher(
         messageId: email.id
       }
     })
-
-    if (options.onNewEmail) {
-      await options.onNewEmail(email)
-    }
   }
 
   const poll = async (): Promise<void> => {
@@ -108,13 +91,8 @@ export function createNewEmailWatcher(
 
     try {
       if (!currentHistoryId) {
-        currentHistoryId = loadStoredHistoryId()
-      }
-
-      // Primer arranque: fijamos baseline y NO notificamos históricos
-      if (!currentHistoryId) {
+        // Cada apertura fija un baseline nuevo para no notificar correos antiguos.
         currentHistoryId = await getLatestHistoryId()
-        saveStoredHistoryId(currentHistoryId)
         return
       }
 
@@ -126,10 +104,14 @@ export function createNewEmailWatcher(
       const nextFromCheck = extractNewestHistoryId(checkResult)
       const changed = hasHistoryChanges(checkResult)
 
+      if (checkResult.needs_rebootstrap) {
+        currentHistoryId = await getLatestHistoryId()
+        return
+      }
+
       if (!changed) {
         if (nextFromCheck) {
           currentHistoryId = nextFromCheck
-          saveStoredHistoryId(currentHistoryId)
         }
         return
       }
@@ -142,7 +124,12 @@ export function createNewEmailWatcher(
       const messageIds = extractAddedMessageIds(readResult)
       const nextHistoryId = extractNewestHistoryId(readResult) ?? nextFromCheck ?? currentHistoryId
 
-      // Notificamos solo correos nuevos desde que la app está abierta
+      if (readResult.needs_rebootstrap) {
+        currentHistoryId = await getLatestHistoryId()
+        return
+      }
+
+      // Notificamos solo correos nuevos desde que la app esta abierta.
       for (const messageId of messageIds) {
         if (!messageId) continue
         if (processedIds.has(messageId)) continue
@@ -162,7 +149,6 @@ export function createNewEmailWatcher(
       }
 
       currentHistoryId = nextHistoryId
-      saveStoredHistoryId(currentHistoryId)
     } catch (error) {
       options.onError?.(error)
     } finally {

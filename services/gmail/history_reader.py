@@ -7,6 +7,10 @@ from services.gmail.utils import _get_service
 def get_latest_history_id() -> str | None:
     service = _get_service()
 
+    profile = service.users().getProfile(userId="me").execute()
+    if profile.get("historyId"):
+        return profile.get("historyId")
+
     res = service.users().messages().list(
         userId="me",
         labelIds=["INBOX"],

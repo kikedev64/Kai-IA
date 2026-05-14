@@ -9,7 +9,7 @@ import remarkMath from 'remark-math'
 import rehypeKatex from 'rehype-katex'
 import 'katex/dist/katex.min.css'
 import { createNewEmailWatcher } from '@renderer/services/new_email_watcher.service'
-import { GmailApiEmail } from '@renderer/services/gmail_email.service'
+import { readEmailById, type GmailApiEmail } from '@renderer/services/gmail_email.service'
 import EmailActionModal from '@renderer/components/email/EmailActionModal'
 
 function normalizeLatex(content: string): string {
@@ -138,6 +138,7 @@ const HomePage = (): React.JSX.Element => {
   const emailWatcherRef = useRef<ReturnType<typeof createNewEmailWatcher> | null>(null)
   const [emailActionOpen, setEmailActionOpen] = useState(false)
   const [selectedEmailForAction, setSelectedEmailForAction] = useState<GmailApiEmail | null>(null)
+  const [isEmailActionLoading, setIsEmailActionLoading] = useState(false)
   const [isSubmittingEmailAction, setIsSubmittingEmailAction] = useState(false)
   const pendingEmailsRef = useRef<Map<string, GmailApiEmail>>(new Map())
   const [userProfileJson, setUserProfileJson] = useState<UserProfileJson | null>(null)
@@ -154,6 +155,7 @@ const HomePage = (): React.JSX.Element => {
   const [localChats, setLocalChats] = useState<ChatItem[]>(chats)
 
   const openEmailActionModal = (email: GmailApiEmail) => {
+    setIsEmailActionLoading(false)
     setSelectedEmailForAction(email)
     setEmailActionOpen(true)
   }
@@ -337,9 +339,26 @@ const HomePage = (): React.JSX.Element => {
       if (!payload || !payload.messageId) return
 
       const email = pendingEmailsRef.current.get(payload.messageId)
-      if (!email) return
+      if (email) {
+        openEmailActionModal(email)
+        return
+      }
 
-      openEmailActionModal(email)
+      setSelectedEmailForAction(null)
+      setIsEmailActionLoading(true)
+      setEmailActionOpen(true)
+
+      void readEmailById(payload.messageId)
+        .then((loadedEmail) => {
+          pendingEmailsRef.current.set(loadedEmail.id, loadedEmail)
+          setSelectedEmailForAction(loadedEmail)
+        })
+        .catch((error) => {
+          console.error('Error cargando correo tras pulsar notificación:', error)
+        })
+        .finally(() => {
+          setIsEmailActionLoading(false)
+        })
     })
 
     return () => {
@@ -786,11 +805,12 @@ const HomePage = (): React.JSX.Element => {
       <EmailActionModal
         email={selectedEmailForAction}
         open={emailActionOpen}
-        loading={false}
+        loading={isEmailActionLoading}
         submitting={isSubmittingEmailAction}
         onClose={() => {
           setEmailActionOpen(false)
           setSelectedEmailForAction(null)
+          setIsEmailActionLoading(false)
         }}
         onSubmit={handleEmailActionSubmit}
       />

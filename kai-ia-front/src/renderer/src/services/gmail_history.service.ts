@@ -37,6 +37,8 @@ export type CheckHistoryChangesResponse = {
   has_changes?: boolean
   changed?: boolean
   count_changes?: number
+  needs_rebootstrap?: boolean
+  message_ids?: string[]
   latest_history_id?: string
   history_id?: string
   history?: GmailHistoryEntry[]
@@ -45,6 +47,9 @@ export type CheckHistoryChangesResponse = {
 
 export type ReadHistoryResponse = {
   ok: boolean
+  changed?: boolean
+  needs_rebootstrap?: boolean
+  message_ids?: string[]
   latest_history_id?: string
   history_id?: string
   history?: GmailHistoryEntry[]
@@ -171,6 +176,14 @@ export function extractAddedMessageIds(
   data: ReadHistoryResponse | CheckHistoryChangesResponse
 ): string[] {
   const ids = new Set<string>()
+  const directMessageIds = Array.isArray(data.message_ids) ? data.message_ids : []
+
+  for (const messageId of directMessageIds) {
+    if (typeof messageId === 'string' && messageId.trim()) {
+      ids.add(messageId)
+    }
+  }
+
   const historyEntries = Array.isArray(data.history) ? data.history : []
 
   for (const entry of historyEntries) {
