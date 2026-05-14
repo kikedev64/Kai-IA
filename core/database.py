@@ -22,7 +22,58 @@ def _build_initial_config() -> dict[str, str]:
         "https://www.googleapis.com/auth/tasks",
         "https://www.googleapis.com/auth/calendar",
     ]
+    llm_context_length = 8192
+    tool_activation_keywords = [
+    "correo",
+    "correos",
+    "email",
+    "emails",
+    "gmail",
+    "bandeja",
+    "remitente",
+    "asunto",
+    "responde",
+    "responder",
+    "contesta",
+    "contestar",
+    "envía un correo",
+    "enviar correo",
+    "manda un correo",
+    "mandar correo",
 
+    "calendario",
+    "evento",
+    "eventos",
+    "reunión",
+    "reunion",
+    "meet",
+    "google meet",
+    "agenda",
+    "cita",
+    "quedar",
+    "disponible",
+    "ocupado",
+    "hueco",
+
+    "recordatorio",
+    "recordatorios",
+    "recuérdame",
+    "recuerdame",
+    "tarea",
+    "tareas",
+    "tasks",
+    "pendiente",
+    "pendientes",
+
+    "drive",
+    "archivo",
+    "archivos",
+    "documento",
+    "documentos",
+    "pdf",
+    "descarga",
+    "enlace",
+]
     google_credentials_file = str(BASE_DIR / "credentials.json")
     google_token_file = str(BASE_DIR / "token.json")
 
@@ -96,7 +147,9 @@ def _build_initial_config() -> dict[str, str]:
         "email_max_total_size_attachment": str(email_max_total_size_attachment),
         "system_prompt_default": system_prompt_default,
         "model_name": model_name,
-        "temperature": str(temperature)
+        "temperature": str(temperature),
+        "llm_context_length": str(llm_context_length),
+        "tool_activation_keywords": json.dumps(tool_activation_keywords, ensure_ascii=False),
     }
 
 

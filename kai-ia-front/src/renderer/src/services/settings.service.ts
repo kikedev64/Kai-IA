@@ -8,11 +8,12 @@ export type BackendSettings = {
   system_prompt_default: string
   model_name: string
   temperature: string
+  llm_context_length: string
+  tool_activation_keywords: string
   'default_prompts.resume_mail': string
   'default_prompts.basic_user_information_json': string
   'default_prompts.chat_summary': string
 }
-
 export type LocalSettings = {
   server_url: string
   server_port: string
@@ -127,7 +128,12 @@ export async function saveBackendSettings(
   const data = await response.json()
 
   if (!response.ok) {
-    throw new Error(data?.detail || 'No se pudo guardar la configuración del backend')
+    console.error('Error guardando settings:', data)
+    throw new Error(
+      typeof data?.detail === 'string'
+        ? data.detail
+        : JSON.stringify(data?.detail ?? data)
+    )
   }
 
   return data.settings as BackendSettings

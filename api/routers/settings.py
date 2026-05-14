@@ -15,6 +15,8 @@ from core.config import (
     get_model_name,
     get_system_prompt_default,
     get_temperature,
+    get_llm_context_length,
+    get_tool_activation_keywords
 )
 from core.runtime_config import set_runtime_config_values
 
@@ -29,6 +31,8 @@ ALLOWED_KEYS = {
     "system_prompt_default",
     "model_name",
     "temperature",
+    "llm_context_length",
+    "tool_activation_keywords",
     "default_prompts.resume_mail",
     "default_prompts.basic_user_information_json",
     "default_prompts.chat_summary",
@@ -52,6 +56,12 @@ def _build_settings_response() -> dict[str, str]:
         "default_prompts.resume_mail": DEFAULT_PROMPTS.resume_mail(),
         "default_prompts.basic_user_information_json": DEFAULT_PROMPTS.basic_user_information(),
         "default_prompts.chat_summary": DEFAULT_PROMPTS.chat_summary(),
+        "llm_context_length": str(get_llm_context_length()),
+        "tool_activation_keywords": json.dumps(
+            get_tool_activation_keywords(),
+            ensure_ascii=False,
+            indent=2,
+        ),
     }
 
 
@@ -106,6 +116,53 @@ def _normalize_and_validate(values: dict[str, Any]) -> dict[str, str]:
                     detail="email_max_total_size_attachment debe ser entero",
                 )
             normalized[key] = str(value)
+            continue
+        
+        if key == "llm_context_length":
+            try:
+                context_length = int(value)
+            except (TypeError, ValueError):
+                raise HTTPException(
+                    status_code=400,
+                    detail="llm_context_length debe ser entero",
+                )
+
+            if context_length < 1024:
+                raise HTTPException(
+                    status_code=400,
+                    detail="llm_context_length debe ser al menos 1024",
+                )
+
+            if context_length > 131072:
+                raise HTTPException(
+                    status_code=400,
+                    detail="llm_context_length es demasiado alto",
+                )
+
+            normalized[key] = str(context_length)
+            continue
+        if key == "llm_context_length":
+            try:
+                context_length = int(value)
+            except (TypeError, ValueError):
+                raise HTTPException(
+                    status_code=400,
+                    detail="llm_context_length debe ser entero",
+                )
+
+            if context_length < 1024:
+                raise HTTPException(
+                    status_code=400,
+                    detail="llm_context_length debe ser al menos 1024",
+                )
+
+            if context_length > 131072:
+                raise HTTPException(
+                    status_code=400,
+                    detail="llm_context_length es demasiado alto",
+                )
+
+            normalized[key] = str(context_length)
             continue
 
         normalized[key] = "" if value is None else str(value)

@@ -11,7 +11,8 @@ import {
   ShieldCheck,
   Search,
   UserRound,
-  Link2
+  Link2,
+  Wrench
 } from 'lucide-react'
 import {
   type BackendSettings,
@@ -22,13 +23,7 @@ import {
   saveLocalSettings
 } from '../../services/settings.service'
 
-type SettingsSectionId =
-  | 'general'
-  | 'profile'
-  | 'model'
-  | 'google'
-  | 'gmail'
-  | 'prompts'
+type SettingsSectionId = 'general' | 'profile' | 'model' | 'tools' | 'google' | 'gmail' | 'prompts'
 
 type SettingsForm = {
   server_url: string
@@ -80,6 +75,12 @@ const SECTION_ITEMS: SectionItem[] = [
     label: 'Prompts',
     description: 'Prompts internos del sistema',
     icon: <KeyRound size={16} />
+  },
+  {
+    id: 'tools',
+    label: 'Tools',
+    description: 'Activación automática de herramientas',
+    icon: <Wrench size={16} />
   }
 ]
 
@@ -96,6 +97,8 @@ const EMPTY_FORM: SettingsForm = {
   system_prompt_default: '',
   model_name: '',
   temperature: '0',
+  llm_context_length: '8192',
+  tool_activation_keywords: '[]',
   'default_prompts.resume_mail': '',
   'default_prompts.basic_user_information_json': '',
   'default_prompts.chat_summary': ''
@@ -225,9 +228,7 @@ const SettingsPage = (): React.JSX.Element => {
       setForm(nextForm)
       setInitialForm(nextForm)
     } catch (error) {
-      setErrorMessage(
-        error instanceof Error ? error.message : 'No se pudo cargar la configuración'
-      )
+      setErrorMessage(error instanceof Error ? error.message : 'No se pudo cargar la configuración')
     } finally {
       setLoading(false)
     }
@@ -298,6 +299,29 @@ const SettingsPage = (): React.JSX.Element => {
       } catch {
         throw new Error('El user profile JSON no es válido')
       }
+      const parsedContextLength = Number(form.llm_context_length)
+
+      if (!Number.isFinite(parsedContextLength) || parsedContextLength < 1024) {
+        throw new Error('El context length debe ser un número válido mayor o igual que 1024')
+      }
+
+      try {
+        const parsedKeywords = JSON.parse(form.tool_activation_keywords || '[]')
+
+        if (!Array.isArray(parsedKeywords)) {
+          throw new Error()
+        }
+
+        for (const keyword of parsedKeywords) {
+          if (typeof keyword !== 'string') {
+            throw new Error()
+          }
+        }
+      } catch {
+        throw new Error(
+          'Las palabras clave de tools deben ser un JSON válido con una lista de strings'
+        )
+      }
 
       const backendPayload: BackendSettings = {
         google_redirect_uri: form.google_redirect_uri,
@@ -308,6 +332,8 @@ const SettingsPage = (): React.JSX.Element => {
         system_prompt_default: form.system_prompt_default,
         model_name: form.model_name,
         temperature: form.temperature,
+        llm_context_length: form.llm_context_length,
+        tool_activation_keywords: form.tool_activation_keywords,
         'default_prompts.resume_mail': form['default_prompts.resume_mail'],
         'default_prompts.basic_user_information_json':
           form['default_prompts.basic_user_information_json'],
@@ -357,10 +383,7 @@ const SettingsPage = (): React.JSX.Element => {
             description="URL y puerto del backend que utilizará la aplicación."
           >
             <div>
-              <FieldLabel
-                title="URL del backend"
-                subtitle="Ejemplo: http://localhost"
-              />
+              <FieldLabel title="URL del backend" subtitle="Ejemplo: http://localhost" />
               <TextInput
                 value={form.server_url}
                 onChange={(value) => updateField('server_url', value)}
@@ -369,10 +392,7 @@ const SettingsPage = (): React.JSX.Element => {
             </div>
 
             <div>
-              <FieldLabel
-                title="Puerto del backend"
-                subtitle="Ejemplo: 8000"
-              />
+              <FieldLabel title="Puerto del backend" subtitle="Ejemplo: 8000" />
               <TextInput
                 value={form.server_port}
                 onChange={(value) => updateField('server_port', value)}
@@ -462,6 +482,17 @@ const SettingsPage = (): React.JSX.Element => {
                 placeholder="Escribe aquí el prompt principal..."
               />
             </div>
+            <div>
+              <FieldLabel
+                title="Context length"
+                subtitle="Tamaño máximo de contexto enviado al modelo. Ejemplo: 8192 o 16384."
+              />
+              <TextInput
+                value={form.llm_context_length}
+                onChange={(value) => updateField('llm_context_length', value)}
+                placeholder="8192"
+              />
+            </div>
           </SectionCard>
         )
 
@@ -472,10 +503,7 @@ const SettingsPage = (): React.JSX.Element => {
             description="OAuth, credenciales, token y scopes."
           >
             <div>
-              <FieldLabel
-                title="Redirect URI"
-                subtitle="URL de callback para OAuth."
-              />
+              <FieldLabel title="Redirect URI" subtitle="URL de callback para OAuth." />
               <TextInput
                 value={form.google_redirect_uri}
                 onChange={(value) => updateField('google_redirect_uri', value)}
@@ -496,10 +524,7 @@ const SettingsPage = (): React.JSX.Element => {
             </div>
 
             <div>
-              <FieldLabel
-                title="Fichero de token"
-                subtitle="Ruta absoluta al token.json."
-              />
+              <FieldLabel title="Fichero de token" subtitle="Ruta absoluta al token.json." />
               <TextInput
                 value={form.google_token_file}
                 onChange={(value) => updateField('google_token_file', value)}
@@ -508,10 +533,7 @@ const SettingsPage = (): React.JSX.Element => {
             </div>
 
             <div>
-              <FieldLabel
-                title="Scopes"
-                subtitle="Debe ser un JSON válido con una lista."
-              />
+              <FieldLabel title="Scopes" subtitle="Debe ser un JSON válido con una lista." />
               <TextArea
                 value={form.google_scopes}
                 onChange={(value) => updateField('google_scopes', value)}
@@ -544,10 +566,7 @@ const SettingsPage = (): React.JSX.Element => {
 
       case 'prompts':
         return (
-          <SectionCard
-            title="Prompts internos"
-            description="Prompts específicos del backend."
-          >
+          <SectionCard title="Prompts internos" description="Prompts específicos del backend.">
             <div>
               <FieldLabel
                 title="Prompt: resumen de correo"
@@ -590,7 +609,26 @@ const SettingsPage = (): React.JSX.Element => {
             </div>
           </SectionCard>
         )
-
+      case 'tools':
+        return (
+          <SectionCard
+            title="Activación de tools"
+            description="Palabras clave que activan automáticamente las herramientas del backend."
+          >
+            <div>
+              <FieldLabel
+                title="Palabras clave para activar tools"
+                subtitle="Debe ser un JSON válido con una lista de strings. Si el mensaje contiene alguna, se envían tools al modelo."
+              />
+              <TextArea
+                value={form.tool_activation_keywords}
+                onChange={(value) => updateField('tool_activation_keywords', value)}
+                rows={18}
+                placeholder='["correo","gmail","calendario","evento","recordatorio","drive"]'
+              />
+            </div>
+          </SectionCard>
+        )
       default:
         return null
     }

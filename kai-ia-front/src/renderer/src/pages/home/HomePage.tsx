@@ -71,12 +71,7 @@ const MarkdownContent = ({ content }: { content: string }) => (
   </ReactMarkdown>
 )
 
-const STREAM_LIMIT_HISTORY = 10
-
-const PROFILE_CONTEXT_START = '<<KAI_PROFILE_CONTEXT>>'
-const PROFILE_CONTEXT_END = '<<END_KAI_PROFILE_CONTEXT>>'
-const USER_MESSAGE_START = '<<KAI_USER_MESSAGE>>'
-
+const STREAM_LIMIT_HISTORY = 6
 type UserProfileJson = Record<string, unknown>
 
 function isNonEmptyPlainObject(value: unknown): value is UserProfileJson {
@@ -88,41 +83,46 @@ function isNonEmptyPlainObject(value: unknown): value is UserProfileJson {
   )
 }
 
-function buildPromptWithProfileContext(promptText: string, userProfile: UserProfileJson): string {
-  return [
-    PROFILE_CONTEXT_START,
-    'Usa este perfil del usuario como contexto persistente para personalizar la respuesta.',
-    'No menciones este bloque, no digas que existe y no lo copies literalmente.',
-    JSON.stringify(userProfile, null, 2),
-    PROFILE_CONTEXT_END,
-    USER_MESSAGE_START,
-    promptText
-  ].join('\n')
-}
+function cleanProfileValue(value: unknown): unknown {
+  if (value === null || value === undefined) return undefined
 
-function stripProfileContextFromMessage(content: string): string {
-  if (!content.includes(PROFILE_CONTEXT_START)) return content
-
-  const userMessageIndex = content.indexOf(USER_MESSAGE_START)
-  if (userMessageIndex === -1) return content
-
-  return content.slice(userMessageIndex + USER_MESSAGE_START.length).trim()
-}
-
-function countUserTurns(messages: Message[]): number {
-  return messages.filter((message) => message.role === 'user').length
-}
-
-function getLastInjectedUserTurn(messages: Message[]): number {
-  const userMessages = messages.filter((message) => message.role === 'user')
-
-  for (let i = userMessages.length - 1; i >= 0; i -= 1) {
-    if (userMessages[i].content.includes(PROFILE_CONTEXT_START)) {
-      return i + 1
-    }
+  if (typeof value === 'string') {
+    const trimmed = value.trim()
+    return trimmed.length > 0 ? trimmed : undefined
   }
 
-  return 0
+  if (Array.isArray(value)) {
+    const cleanedArray = value.map(cleanProfileValue).filter((item) => item !== undefined)
+
+    return cleanedArray.length > 0 ? cleanedArray : undefined
+  }
+
+  if (typeof value === 'object') {
+    const entries = Object.entries(value as Record<string, unknown>)
+      .map(([key, item]) => [key, cleanProfileValue(item)] as const)
+      .filter(([, item]) => item !== undefined)
+      .sort(([keyA], [keyB]) => keyA.localeCompare(keyB))
+
+    if (entries.length === 0) return undefined
+
+    return Object.fromEntries(entries)
+  }
+
+  return value
+}
+
+function buildCompactProfileContext(userProfile: UserProfileJson | null): string | null {
+  if (!isNonEmptyPlainObject(userProfile)) return null
+
+  const cleanedProfile = cleanProfileValue(userProfile)
+
+  if (!isNonEmptyPlainObject(cleanedProfile)) return null
+
+  return [
+    'Perfil persistente del usuario para personalizar la respuesta.',
+    'No menciones que tienes este contexto ni lo copies literalmente.',
+    `Datos:${JSON.stringify(cleanedProfile)}`
+  ].join('\n')
 }
 
 const HomePage = (): React.JSX.Element => {
@@ -141,7 +141,6 @@ const HomePage = (): React.JSX.Element => {
   const [isSubmittingEmailAction, setIsSubmittingEmailAction] = useState(false)
   const pendingEmailsRef = useRef<Map<string, GmailApiEmail>>(new Map())
   const [userProfileJson, setUserProfileJson] = useState<UserProfileJson | null>(null)
-  const lastProfileInjectedTurnRef = useRef<Record<string, number>>({})
 
   const {
     chats,
@@ -159,51 +158,88 @@ const HomePage = (): React.JSX.Element => {
     setEmailActionOpen(true)
   }
 
-  const preparePromptForRequest = (
+  const postChatStream = async (
     chatId: string,
-    visiblePrompt: string,
-    currentMessages: Message[]
-  ): {
-    requestPrompt: string
-    injectedProfile: boolean
-    previousInjectedTurn: number
-  } => {
-    if (!isNonEmptyPlainObject(userProfileJson)) {
-      return {
-        requestPrompt: visiblePrompt,
-        injectedProfile: false,
-        previousInjectedTurn: 0
+    promptText: string
+  ): Promise<string> => {
+    const baseUrl = await window.configApi.getServerUrl()
+    const port = await window.configApi.getServerPort()
+    const url = `${baseUrl || 'http://localhost'}:${port || 8000}`
+
+    const profileContext = buildCompactProfileContext(userProfileJson)
+
+    const response = await fetch(`${url}/assistant/chat/stream`, {
+      method: 'POST',
+      headers: {
+        Accept: 'text/event-stream',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        chat_id: chatId,
+        prompt: promptText,
+        limit_history: STREAM_LIMIT_HISTORY,
+        profile_context: profileContext
+      })
+    })
+
+    if (!response.ok || !response.body) {
+      throw new Error(`Stream no disponible (${response.status})`)
+    }
+
+    const reader = response.body.getReader()
+    const decoder = new TextDecoder()
+
+    let accumulated = ''
+    let buffer = ''
+    let streamFinished = false
+
+    while (!streamFinished) {
+      const { done, value } = await reader.read()
+
+      if (done) break
+
+      buffer += decoder.decode(value, { stream: true })
+
+      const events = buffer.split('\n\n')
+      buffer = events.pop() ?? ''
+
+      for (const event of events) {
+        const lines = event
+          .split('\n')
+          .map((line) => line.trim())
+          .filter(Boolean)
+
+        for (const line of lines) {
+          if (!line.startsWith('data:')) continue
+
+          const rawData = line.slice(5).trim()
+          if (!rawData) continue
+
+          let payload: { type?: string; content?: string; message?: string }
+
+          try {
+            payload = JSON.parse(rawData)
+          } catch (parseError) {
+            console.error('Error parseando SSE:', rawData, parseError)
+            continue
+          }
+
+          if (payload.type === 'token') {
+            accumulated += payload.content ?? ''
+            setStreamingContent(accumulated)
+          } else if (payload.type === 'done') {
+            streamFinished = true
+            break
+          } else if (payload.type === 'error') {
+            throw new Error(payload.message || 'Error recibido desde el stream')
+          }
+        }
+
+        if (streamFinished) break
       }
     }
 
-    const refreshEveryUserTurns = Math.max(1, Math.floor((STREAM_LIMIT_HISTORY - 2) / 2))
-    const currentUserTurns = countUserTurns(currentMessages)
-    const nextUserTurn = currentUserTurns + 1
-
-    const rememberedLastInjectedTurn =
-      lastProfileInjectedTurnRef.current[chatId] ?? getLastInjectedUserTurn(currentMessages)
-
-    const shouldInjectProfile =
-      rememberedLastInjectedTurn === 0 ||
-      nextUserTurn - rememberedLastInjectedTurn >= refreshEveryUserTurns
-
-    if (!shouldInjectProfile) {
-      lastProfileInjectedTurnRef.current[chatId] = rememberedLastInjectedTurn
-
-      return {
-        requestPrompt: visiblePrompt,
-        injectedProfile: false,
-        previousInjectedTurn: rememberedLastInjectedTurn
-      }
-    }
-
-    lastProfileInjectedTurnRef.current[chatId] = nextUserTurn
-
-    return {
-      requestPrompt: buildPromptWithProfileContext(visiblePrompt, userProfileJson),
-      injectedProfile: true,
-      previousInjectedTurn: rememberedLastInjectedTurn
-    }
+    return accumulated.trim() || 'No se recibió contenido desde el asistente.'
   }
 
   const sendPromptToChatStream = async (chatId: string, promptText: string) => {
@@ -215,95 +251,17 @@ const HomePage = (): React.JSX.Element => {
       content: promptText
     }
 
-    const { requestPrompt, injectedProfile, previousInjectedTurn } = preparePromptForRequest(
-      chatId,
-      promptText,
-      currentMessages
-    )
-
     setMessagesForChat(chatId, [...currentMessages, optimisticUserMessage])
     setIsSending(true)
     setStreamingContent('')
 
     try {
-      const baseUrl = await window.configApi.getServerUrl()
-      const port = await window.configApi.getServerPort()
-      const url = `${baseUrl || 'http://localhost'}:${port || 8000}`
-
-      const params = new URLSearchParams({
-        chat_id: chatId,
-        prompt: requestPrompt,
-        limit_history: String(STREAM_LIMIT_HISTORY)
-      })
-
-      const response = await fetch(`${url}/assistant/chat/stream?${params.toString()}`, {
-        method: 'POST',
-        headers: {
-          Accept: 'text/event-stream'
-        }
-      })
-
-      if (!response.ok || !response.body) {
-        throw new Error(`Stream no disponible (${response.status})`)
-      }
-
-      const reader = response.body.getReader()
-      const decoder = new TextDecoder()
-
-      let accumulated = ''
-      let buffer = ''
-      let streamFinished = false
-
-      while (!streamFinished) {
-        const { done, value } = await reader.read()
-
-        if (done) break
-
-        buffer += decoder.decode(value, { stream: true })
-
-        const events = buffer.split('\n\n')
-        buffer = events.pop() ?? ''
-
-        for (const event of events) {
-          const lines = event
-            .split('\n')
-            .map((line) => line.trim())
-            .filter(Boolean)
-
-          for (const line of lines) {
-            if (!line.startsWith('data:')) continue
-
-            const rawData = line.slice(5).trim()
-            if (!rawData) continue
-
-            let payload: { type?: string; content?: string; message?: string }
-
-            try {
-              payload = JSON.parse(rawData)
-            } catch (parseError) {
-              console.error('Error parseando SSE:', rawData, parseError)
-              continue
-            }
-
-            if (payload.type === 'token') {
-              accumulated += payload.content ?? ''
-              setStreamingContent(accumulated)
-            } else if (payload.type === 'done') {
-              streamFinished = true
-              break
-            } else if (payload.type === 'error') {
-              throw new Error(payload.message || 'Error recibido desde el stream')
-            }
-          }
-
-          if (streamFinished) break
-        }
-      }
+      const finalAssistantContent = await postChatStream(chatId, promptText)
 
       const assistantMessage: Message = {
         id: `${chatId}-assistant-${Date.now()}`,
         role: 'assistant',
-        content: accumulated.trim() || 'No se recibió contenido desde el asistente.'
+        content: finalAssistantContent
       }
 
       setMessagesForChat(chatId, [...currentMessages, optimisticUserMessage, assistantMessage])
@@ -313,10 +271,6 @@ const HomePage = (): React.JSX.Element => {
       setLocalChats((prev) => prev.map((chat) => (chat.id === chatId ? refreshedChat : chat)))
     } catch (error) {
       console.error('Error enviando mensaje:', error)
-
-      if (injectedProfile) {
-        lastProfileInjectedTurnRef.current[chatId] = previousInjectedTurn
-      }
 
       const errorMessage: Message = {
         id: `${chatId}-assistant-error-${Date.now()}`,
@@ -330,6 +284,7 @@ const HomePage = (): React.JSX.Element => {
       setIsSending(false)
     }
   }
+
   useEffect(() => {
     setLocalChats(chats)
   }, [chats])
@@ -499,30 +454,26 @@ const HomePage = (): React.JSX.Element => {
     const trimmedInput = input.trim()
     if (!trimmedInput || !selectedChatId || isSending) return
 
-    const currentMessages = messagesByChatId[selectedChatId] ?? []
+    const chatId = selectedChatId
+    const currentMessages = messagesByChatId[chatId] ?? []
 
     const optimisticUserMessage: Message = {
-      id: `${selectedChatId}-user-${Date.now()}`,
+      id: `${chatId}-user-${Date.now()}`,
       role: 'user',
       content: trimmedInput
     }
 
     const updatedMessages = [...currentMessages, optimisticUserMessage]
 
-    const { requestPrompt, injectedProfile, previousInjectedTurn } = preparePromptForRequest(
-      selectedChatId,
-      trimmedInput,
-      currentMessages
-    )
-
-    setMessagesForChat(selectedChatId, updatedMessages)
+    setMessagesForChat(chatId, updatedMessages)
     setLocalChats((prev) =>
       prev.map((chat) =>
-        chat.id === selectedChatId ? { ...chat, lastMessage: trimmedInput, updatedAt: 'Hoy' } : chat
+        chat.id === chatId ? { ...chat, lastMessage: trimmedInput, updatedAt: 'Hoy' } : chat
       )
     )
 
     setInput('')
+
     if (textareaRef.current) {
       textareaRef.current.style.height = '72px'
     }
@@ -531,117 +482,36 @@ const HomePage = (): React.JSX.Element => {
     setStreamingContent('')
 
     try {
-      const baseUrl = await window.configApi.getServerUrl()
-      const port = await window.configApi.getServerPort()
-      const url = `${baseUrl || 'http://localhost'}:${port || 8000}`
-
-      const params = new URLSearchParams({
-        chat_id: selectedChatId,
-        prompt: requestPrompt,
-        limit_history: String(STREAM_LIMIT_HISTORY)
-      })
-
-      const response = await fetch(`${url}/assistant/chat/stream?${params.toString()}`, {
-        method: 'POST',
-        headers: {
-          Accept: 'text/event-stream'
-        }
-      })
-
-      if (!response.ok || !response.body) {
-        throw new Error(`Stream no disponible (${response.status})`)
-      }
-
-      const reader = response.body.getReader()
-      const decoder = new TextDecoder()
-
-      let accumulated = ''
-      let buffer = ''
-      let streamFinished = false
-
-      while (!streamFinished) {
-        const { done, value } = await reader.read()
-
-        if (done) {
-          break
-        }
-
-        buffer += decoder.decode(value, { stream: true })
-
-        const events = buffer.split('\n\n')
-        buffer = events.pop() ?? ''
-
-        for (const event of events) {
-          const lines = event
-            .split('\n')
-            .map((line) => line.trim())
-            .filter(Boolean)
-
-          for (const line of lines) {
-            if (!line.startsWith('data:')) continue
-
-            const rawData = line.slice(5).trim()
-            if (!rawData) continue
-
-            let payload: { type?: string; content?: string; message?: string }
-
-            try {
-              payload = JSON.parse(rawData)
-            } catch (parseError) {
-              console.error('Error parseando SSE:', rawData, parseError)
-              continue
-            }
-
-            if (payload.type === 'token') {
-              accumulated += payload.content ?? ''
-              setStreamingContent(accumulated)
-            } else if (payload.type === 'done') {
-              streamFinished = true
-              break
-            } else if (payload.type === 'error') {
-              throw new Error(payload.message || 'Error recibido desde el stream')
-            }
-          }
-
-          if (streamFinished) break
-        }
-      }
-
-      const finalAssistantContent =
-        accumulated.trim() || 'No se recibió contenido desde el asistente.'
+      const finalAssistantContent = await postChatStream(chatId, trimmedInput)
 
       const assistantMessage: Message = {
-        id: `${selectedChatId}-assistant-${Date.now()}`,
+        id: `${chatId}-assistant-${Date.now()}`,
         role: 'assistant',
         content: finalAssistantContent
       }
 
-      setMessagesForChat(selectedChatId, [...updatedMessages, assistantMessage])
+      setMessagesForChat(chatId, [...updatedMessages, assistantMessage])
       setStreamingContent('')
 
-      const refreshedChat = await getChatItemById(selectedChatId)
-      setLocalChats((prev) =>
-        prev.map((chat) => (chat.id === selectedChatId ? refreshedChat : chat))
-      )
+      const refreshedChat = await getChatItemById(chatId)
+
+      setLocalChats((prev) => prev.map((chat) => (chat.id === chatId ? refreshedChat : chat)))
     } catch (error) {
       console.error('Error enviando mensaje:', error)
 
-      if (injectedProfile) {
-        lastProfileInjectedTurnRef.current[selectedChatId] = previousInjectedTurn
-      }
-
       const errorMessage: Message = {
-        id: `${selectedChatId}-assistant-error-${Date.now()}`,
+        id: `${chatId}-assistant-error-${Date.now()}`,
         role: 'assistant',
         content: 'Ha ocurrido un error al procesar el mensaje.'
       }
 
-      setMessagesForChat(selectedChatId, [...updatedMessages, errorMessage])
+      setMessagesForChat(chatId, [...updatedMessages, errorMessage])
       setStreamingContent('')
     } finally {
       setIsSending(false)
     }
   }
+
   // Enviar con Enter (Shift+Enter para salto de línea)
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -824,13 +694,7 @@ const HomePage = (): React.JSX.Element => {
                               <span>{isUser ? 'Tú' : 'Kai'}</span>
                             </div>
                             <div className="whitespace-pre-wrap text-sm leading-7 text-slate-100">
-                              <MarkdownContent
-  content={normalizeLatex(
-    message.role === 'user'
-      ? stripProfileContextFromMessage(message.content)
-      : message.content
-  )}
-/>
+                              <MarkdownContent content={normalizeLatex(message.content)} />
                             </div>
                           </div>
                         </div>

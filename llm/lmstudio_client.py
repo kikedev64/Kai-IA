@@ -1,6 +1,10 @@
 import openai
 from api.schemas.chat import AskRequest
-from core.config import get_model_name, get_temperature, get_prompt_map
+from core.config import (
+    get_model_name,
+    get_temperature,
+    get_prompt_map,
+)
 from fastapi import HTTPException
 from tools.tools_definition import TOOLS
 import os
@@ -11,7 +15,13 @@ client = openai.OpenAI(
     api_key=os.getenv("API_KEY_OPEN_AI")
 )
 
-def call_lm_studio(messages: list, use_tools: bool = True):
+
+
+def call_lm_studio(
+    messages: list,
+    use_tools: bool = True,
+    context_length: int | None = None,
+):
     kwargs = {
         "model": get_model_name(),
         "messages": messages,
@@ -26,11 +36,11 @@ def call_lm_studio(messages: list, use_tools: bool = True):
     response = client.chat.completions.create(**kwargs)
     return response.choices[0].message
 
-def call_lm_studio_stream(messages: list) -> Iterator[str]:
-    """
-    Stream SOLO de texto final.
-    No usar tools aquí hasta implementar tool-calls en streaming de verdad.
-    """
+
+def call_lm_studio_stream(
+    messages: list,
+    context_length: int | None = None,
+) -> Iterator[str]:
     stream = client.chat.completions.create(
         model=get_model_name(),
         messages=messages,
@@ -49,9 +59,13 @@ def call_lm_studio_stream(messages: list) -> Iterator[str]:
         if delta and getattr(delta, "content", None):
             yield delta.content
 
-def ask_without_context(req: AskRequest):
+
+def ask_without_context(
+    req: AskRequest
+):
     try:
         messages = []
+
         if req.system_prompt:
             selected_prompt = get_prompt_map().get(req.system_prompt)
             if selected_prompt is None:
@@ -77,6 +91,7 @@ def ask_without_context(req: AskRequest):
     except Exception as e:
         print(f"[ERROR]: {str(e)}")
         raise
+
 
 def check_llm_service() -> bool:
     try:

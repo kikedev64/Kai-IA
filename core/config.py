@@ -85,6 +85,21 @@ def get_model_name() -> str:
 def get_temperature() -> float:
     return get_config_float("temperature", 0.0)
 
+def get_llm_context_length() -> int:
+    return get_config_int("llm_context_length", 8192)
+
+
+def get_tool_activation_keywords() -> list[str]:
+    keywords = get_config_json("tool_activation_keywords", [])
+
+    if not isinstance(keywords, list):
+        return []
+
+    return [
+        str(keyword).strip().lower()
+        for keyword in keywords
+        if str(keyword).strip()
+    ]
 
 class DEFAULT_PROMPTS:
     @staticmethod

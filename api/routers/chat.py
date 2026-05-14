@@ -4,7 +4,9 @@ import uuid
 from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import StreamingResponse
+from pydantic import BaseModel, Field
 from services.chat_summary_service import generate_chat_summary_from_text
+from core.config import get_tool_activation_keywords
 
 try:
     from zoneinfo import ZoneInfo
@@ -31,6 +33,12 @@ from services.chat_store import (
 router = APIRouter(prefix="/assistant", tags=["Assistant"])
 
 MAX_TOOL_STEPS = 6
+class ChatStreamRequest(BaseModel):
+    chat_id: str = Field(..., min_length=1)
+    prompt: str = Field(..., min_length=1)
+    limit_history: int = Field(default=6, ge=1, le=20)
+    profile_context: str | None = None
+    
 DEBUG_TOOLS = True
 
 GMAIL_CONTEXT_TOOLS = {
@@ -40,6 +48,14 @@ GMAIL_CONTEXT_TOOLS = {
     "read_thread_from_message_id",
 }
 
+def should_enable_tools(prompt: str) -> bool:
+    text = (prompt or "").lower()
+    keywords = get_tool_activation_keywords()
+
+    if not keywords:
+        return False
+
+    return any(keyword in text for keyword in keywords)
 
 def is_legacy_tool_json(text: str) -> bool:
     if not text:
@@ -102,6 +118,26 @@ def now_context_system_message() -> dict:
             "- Si necesitas fechas RFC3339 para tools, calcúlalas a partir de este contexto.\n"
         ),
     }
+
+def clean_model_output(text: str) -> str:
+    if not text:
+        return ""
+
+    cleaned = text
+
+    while "<think>" in cleaned and "</think>" in cleaned:
+        start = cleaned.find("<think>")
+        end = cleaned.find("</think>", start)
+
+        if end == -1:
+            break
+
+        cleaned = cleaned[:start] + cleaned[end + len("</think>"):]
+
+    if "<think>" in cleaned:
+        cleaned = cleaned.split("<think>", 1)[0]
+
+    return cleaned.strip()
 
 def should_store_assistant_message(text: str) -> bool:
     if not text:
@@ -195,7 +231,13 @@ def _ensure_chat_title(
     generated_title = None
 
     try:
-        generated_title = generate_chat_summary_from_text(user_input)
+        generated_title = clean_model_output(
+            generate_chat_summary_from_text(user_input) or ""
+        )
+        if generated_title:
+            generated_title = " ".join(generated_title.split())
+            if len(generated_title) > 60:
+                generated_title = generated_title[:60].strip()
         if DEBUG_TOOLS:
             print(f"[{request_id}] Título generado por LLM: {generated_title}")
     except Exception as e:
@@ -272,7 +314,7 @@ def chat_endpoint(
                 )
 
             if not tool_calls:
-                content = (msg.content or "").strip()
+                content = clean_model_output(msg.content or "")
 
                 legacy_tc = extract_legacy_tool_call(content)
                 if legacy_tc:
@@ -476,12 +518,13 @@ def split_text_for_stream(text: str):
 
 
 @router.post("/chat/stream")
-def assistant_chat_stream(
-    prompt: str,
-    chat_id: str = Query(..., min_length=1),
-    limit_history: int = Query(50, ge=1, le=200),
-):
+def assistant_chat_stream(req: ChatStreamRequest):
     request_id = str(uuid.uuid4())[:8]
+
+    prompt = req.prompt.strip()
+    chat_id = req.chat_id
+    limit_history = req.limit_history
+    profile_context = (req.profile_context or "").strip() or None
 
     def stream_text(text: str):
         for chunk in split_text_for_stream(text):
@@ -518,7 +561,10 @@ def assistant_chat_stream(
         last_tool_name, last_result = tool_results[-1]
 
         if isinstance(last_result, dict) and last_result.get("status") == "error":
-            return f"He intentado completar la acción, pero ha ocurrido un error: {last_result.get('message', 'Error desconocido')}"
+            return (
+                "He intentado completar la acción, pero ha ocurrido un error: "
+                f"{last_result.get('message', 'Error desconocido')}"
+            )
 
         if last_tool_name == "freebusy_query":
             data = last_result.get("data", {}) if isinstance(last_result, dict) else {}
@@ -534,9 +580,7 @@ def assistant_chat_stream(
             meet_link = data.get("meet_link")
             summary = data.get("summary", "la reunión")
             if meet_link:
-                return (
-                    f"Listo, he creado {summary} con Google Meet. Enlace: {meet_link}"
-                )
+                return f"Listo, he creado {summary} con Google Meet. Enlace: {meet_link}"
             return f"Listo, he creado {summary} en el calendario."
 
         if last_tool_name == "send_email":
@@ -572,24 +616,54 @@ def assistant_chat_stream(
             for m in history:
                 if m["role"] == "assistant" and is_legacy_tool_json(m["content"]):
                     continue
+
+                if m["role"] == "user" and "<<KAI_PROFILE_CONTEXT>>" in m["content"]:
+                    content = m["content"]
+                    marker = "<<KAI_USER_MESSAGE>>"
+                    if marker in content:
+                        content = content.split(marker, 1)[1].strip()
+
+                    sanitized.append(
+                        {
+                            **m,
+                            "content": content,
+                        }
+                    )
+                    continue
+
                 sanitized.append(m)
 
             messages = [
                 {"role": "system", "content": system_prompt},
                 now_context_system_message(),
             ]
+
+            if profile_context:
+                messages.append(
+                    {
+                        "role": "system",
+                        "content": profile_context,
+                    }
+                )
+
             messages += sanitized
+
+            use_tools = should_enable_tools(prompt)
 
             if DEBUG_TOOLS:
                 print(f"\n=== [{request_id}] STREAM CHAT START ===")
                 print(f"[{request_id}] chat_id: {chat_id}")
                 print(f"[{request_id}] USER: {prompt}")
+                print(f"[{request_id}] limit_history: {limit_history}")
+                print(f"[{request_id}] profile_context: {bool(profile_context)}")
+                print(f"[{request_id}] use_tools: {use_tools}")
+                print(f"[{request_id}] messages_count: {len(messages)}")
 
             executed_tool_results: list[tuple[str, dict]] = []
 
             for step in range(MAX_TOOL_STEPS):
-                msg = call_lm_studio(messages, use_tools=True)
-                content = (msg.content or "").strip()
+                msg = call_lm_studio(messages, use_tools=use_tools)
+                content = clean_model_output(msg.content or "")
                 tool_calls = getattr(msg, "tool_calls", None) or []
 
                 if DEBUG_TOOLS:
@@ -597,23 +671,27 @@ def assistant_chat_stream(
                     print(f"[{request_id}] content: {repr(content)}")
                     print(f"[{request_id}] tool_calls: {len(tool_calls)}")
 
-                # Caso 1: el modelo ya responde con texto final normal
+                # Caso 1: respuesta final normal.
                 if not tool_calls and content and not is_garbage_text(content):
-                    add_message(chat_id, "assistant", content)
+                    if should_store_assistant_message(content):
+                        add_message(chat_id, "assistant", content)
+
                     _ensure_chat_title(
-                        chat_id, prompt, is_first_user_message, request_id
+                        chat_id,
+                        prompt,
+                        is_first_user_message,
+                        request_id,
                     )
 
                     yield from stream_text(content)
                     yield done_event()
                     return
 
-                # Caso 2: no hay tool_calls pero el texto es basura / pseudo-tool / vacío
-                # Forzamos una última respuesta solo cuando ya hay resultados de tools previos.
+                # Caso 2: no hay tools y el texto es basura / vacío.
                 if not tool_calls:
                     if executed_tool_results:
                         forced_final = call_lm_studio(messages, use_tools=False)
-                        final_text = (forced_final.content or "").strip()
+                        final_text = clean_model_output(forced_final.content or "")
 
                         if DEBUG_TOOLS:
                             print(
@@ -624,20 +702,26 @@ def assistant_chat_stream(
                             final_text = fallback_text_from_tool_results(
                                 executed_tool_results
                             )
+
                         if should_store_assistant_message(final_text):
                             add_message(chat_id, "assistant", final_text)
-                            
+
                         _ensure_chat_title(
-                            chat_id, prompt, is_first_user_message, request_id
+                            chat_id,
+                            prompt,
+                            is_first_user_message,
+                            request_id,
                         )
 
                         yield from stream_text(final_text)
                         yield done_event()
                         return
 
-                    # Si ni hay tools ni contenido útil, devolvemos error controlado
                     message = "No he podido generar una respuesta válida."
-                    add_message(chat_id, "assistant", message)
+
+                    if should_store_assistant_message(message):
+                        add_message(chat_id, "assistant", message)
+
                     yield from stream_text(message)
                     yield done_event()
                     return
@@ -672,15 +756,13 @@ def assistant_chat_stream(
                             f"[{request_id}] result: {json.dumps(result, ensure_ascii=False)[:1500]}"
                         )
 
-                    if (
-                        isinstance(result, dict)
-                        and result.get("status") == "auth_expired"
-                    ):
+                    if isinstance(result, dict) and result.get("status") == "auth_expired":
                         final_auth_reply = result.get("message") or (
                             "No puedo acceder a tus servicios de Google porque la sesión ha expirado."
                         )
 
-                        add_message(chat_id, "assistant", final_auth_reply)
+                        if should_store_assistant_message(final_auth_reply):
+                            add_message(chat_id, "assistant", final_auth_reply)
 
                         yield from stream_text(final_auth_reply)
                         yield done_event()
@@ -695,15 +777,16 @@ def assistant_chat_stream(
                     messages.append(tool_msg)
 
                     gmail_context_msg = build_gmail_context_message(
-                        tc.function.name, result
+                        tc.function.name,
+                        result,
                     )
                     if gmail_context_msg:
                         messages.append(gmail_context_msg)
 
-                # Muy importante:
-                # añadimos la instrucción post-tool, pero NO forzamos final aquí.
-                # Dejamos que el bucle continúe por si el modelo necesita otra tool.
                 messages.append(post_tool_instruction_message(prompt))
+
+                # Después de usar una tool, mantenemos las tools activas por si necesita otra.
+                use_tools = True
 
             yield error_event("Se alcanzó el máximo de tool steps")
 
@@ -720,4 +803,3 @@ def assistant_chat_stream(
             "X-Accel-Buffering": "no",
         },
     )
-
