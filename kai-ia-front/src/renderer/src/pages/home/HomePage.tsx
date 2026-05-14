@@ -227,10 +227,70 @@ const HomePage = (): React.JSX.Element => {
     let buffer = ''
     let streamFinished = false
 
+    const processStreamEvent = (event: string): boolean => {
+      const lines = event
+        .split('\n')
+        .map((line) => line.trim())
+        .filter(Boolean)
+
+      for (const line of lines) {
+        if (!line.startsWith('data:')) continue
+
+        const rawData = line.slice(5).trim()
+        if (!rawData) continue
+
+        let payload: DebugLabEvent
+
+        try {
+          payload = JSON.parse(rawData) as DebugLabEvent
+        } catch (parseError) {
+          console.error('Error parseando SSE:', rawData, parseError)
+          continue
+        }
+
+        if (payload.type === 'token') {
+          accumulated += payload.content ?? ''
+          setStreamingContent(accumulated)
+        }
+
+        publishDebugLabEvent({
+          chatId,
+          event: payload,
+          output: accumulated,
+          createdAt: Date.now()
+        })
+
+        if (payload.type === 'done') {
+          return true
+        }
+
+        if (payload.type === 'error') {
+          throw new Error(payload.message || 'Error recibido desde el stream')
+        }
+      }
+
+      return false
+    }
+
     while (!streamFinished) {
       const { done, value } = await reader.read()
 
-      if (done) break
+      if (done) {
+        buffer += decoder.decode()
+
+        if (buffer.trim()) {
+          const pendingEvents = buffer.split('\n\n').filter((event) => event.trim())
+
+          for (const event of pendingEvents) {
+            if (processStreamEvent(event)) {
+              streamFinished = true
+              break
+            }
+          }
+        }
+
+        break
+      }
 
       buffer += decoder.decode(value, { stream: true })
 
@@ -238,47 +298,10 @@ const HomePage = (): React.JSX.Element => {
       buffer = events.pop() ?? ''
 
       for (const event of events) {
-        const lines = event
-          .split('\n')
-          .map((line) => line.trim())
-          .filter(Boolean)
-
-        for (const line of lines) {
-          if (!line.startsWith('data:')) continue
-
-          const rawData = line.slice(5).trim()
-          if (!rawData) continue
-
-          let payload: DebugLabEvent
-
-          try {
-            payload = JSON.parse(rawData) as DebugLabEvent
-          } catch (parseError) {
-            console.error('Error parseando SSE:', rawData, parseError)
-            continue
-          }
-
-          if (payload.type === 'token') {
-            accumulated += payload.content ?? ''
-            setStreamingContent(accumulated)
-          }
-
-          publishDebugLabEvent({
-            chatId,
-            event: payload,
-            output: accumulated,
-            createdAt: Date.now()
-          })
-
-          if (payload.type === 'done') {
-            streamFinished = true
-            break
-          } else if (payload.type === 'error') {
-            throw new Error(payload.message || 'Error recibido desde el stream')
-          }
+        if (processStreamEvent(event)) {
+          streamFinished = true
+          break
         }
-
-        if (streamFinished) break
       }
     }
 

@@ -25,6 +25,7 @@
     "@electron-toolkit/utils": "^4.0.0",
     "@heroicons/react": "^2.2.0",
     "@tailwindcss/vite": "^4.2.1",
+    "@xyflow/react": "^12.10.2",
     "better-sqlite3": "^12.8.0",
     "electron-updater": "^6.3.9",
     "framer-motion": "^12.35.1",

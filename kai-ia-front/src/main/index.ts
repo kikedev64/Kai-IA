@@ -1,4 +1,4 @@
-import { app, shell, BrowserWindow, ipcMain, dialog } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, dialog, screen } from 'electron'
 import path from 'path'
 import { writeFile } from 'fs/promises'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
@@ -14,6 +14,9 @@ let mainWindow: BrowserWindow | null = null
 let onboardingWindow: BrowserWindow | null = null
 let settingsWindow: BrowserWindow | null = null
 let debugWindow: BrowserWindow | null = null
+
+const DEBUG_PANEL_WIDTH = 880
+const DEBUG_PANEL_MIN_WIDTH = 700
 
 let currentStartupStatus = {
   step: 'starting',
@@ -119,30 +122,94 @@ function createSettingsWindow(): void {
   loadRendererRoute(settingsWindow, '/settings')
 }
 
+function getDebugParentWindow(): BrowserWindow | null {
+  if (mainWindow && !mainWindow.isDestroyed()) return mainWindow
+  if (settingsWindow && !settingsWindow.isDestroyed()) return settingsWindow
+  if (onboardingWindow && !onboardingWindow.isDestroyed()) return onboardingWindow
+  return null
+}
+
+function getDockedDebugBounds(): Electron.Rectangle | null {
+  const parentWindow = getDebugParentWindow()
+
+  if (!parentWindow) return null
+
+  const parentBounds = parentWindow.getBounds()
+  const display = screen.getDisplayMatching(parentBounds)
+  const workArea = display.workArea
+  const width = Math.min(
+    DEBUG_PANEL_WIDTH,
+    Math.max(DEBUG_PANEL_MIN_WIDTH, Math.floor(workArea.width * 0.48))
+  )
+  const height = Math.min(parentBounds.height, workArea.height)
+  const maxX = workArea.x + workArea.width - width
+  const preferredX = parentBounds.x + parentBounds.width
+  const x = Math.max(workArea.x, Math.min(preferredX, maxX))
+  const y = Math.max(workArea.y, Math.min(parentBounds.y, workArea.y + workArea.height - height))
+
+  return { x, y, width, height }
+}
+
+function syncDebugWindowBounds(): void {
+  if (!debugWindow || debugWindow.isDestroyed()) return
+
+  const bounds = getDockedDebugBounds()
+
+  if (bounds) {
+    debugWindow.setBounds(bounds, true)
+  }
+}
+
 function createDebugWindow(chatId?: string): void {
   const route = chatId ? `/debug-lab?chatId=${encodeURIComponent(chatId)}` : '/debug-lab'
 
   if (debugWindow && !debugWindow.isDestroyed()) {
     loadRendererRoute(debugWindow, route)
+    syncDebugWindowBounds()
+    debugWindow.show()
     debugWindow.focus()
     return
   }
 
+  const parentWindow = getDebugParentWindow()
+
   debugWindow = createBaseWindow({
-    width: 1280,
-    height: 860,
+    width: DEBUG_PANEL_WIDTH,
+    height: parentWindow?.getBounds().height ?? 860,
+    minWidth: DEBUG_PANEL_MIN_WIDTH,
+    maxWidth: 1080,
+    minHeight: 620,
+    parent: parentWindow ?? undefined,
+    skipTaskbar: true,
     title: 'Kai IA - Debug Lab',
-    resizable: true
+    resizable: true,
+    fullscreenable: false
+  })
+
+  const sync = () => syncDebugWindowBounds()
+
+  parentWindow?.on('move', sync)
+  parentWindow?.on('resize', sync)
+  parentWindow?.on('restore', sync)
+  parentWindow?.on('closed', () => {
+    if (debugWindow && !debugWindow.isDestroyed()) {
+      debugWindow.close()
+    }
   })
 
   debugWindow.on('ready-to-show', () => {
+    syncDebugWindowBounds()
     debugWindow?.show()
   })
 
   debugWindow.on('closed', () => {
+    parentWindow?.removeListener('move', sync)
+    parentWindow?.removeListener('resize', sync)
+    parentWindow?.removeListener('restore', sync)
     debugWindow = null
   })
 
+  syncDebugWindowBounds()
   loadRendererRoute(debugWindow, route)
 }
 

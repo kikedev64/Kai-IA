@@ -684,6 +684,13 @@ def assistant_chat_stream(req: ChatStreamRequest):
 
         return "He completado la operación correctamente."
 
+    terminal_tool_names = {
+        "send_email",
+        "reply_email",
+        "create_meet_invitation",
+        "freebusy_query",
+    }
+
     def event_generator():
         try:
             event = debug_event(
@@ -971,7 +978,7 @@ def assistant_chat_stream(req: ChatStreamRequest):
                         return
 
                     if (
-                        tc.function.name == "reply_email"
+                        tc.function.name in terminal_tool_names
                         and isinstance(result, dict)
                         and result.get("status") == "success"
                     ):
