@@ -195,7 +195,6 @@ function normalizeStage(event: DebugLabEvent): DebugStage {
  *   FlowBranch
  */
 function getStageBranch(stage: DebugStage): FlowBranch {
-
   return stage === 'tool_selected' || stage === 'tool_result' ? 'tool' : 'main'
 }
 
@@ -209,7 +208,6 @@ function getStageBranch(stage: DebugStage): FlowBranch {
  *   string
  */
 function formatMs(value?: number): string {
-
   if (typeof value !== 'number') return '-'
   if (value >= 1000) return `${(value / 1000).toFixed(2)} s`
   return `${Math.round(value)} ms`
@@ -225,7 +223,6 @@ function formatMs(value?: number): string {
  *   string
  */
 function formatNumber(value?: number): string {
-
   if (typeof value !== 'number') return '-'
   return new Intl.NumberFormat('es-ES').format(value)
 }
@@ -240,7 +237,6 @@ function formatNumber(value?: number): string {
  *   string
  */
 function toText(value: unknown): string {
-
   if (value === undefined || value === null) return '-'
   if (typeof value === 'string') return value
   return JSON.stringify(value, null, 2)
@@ -257,7 +253,6 @@ function toText(value: unknown): string {
  *   string
  */
 function compactJson(value: unknown, maxLength = 900): string {
-
   const text = toText(value)
   return text.length > maxLength ? `${text.slice(0, maxLength)}\n...` : text
 }
@@ -272,7 +267,6 @@ function compactJson(value: unknown, maxLength = 900): string {
  *   string
  */
 function escapeHtml(value: string): string {
-
   return value
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
@@ -291,7 +285,6 @@ function escapeHtml(value: string): string {
  *   string | undefined
  */
 function stringField(value: unknown): string | undefined {
-
   return typeof value === 'string' && value.trim() ? value : undefined
 }
 
@@ -305,7 +298,6 @@ function stringField(value: unknown): string | undefined {
  *   number | undefined
  */
 function numberField(value: unknown): number | undefined {
-
   return typeof value === 'number' && Number.isFinite(value) ? value : undefined
 }
 
@@ -350,7 +342,8 @@ function buildMetrics(events: DebugLabEvent[]) {
   const lmRequest = events.find((event) => event.stage === 'lmstudio_request')
   const firstToken = tokenEvents[0]
   const lastToken = tokenEvents[tokenEvents.length - 1]
-  const currentStage = events.length > 0 ? normalizeStage(events[events.length - 1]) : 'backend_receive'
+  const currentStage =
+    events.length > 0 ? normalizeStage(events[events.length - 1]) : 'backend_receive'
   const lmMs = events
     .filter((event) => event.stage === 'lmstudio_response')
     .map((event) => event.duration_ms)
@@ -389,7 +382,8 @@ function buildMetrics(events: DebugLabEvent[]) {
     promptChars: tokenizeEvent?.prompt_chars,
     messagesCount: numberField(contextEvent?.messages_count),
     historyMessages: numberField(contextEvent?.history_messages),
-    toolsEnabled: typeof contextEvent?.tools_enabled === 'boolean' ? contextEvent.tools_enabled : undefined,
+    toolsEnabled:
+      typeof contextEvent?.tools_enabled === 'boolean' ? contextEvent.tools_enabled : undefined,
     model: stringField(lmRequest?.model),
     temperature: numberField(lmRequest?.temperature),
     requestId: stringField(events.find((event) => event.request_id)?.request_id),
@@ -805,14 +799,15 @@ export default function DebugLabPage() {
     }
   }, [targetChatId])
 
-  const running = events.length > 0 && !events.some((event) => event.type === 'done' || event.type === 'error')
+  const running =
+    events.length > 0 && !events.some((event) => event.type === 'done' || event.type === 'error')
   const metrics = useMemo(() => buildMetrics(events), [events])
   const flowNodes = useMemo(() => buildFlowNodes(events), [events])
   const tools = useMemo(() => buildTools(events), [events])
   const activeStage = metrics.currentStage
   const selectedNode = selectedNodeId
-    ? flowNodes.find((node) => node.id === selectedNodeId) ?? null
-    : flowNodes.at(-1) ?? null
+    ? (flowNodes.find((node) => node.id === selectedNodeId) ?? null)
+    : (flowNodes.at(-1) ?? null)
   const selectedNodeEvents = selectedNode
     ? events.slice(selectedNode.firstIndex, selectedNode.latestIndex + 1)
     : []
@@ -825,7 +820,12 @@ export default function DebugLabPage() {
     : running
       ? { label: 'Trazando', icon: Activity, color: 'text-cyan-100', bg: 'bg-cyan-400/10' }
       : events.length > 0
-        ? { label: 'Completado', icon: CheckCircle2, color: 'text-emerald-100', bg: 'bg-emerald-400/10' }
+        ? {
+            label: 'Completado',
+            icon: CheckCircle2,
+            color: 'text-emerald-100',
+            bg: 'bg-emerald-400/10'
+          }
         : { label: 'Escuchando', icon: Activity, color: 'text-slate-300', bg: 'bg-white/[0.06]' }
 
   /**
@@ -954,9 +954,9 @@ export default function DebugLabPage() {
         </div>
       </header>
 
-      <main className="relative z-10 grid h-[calc(100vh-56px)] min-h-0 gap-3 overflow-y-auto p-3 xl:grid-cols-[minmax(0,1fr)_420px] xl:overflow-hidden">
-        <SectionGroup className="min-h-[620px] xl:min-h-0" title="Diagrama de flujo dinámico">
-          <div className="h-[640px] min-h-[520px] overflow-hidden rounded-2xl border border-white/10 bg-black/20 xl:h-full">
+      <main className="relative z-10 grid h-[calc(100vh-56px)] min-h-0 gap-3 overflow-hidden p-3 grid-cols-[minmax(0,1fr)_390px]">
+        <SectionGroup className="min-h-0 h-full" title="Diagrama de flujo">
+          <div className="h-full min-h-0 overflow-hidden rounded-2xl border border-white/10 bg-black/20">
             {flowNodes.length === 0 ? (
               <EmptyState />
             ) : (
@@ -973,36 +973,14 @@ export default function DebugLabPage() {
           </div>
         </SectionGroup>
 
-        <div className="grid min-h-0 gap-3 xl:grid-rows-[auto_minmax(0,1fr)]">
-          <SectionGroup title="Información importante">
-            <div className="space-y-3">
-              <div className="grid min-w-0 gap-2 sm:grid-cols-2 xl:grid-cols-1">
-                <StatusPill config={statusConfig} />
-                <InfoLine label="Chat" value={targetChatId || 'Todos los chats'} />
-                <InfoLine label="Fase actual" value={STAGE_CONFIG[activeStage].label} highlightColor={STAGE_CONFIG[activeStage].color} />
-                <InfoLine label="Modelo" value={metrics.model || '-'} />
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <MetricTile icon={Braces} label="Tokens entrada" value={formatNumber(metrics.inputTokens)} />
-                <MetricTile icon={Timer} label="Tiempo entrada" value={formatMs(metrics.inputMs)} />
-                <MetricTile icon={Zap} label="Tokens salida" value={formatNumber(metrics.outputTokens)} />
-                <MetricTile icon={Clock3} label="Tiempo salida" value={formatMs(metrics.outputMs)} />
-                <MetricTile icon={Cpu} label="Hasta LM" value={formatMs(metrics.timeToLmMs)} />
-                <MetricTile icon={Gauge} label="LM Studio" value={formatMs(metrics.lmMs)} />
-                <MetricTile icon={Wrench} label="Tools" value={formatMs(metrics.toolMs)} />
-                <MetricTile icon={BarChart3} label="Total" value={formatMs(metrics.totalMs)} />
-              </div>
-            </div>
-          </SectionGroup>
-
-          <SectionGroup className="min-h-[460px]" title="Nodo actual">
+        <aside className="min-h-0 h-full">
+          <SectionGroup className="min-h-0 h-full overflow-hidden" title="Nodo actual">
             <div className="h-full min-h-0 overflow-y-auto pr-1">
               {selectedNode ? (
                 <NodeDetails
                   node={selectedNode}
                   events={selectedNodeEvents}
                   tools={tools}
-                  output={output}
                   isPinned={selectedNodeId !== null}
                 />
               ) : (
@@ -1010,7 +988,7 @@ export default function DebugLabPage() {
               )}
             </div>
           </SectionGroup>
-        </div>
+        </aside>
       </main>
     </div>
   )
@@ -1120,7 +1098,10 @@ function DebugRoundNode({ data }: NodeProps<DebugGraphNode>) {
         }}
       >
         <div className="px-3">
-          <div className="text-[22px] font-black leading-none" style={{ color: isSelected ? '#020617' : data.color }}>
+          <div
+            className="text-[22px] font-black leading-none"
+            style={{ color: isSelected ? '#020617' : data.color }}
+          >
             {data.short}
           </div>
           <div className="mt-2 text-[12px] font-semibold leading-4">{data.label}</div>
@@ -1133,7 +1114,11 @@ function DebugRoundNode({ data }: NodeProps<DebugGraphNode>) {
         className="mt-2 max-w-[160px] rounded-full border border-white/10 bg-black/35 px-2 py-1 text-center text-[10px] text-slate-300"
         style={{ color: isActive ? data.color : undefined }}
       >
-        {data.count > 1 ? `${data.count} eventos` : data.branch === 'tool' ? 'rama tool' : 'flujo principal'}
+        {data.count > 1
+          ? `${data.count} eventos`
+          : data.branch === 'tool'
+            ? 'rama tool'
+            : 'flujo principal'}
       </div>
       <Handle
         type="source"
@@ -1145,6 +1130,18 @@ function DebugRoundNode({ data }: NodeProps<DebugGraphNode>) {
   )
 }
 
+function getNodeMessage(node: FlowNode, latest?: DebugLabEvent): string | null {
+  if (node.stage === 'token') return null
+
+  const message = latest?.message || latest?.content
+
+  if (!message || !message.trim() || message.trim() === '-') {
+    return null
+  }
+
+  return message
+}
+
 /**
  * Render details for the active or selected pipeline node.
  *
@@ -1152,7 +1149,6 @@ function DebugRoundNode({ data }: NodeProps<DebugGraphNode>) {
  *   node: Flow node being inspected.
  *   events: Debug events used to populate the details.
  *   tools: Tool traces available for tool nodes.
- *   output: Assistant output shown for response nodes.
  *   isPinned: Whether the user selected this node manually.
  *
  * Returns:
@@ -1162,42 +1158,47 @@ function NodeDetails({
   node,
   events,
   tools,
-  output,
   isPinned
 }: {
   node: FlowNode
   events: DebugLabEvent[]
   tools: ToolTrace[]
-  output: string
   isPinned: boolean
 }) {
   const latest = events[events.length - 1]
   const config = STAGE_CONFIG[node.stage]
+  const nodeMessage = getNodeMessage(node, latest)
   const matchingToolName = stringField(latest?.tool_name)
-  const matchingTools = matchingToolName ? tools.filter((tool) => tool.name === matchingToolName) : tools
+  const matchingTools = matchingToolName
+    ? tools.filter((tool) => tool.name === matchingToolName)
+    : tools
 
   if (node.stage === 'tool_selected' || node.stage === 'tool_result') {
     return (
       <div className="space-y-3">
         <NodeHeader node={node} isPinned={isPinned} />
         <p className="text-sm leading-6 text-slate-300">{config.description}</p>
+
         {matchingTools.length === 0 ? (
           <p className="text-sm text-slate-500">No hay tools registradas todavía.</p>
         ) : (
           matchingTools.map((tool, index) => (
-            <div key={`${tool.name}-${index}`} className="rounded-2xl border border-fuchsia-300/15 bg-fuchsia-400/[0.06] p-3">
+            <div
+              key={`${tool.name}-${index}`}
+              className="rounded-2xl border border-fuchsia-300/15 bg-fuchsia-400/[0.06] p-3"
+            >
               <div className="flex items-center justify-between gap-2">
                 <span className="truncate text-sm font-semibold text-fuchsia-100">{tool.name}</span>
                 <span className="shrink-0 text-xs text-slate-400">{formatMs(tool.durationMs)}</span>
               </div>
-              <div className="mt-3 grid gap-3 text-[11px] leading-4 text-slate-300">
-                <DataBlock label="Entrada de la tool" value={tool.arguments} />
-                <DataBlock label="Salida de la tool" value={tool.result} />
+
+              <div className="mt-3 grid gap-2">
+                <InfoLine label="Estado" value={tool.status || '-'} />
+                <InfoLine label="Duración" value={formatMs(tool.durationMs)} />
               </div>
             </div>
           ))
         )}
-        {output && <DataBlock label="Salida acumulada del chat" value={output} maxLength={2200} />}
       </div>
     )
   }
@@ -1205,14 +1206,22 @@ function NodeDetails({
   return (
     <div className="space-y-3">
       <NodeHeader node={node} isPinned={isPinned} />
+
       <p className="text-sm leading-6 text-slate-300">{config.description}</p>
+
       <div className="grid grid-cols-3 gap-2">
         <SmallStat label="Eventos" value={String(events.length)} />
         <SmallStat label="Duración" value={formatMs(node.durationMs)} />
         <SmallStat label="Acumulado" value={formatMs(node.elapsedMs)} />
       </div>
-      {output && <DataBlock label="Salida acumulada del chat" value={output} maxLength={2400} />}
-      <DataBlock label="Evento técnico" value={latest} maxLength={2600} />
+
+      <div className="space-y-2 rounded-2xl border border-white/10 bg-black/20 p-3">
+        <InfoLine label="Fase" value={config.label} highlightColor={config.color} />
+        <InfoLine label="Rama" value={node.branch === 'tool' ? 'Tool' : 'Principal'} />
+        <InfoLine label="Tipo de evento" value={latest?.type || '-'} />
+
+        {nodeMessage && <InfoLine label="Mensaje" value={nodeMessage} multiline />}
+      </div>
     </div>
   )
 }
@@ -1235,7 +1244,11 @@ function NodeHeader({ node, isPinned }: { node: FlowNode; isPinned: boolean }) {
       <div className="flex min-w-0 items-center gap-3">
         <div
           className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border text-[11px] font-bold"
-          style={{ borderColor: `${config.color}88`, backgroundColor: config.softColor, color: config.color }}
+          style={{
+            borderColor: `${config.color}88`,
+            backgroundColor: config.softColor,
+            color: config.color
+          }}
         >
           {config.short}
         </div>
@@ -1272,7 +1285,9 @@ function SectionGroup({
   className?: string
 }) {
   return (
-    <section className={`flex min-h-0 flex-col overflow-hidden rounded-2xl border border-white/10 bg-white/[0.055] shadow-[0_12px_30px_rgba(0,0,0,0.2)] backdrop-blur-2xl ${className}`}>
+    <section
+      className={`flex min-h-0 flex-col overflow-hidden rounded-2xl border border-white/10 bg-white/[0.055] shadow-[0_12px_30px_rgba(0,0,0,0.2)] backdrop-blur-2xl ${className}`}
+    >
       <div className="shrink-0 border-b border-white/10 px-4 py-3">
         <div className="pointer-events-none -mx-4 -mt-3 mb-3 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
         <h2 className="text-sm font-semibold text-white">{title}</h2>
@@ -1282,61 +1297,26 @@ function SectionGroup({
   )
 }
 
-/**
- * Render one benchmark metric tile.
- *
- * Args:
- *   Icon: Icon shown next to the metric label.
- *   label: Metric name.
- *   value: Metric value.
- *
- * Returns:
- *   React.JSX.Element
- */
-function MetricTile({
-  icon: Icon,
-  label,
-  value
-}: {
-  icon: LucideIcon
-  label: string
-  value: string
-}) {
-  return (
-    <div className="min-w-0 rounded-2xl border border-white/10 bg-black/20 p-3">
-      <div className="flex min-w-0 items-center gap-2 text-slate-400">
-        <Icon size={14} className="shrink-0" />
-        <span className="truncate text-[11px]">{label}</span>
-      </div>
-      <div className="mt-2 truncate text-base font-semibold text-white">{value}</div>
-    </div>
-  )
-}
-
-/**
- * Render one key-value row in the information panel.
- *
- * Args:
- *   label: Field label.
- *   value: Field value.
- *   highlightColor: Optional accent color for the value.
- *
- * Returns:
- *   React.JSX.Element
- */
 function InfoLine({
   label,
   value,
-  highlightColor
+  highlightColor,
+  multiline = false
 }: {
   label: string
   value: string
   highlightColor?: string
+  multiline?: boolean
 }) {
   return (
     <div className="min-w-0 rounded-2xl border border-white/10 bg-black/20 px-3 py-2">
       <div className="text-[10px] uppercase tracking-[0.08em] text-slate-500">{label}</div>
-      <div className="mt-1 truncate text-sm font-medium text-slate-100" style={{ color: highlightColor }}>
+      <div
+        className={`mt-1 text-sm font-medium text-slate-100 ${
+          multiline ? 'whitespace-pre-wrap break-words leading-5' : 'truncate'
+        }`}
+        style={{ color: highlightColor }}
+      >
         {value}
       </div>
     </div>
@@ -1362,11 +1342,12 @@ function StatusPill({
     bg: string
   }
 }) {
-
   const Icon = config.icon
 
   return (
-    <div className={`flex items-center gap-2 rounded-2xl border border-white/10 px-3 py-2 ${config.bg} ${config.color}`}>
+    <div
+      className={`flex items-center gap-2 rounded-2xl border border-white/10 px-3 py-2 ${config.bg} ${config.color}`}
+    >
       <Icon size={15} />
       <span className="text-sm font-semibold">{config.label}</span>
     </div>
@@ -1396,7 +1377,6 @@ function IconButton({
   onClick: () => void
   children: ReactNode
 }) {
-
   return (
     <button
       type="button"
@@ -1431,7 +1411,6 @@ function DataBlock({
   value: unknown
   maxLength?: number
 }) {
-
   return (
     <div className="overflow-hidden rounded-2xl border border-white/10 bg-black/25">
       <div className="border-b border-white/10 px-3 py-2 text-[10px] uppercase tracking-[0.08em] text-slate-500">
@@ -1464,7 +1443,6 @@ function StructuredValue({
   depth?: number
   maxLength?: number
 }) {
-
   const parsedValue = parseMaybeJson(value)
 
   if (parsedValue === null || parsedValue === undefined) {
@@ -1472,7 +1450,8 @@ function StructuredValue({
   }
 
   if (typeof parsedValue === 'string') {
-    const trimmed = parsedValue.length > maxLength ? `${parsedValue.slice(0, maxLength)}...` : parsedValue
+    const trimmed =
+      parsedValue.length > maxLength ? `${parsedValue.slice(0, maxLength)}...` : parsedValue
     return (
       <pre className="whitespace-pre-wrap break-words text-xs leading-5 text-slate-200">
         {trimmed}
@@ -1500,7 +1479,9 @@ function StructuredValue({
           </div>
         ))}
         {parsedValue.length > items.length && (
-          <div className="text-xs text-slate-500">+{parsedValue.length - items.length} elementos más</div>
+          <div className="text-xs text-slate-500">
+            +{parsedValue.length - items.length} elementos más
+          </div>
         )}
       </div>
     )
@@ -1513,15 +1494,24 @@ function StructuredValue({
     return (
       <div className="space-y-2">
         {visibleEntries.map(([key, item]) => (
-          <div key={key} className="grid gap-2 rounded-xl border border-white/10 bg-white/[0.035] p-2 sm:grid-cols-[120px_minmax(0,1fr)]">
+          <div
+            key={key}
+            className="grid gap-2 rounded-xl border border-white/10 bg-white/[0.035] p-2 sm:grid-cols-[120px_minmax(0,1fr)]"
+          >
             <div className="break-words text-[11px] font-semibold text-cyan-200">{key}</div>
             <div className="min-w-0">
-              <StructuredValue value={item} depth={depth + 1} maxLength={Math.max(260, maxLength - depth * 180)} />
+              <StructuredValue
+                value={item}
+                depth={depth + 1}
+                maxLength={Math.max(260, maxLength - depth * 180)}
+              />
             </div>
           </div>
         ))}
         {entries.length > visibleEntries.length && (
-          <div className="text-xs text-slate-500">+{entries.length - visibleEntries.length} campos más</div>
+          <div className="text-xs text-slate-500">
+            +{entries.length - visibleEntries.length} campos más
+          </div>
         )}
       </div>
     )
@@ -1541,7 +1531,6 @@ function StructuredValue({
  *   React.JSX.Element
  */
 function SmallStat({ label, value }: { label: string; value: string }) {
-
   return (
     <div className="min-w-0 rounded-xl bg-black/25 p-2">
       <div className="truncate text-[10px] uppercase text-slate-500">{label}</div>
@@ -1560,7 +1549,6 @@ function SmallStat({ label, value }: { label: string; value: string }) {
  *   React.JSX.Element
  */
 function EmptyState() {
-
   return (
     <div className="flex h-full min-h-[480px] flex-col items-center justify-center rounded-2xl border border-dashed border-white/10 bg-black/15 px-5 text-center">
       <div className="flex h-14 w-14 items-center justify-center rounded-full border border-cyan-300/20 bg-cyan-400/10 text-cyan-100">

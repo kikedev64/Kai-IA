@@ -1,4 +1,5 @@
 import json
+import logging
 from api.routers.tasks import find_reminders_by_conditions
 from api.schemas.chat import AskRequest
 from core.google_auth_utils import is_google_token_expired_error
@@ -48,6 +49,9 @@ from tools.compact_handlers import (
 )
 from tools.gmail.email_response_builders import markdown_to_html
 from tools.tasks.tasks_tools import _compact_task, _resolve_tasklist
+
+
+logger = logging.getLogger("uvicorn")
 
 
 def build_google_reauth_message() -> str:
@@ -697,10 +701,10 @@ def handle_tool_call(tool_call: object) -> dict:
 
         return {"status": "warning", "message": f"Tool no encontrada: {name}"}
     except Exception as e:
-        print(f"[TOOLS] Exception in tool '{name}': {repr(e)}")
+        logger.exception("[TOOLS] Exception in tool '%s'", name)
 
         if is_google_token_expired_error(e):
-            print(f"[TOOLS] Token expirado detectado en tool '{name}'")
+            logger.warning("[TOOLS] Token expirado detectado en tool '%s'", name)
             return {"status": "auth_expired", "message": build_google_reauth_message()}
 
         return {"status": "error", "message": str(e)}

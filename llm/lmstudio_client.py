@@ -1,3 +1,7 @@
+import logging
+import os
+from typing import Iterator
+
 import openai
 from api.schemas.chat import AskRequest
 from core.config import (
@@ -7,8 +11,9 @@ from core.config import (
 )
 from fastapi import HTTPException
 from tools.tools_definition import TOOLS
-import os
-from typing import Iterator
+
+
+logger = logging.getLogger("uvicorn")
 
 client = openai.OpenAI(
     base_url=os.getenv("BASE_URL_OPEN_AI"), api_key=os.getenv("API_KEY_OPEN_AI")
@@ -111,8 +116,8 @@ def ask_without_context(req: AskRequest) -> dict[str, str]:
 
     except HTTPException:
         raise
-    except Exception as e:
-        print(f"[ERROR]: {str(e)}")
+    except Exception:
+        logger.exception("[LM Studio] Error asking without context")
         raise
 
 
