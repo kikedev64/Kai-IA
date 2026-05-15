@@ -1,13 +1,25 @@
 from __future__ import annotations
 from fastapi import APIRouter, HTTPException, Query, UploadFile, File, Form
 from googleapiclient.errors import HttpError
-from api.schemas.gmail import GmailSendRequest, GmailSendResponse, GmailReadEmailsResponse,GmailThreadResponse
+from api.schemas.gmail import (
+    GmailSendRequest,
+    GmailSendResponse,
+    GmailReadEmailsResponse,
+    GmailThreadResponse,
+)
 from core.models.email import Email
-from services.gmail.send import send_email,send_email_with_attachments
-from services.gmail.full_read import read_email_by_id, read_last_emails_by_subject,read_last_emails_full, read_last_emails_from_sender, read_thread_from_message_id
+from services.gmail.send import send_email, send_email_with_attachments
+from services.gmail.full_read import (
+    read_email_by_id,
+    read_last_emails_by_subject,
+    read_last_emails_full,
+    read_last_emails_from_sender,
+    read_thread_from_message_id,
+)
 from core.config import get_email_max_total_size_attachment
 
 router = APIRouter(prefix="/email-request", tags=["Email Requests"])
+
 
 @router.post("/send", response_model=GmailSendResponse)
 def api_send_email(req: GmailSendRequest) -> dict:
@@ -32,22 +44,19 @@ def api_send_email(req: GmailSendRequest) -> dict:
     except HttpError as e:
         raise HTTPException(status_code=e.resp.status, detail=str(e))
 
+
 @router.post("/send-with-attachment")
 async def send_email_with_attachment(
     to: str = Form(...),
     subject: str = Form(...),
     body: str = Form(...),
-
     cc: list[str] = Form(default=[]),
     bcc: list[str] = Form(default=[]),
-
     reply_to: str | None = Form(default=None),
     thread_id: str | None = Form(default=None),
     in_reply_to: str | None = Form(default=None),
     references: str | None = Form(default=None),
-
     as_html: bool = Form(False),
-
     files: list[UploadFile] = File(default=[]),
 ) -> dict:
     """Send the email with attachment.
@@ -77,8 +86,7 @@ async def send_email_with_attachment(
 
             if total_size > get_email_max_total_size_attachment():
                 raise HTTPException(
-                    status_code=400,
-                    detail="Total attachment size exceeds 25MB"
+                    status_code=400, detail="Total attachment size exceeds 25MB"
                 )
 
             attachments.append((file.filename, content))
@@ -100,9 +108,7 @@ async def send_email_with_attachment(
         )
 
         result = send_email_with_attachments(
-            email=email,
-            attachments=attachments,
-            as_html=as_html
+            email=email, attachments=attachments, as_html=as_html
         )
 
         return {
@@ -113,6 +119,7 @@ async def send_email_with_attachment(
 
     except HttpError as e:
         raise HTTPException(status_code=e.resp.status, detail=str(e))
+
 
 def _email_to_api(e: Email) -> dict:
     """Map an email model into the public API response shape.
@@ -139,6 +146,7 @@ def _email_to_api(e: Email) -> dict:
         "references": getattr(e, "references", None),
         "in_reply_to": getattr(e, "in_reply_to", None),
     }
+
 
 @router.get("/read/last", response_model=GmailReadEmailsResponse)
 def api_read_last_emails(
@@ -195,7 +203,9 @@ def api_read_last_emails_by_subject(
         dict
     """
     try:
-        emails = read_last_emails_by_subject(subject_text=subject, max_results=max_results)
+        emails = read_last_emails_by_subject(
+            subject_text=subject, max_results=max_results
+        )
         return {"items": [_email_to_api(e) for e in emails]}
     except HttpError as e:
         raise HTTPException(status_code=e.resp.status, detail=str(e))
@@ -224,10 +234,13 @@ def api_read_thread_from_message_id(message_id: str) -> dict:
     except HttpError as e:
         raise HTTPException(status_code=e.resp.status, detail=str(e))
 
+
 @router.get("/email")
 def get_email_by_id(
     message_id: str = Query(..., min_length=1, description="ID del mensaje de Gmail"),
-    clean_body: bool = Query(True, description="Si true, limpia el body HTML/CSS y ruido"),
+    clean_body: bool = Query(
+        True, description="Si true, limpia el body HTML/CSS y ruido"
+    ),
 ) -> dict:
     """Return the email by id.
 

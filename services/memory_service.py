@@ -1,6 +1,7 @@
 from typing import List
 from core.database import get_connection
 
+
 def get_user_profile() -> dict:
     """Return the user profile.
 
@@ -33,16 +34,20 @@ def update_user_name(name: str) -> None:
     conn = get_connection()
     cur = conn.cursor()
 
-    cur.execute("""
+    cur.execute(
+        """
         INSERT INTO user_profile (id, name)
         VALUES (1, ?)
         ON CONFLICT(id) DO UPDATE SET
             name = excluded.name,
             updated_at = CURRENT_TIMESTAMP
-    """, (name,))
+    """,
+        (name,),
+    )
 
     conn.commit()
     conn.close()
+
 
 def add_memory(content: str) -> None:
     """Add a memory entry.
@@ -56,10 +61,7 @@ def add_memory(content: str) -> None:
     conn = get_connection()
     cur = conn.cursor()
 
-    cur.execute(
-        "INSERT INTO memories (content) VALUES (?)",
-        (content,)
-    )
+    cur.execute("INSERT INTO memories (content) VALUES (?)", (content,))
 
     conn.commit()
     conn.close()

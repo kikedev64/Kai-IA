@@ -9,11 +9,10 @@ from core.auth import (
 
 router = APIRouter(prefix="/auth/google", tags=["Auth"])
 
+
 @router.get("/callback", response_class=HTMLResponse)
 def google_oauth_callback(
-    code: str | None = None,
-    state: str | None = None,
-    error: str | None = None
+    code: str | None = None, state: str | None = None, error: str | None = None
 ):
     """Execute the google oauth callback behavior.
 
@@ -76,6 +75,7 @@ def google_oauth_callback(
         </html>
         """)
 
+
 @router.get("/url")
 def google_oauth_url():
     """Execute the google oauth url behavior.
@@ -91,9 +91,9 @@ def google_oauth_url():
         return {"auth_url": auth_url}
     except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail={"error": str(e)}
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail={"error": str(e)}
         )
+
 
 @router.get("/test")
 def google_oauth_test():

@@ -17,7 +17,9 @@ def _b64url_decode(data: str) -> str:
     Returns:
         str
     """
-    return base64.urlsafe_b64decode(data.encode("utf-8")).decode("utf-8", errors="replace")
+    return base64.urlsafe_b64decode(data.encode("utf-8")).decode(
+        "utf-8", errors="replace"
+    )
 
 
 def _headers_to_dict(payload: Dict[str, Any]) -> Dict[str, str]:
@@ -67,7 +69,7 @@ def _extract_bodies(payload: Dict[str, Any]) -> Dict[str, Optional[str]]:
             text_html = _b64url_decode(data)
             return
 
-        for p in (part.get("parts") or []):
+        for p in part.get("parts") or []:
             walk(p)
 
     walk(payload)
@@ -120,7 +122,10 @@ def _get_service() -> object:
     if "auth_url" in creds:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail={"message": "Google authentication required", "auth_url": creds["auth_url"]},
+            detail={
+                "message": "Google authentication required",
+                "auth_url": creds["auth_url"],
+            },
         )
 
     raise HTTPException(

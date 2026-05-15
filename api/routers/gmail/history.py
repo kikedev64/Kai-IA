@@ -1,8 +1,13 @@
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
-from services.gmail.history_reader import check_history_changes, get_history_ids, get_latest_history_id, read_history_since
+from services.gmail.history_reader import (
+    check_history_changes,
+    get_history_ids,
+    get_latest_history_id,
+    read_history_since,
+)
 
-router = APIRouter(prefix="/history",tags=["History"])
+router = APIRouter(prefix="/history", tags=["History"])
 
 
 class GmailHistoryCheckRequest(BaseModel):
@@ -89,10 +94,9 @@ def read_history(req: GmailHistoryReadRequest) -> dict:
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @router.get("/")
-def list_history_ids(
-    only_latest: bool = Query(default=False)
-) -> dict:
+def list_history_ids(only_latest: bool = Query(default=False)) -> dict:
     """Return the history ids list.
 
     Args:

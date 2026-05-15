@@ -2,6 +2,7 @@ import re
 import html
 from html.parser import HTMLParser
 
+
 class _HTMLTextExtractor(HTMLParser):
     """HTML parser that extracts readable text from email bodies.
 
@@ -102,7 +103,7 @@ def clean_email_body(raw_body: str) -> str:
         "\u2060",  # word joiner
         "\ufeff",  # zero width no-break space
         "\u00ad",  # soft hyphen,
-        "\xa0"
+        "\xa0",
     ]
 
     for ch in invisible_chars:

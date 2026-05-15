@@ -1,6 +1,7 @@
 from typing import List, Optional
 from core.models.email import Email
 
+
 class EmailThread:
     """Domain model representing a Gmail conversation thread.
 
@@ -54,5 +55,7 @@ class EmailThread:
         """
         blocks = [f"EMAIL THREAD {self.thread_id} (emails={len(self.emails)})"]
         for i, m in enumerate(self.emails, start=1):
-            blocks.append(f"\n--- MESSAGE {i}/{len(self.emails)} ---\n{m.to_llm_prompt(max_chars=max_chars_per_email)}")
+            blocks.append(
+                f"\n--- MESSAGE {i}/{len(self.emails)} ---\n{m.to_llm_prompt(max_chars=max_chars_per_email)}"
+            )
         return "\n".join(blocks)

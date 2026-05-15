@@ -15,13 +15,40 @@ from services.calendar.calendar_service import (
     freebusy_query,
 )
 from core.auth import get_google_auth_url
-from services.drive.files import get_public_download_link, list_drive_files, search_drive_files_by_name
-from services.gmail.full_read import read_email_by_id, read_last_emails_by_subject, read_last_emails_from_sender, read_last_emails_full, read_thread_from_message_id
+from services.drive.files import (
+    get_public_download_link,
+    list_drive_files,
+    search_drive_files_by_name,
+)
+from services.gmail.full_read import (
+    read_email_by_id,
+    read_last_emails_by_subject,
+    read_last_emails_from_sender,
+    read_last_emails_full,
+    read_thread_from_message_id,
+)
 from services.gmail.send import send_email
-from services.task.tasks_service import create_reminder, delete_reminder, ensure_tasklist, get_reminder, list_reminders, update_reminder
-from tools.compact_handlers import _email_to_dict, _thread_to_dict, compact_calendar_event, compact_calendar_events, compact_delete_calendar_event_result, compact_delete_calendar_events_by_conditions_result, compact_find_calendar_events_result, compact_freebusy_result
+from services.task.tasks_service import (
+    create_reminder,
+    delete_reminder,
+    ensure_tasklist,
+    get_reminder,
+    list_reminders,
+    update_reminder,
+)
+from tools.compact_handlers import (
+    _email_to_dict,
+    _thread_to_dict,
+    compact_calendar_event,
+    compact_calendar_events,
+    compact_delete_calendar_event_result,
+    compact_delete_calendar_events_by_conditions_result,
+    compact_find_calendar_events_result,
+    compact_freebusy_result,
+)
 from tools.gmail.email_response_builders import markdown_to_html
 from tools.tasks.tasks_tools import _compact_task, _resolve_tasklist
+
 
 def build_google_reauth_message() -> str:
     """Build the Google reauthentication message.
@@ -39,6 +66,7 @@ def build_google_reauth_message() -> str:
         f"Abre esta URL para volver a vincular tu cuenta:\n{auth_url}\n\n"
         "Cuando lo hayas hecho, vuelve a pedírmelo."
     )
+
 
 def handle_tool_call(tool_call: object) -> dict:
     """Handle the tool call.
@@ -111,7 +139,10 @@ def handle_tool_call(tool_call: object) -> dict:
                 event_id=args.get("event_id"),
                 calendar_id=args.get("calendar_id", "primary"),
             )
-            return {"status": "success", "data": compact_delete_calendar_event_result(result)}
+            return {
+                "status": "success",
+                "data": compact_delete_calendar_event_result(result),
+            }
 
         if name == "freebusy_query":
             result = freebusy_query(
@@ -130,7 +161,10 @@ def handle_tool_call(tool_call: object) -> dict:
                 time_max=args.get("time_max"),
                 max_results=args.get("max_results", 20),
             )
-            return {"status": "success", "data": compact_delete_calendar_events_by_conditions_result(result)}
+            return {
+                "status": "success",
+                "data": compact_delete_calendar_events_by_conditions_result(result),
+            }
 
         if name == "find_calendar_events":
             result = find_calendar_events(
@@ -143,7 +177,10 @@ def handle_tool_call(tool_call: object) -> dict:
                 time_max=args.get("time_max"),
                 max_results=args.get("max_results", 250),
             )
-            return {"status": "success", "data": compact_find_calendar_events_result(result)}
+            return {
+                "status": "success",
+                "data": compact_find_calendar_events_result(result),
+            }
 
         if name == "delete_calendar_events_by_conditions":
             result = delete_calendar_events_by_conditions(
@@ -176,7 +213,11 @@ def handle_tool_call(tool_call: object) -> dict:
                 send_updates=args.get("send_updates", "all"),
             )
 
-            raw_event = result.get("event") if isinstance(result, dict) and "event" in result else result
+            raw_event = (
+                result.get("event")
+                if isinstance(result, dict) and "event" in result
+                else result
+            )
             meet_link = result.get("meet_link") if isinstance(result, dict) else None
 
             if not meet_link:
@@ -214,7 +255,7 @@ def handle_tool_call(tool_call: object) -> dict:
             emails = read_last_emails_from_sender(
                 sender=args.get("sender"),
                 max_results=args.get("max_results", 5),
-                clean_body=True
+                clean_body=True,
             )
             return {
                 "status": "success",
@@ -229,7 +270,7 @@ def handle_tool_call(tool_call: object) -> dict:
             emails = read_last_emails_by_subject(
                 subject_text=args.get("subject_text"),
                 max_results=args.get("max_results", 5),
-                clean_body=True
+                clean_body=True,
             )
             return {
                 "status": "success",
@@ -242,8 +283,7 @@ def handle_tool_call(tool_call: object) -> dict:
 
         if name == "read_thread_from_message_id":
             thread = read_thread_from_message_id(
-                message_id=args.get("message_id"),
-                clean_body=True
+                message_id=args.get("message_id"), clean_body=True
             )
 
             if thread is None:
@@ -267,16 +307,13 @@ def handle_tool_call(tool_call: object) -> dict:
             email = read_email_by_id(args.get("id"), clean_body=True)
 
             if not email:
-                return {
-                    "status": "error",
-                    "message": "Email no encontrado"
-                }
+                return {"status": "error", "message": "Email no encontrado"}
 
             body = (email.body or "").strip()
             if not body:
                 return {
                     "status": "error",
-                    "message": "El email existe pero el body está vacío"
+                    "message": "El email existe pero el body está vacío",
                 }
 
             prompt = f"""
@@ -287,19 +324,18 @@ def handle_tool_call(tool_call: object) -> dict:
             {body}
             """
 
-            data_mail = AskRequest(
-                prompt=prompt,
-                system_prompt="resume_mail"
-            )
+            data_mail = AskRequest(prompt=prompt, system_prompt="resume_mail")
 
             summary = ask_without_context(data_mail)
 
             return {
                 "status": "success",
                 "data": {
-                    "email": email.model_dump() if hasattr(email, "model_dump") else email.__dict__,
-                    "summary": summary if summary is not None else ""
-                }
+                    "email": email.model_dump()
+                    if hasattr(email, "model_dump")
+                    else email.__dict__,
+                    "summary": summary if summary is not None else "",
+                },
             }
 
         if name == "send_email":
@@ -311,24 +347,20 @@ def handle_tool_call(tool_call: object) -> dict:
             as_html = bool(args.get("as_html", True))
 
             if not to_value:
-                return {
-                    "status": "error",
-                    "message": "Falta el destinatario 'to'"
-                }
+                return {"status": "error", "message": "Falta el destinatario 'to'"}
 
             if not subject:
-                return {
-                    "status": "error",
-                    "message": "Falta el asunto 'subject'"
-                }
+                return {"status": "error", "message": "Falta el asunto 'subject'"}
 
             if not str(body).strip():
                 return {
                     "status": "error",
-                    "message": "Falta el cuerpo del correo 'body'"
+                    "message": "Falta el cuerpo del correo 'body'",
                 }
 
-            to_field = ", ".join(to_value) if isinstance(to_value, list) else str(to_value)
+            to_field = (
+                ", ".join(to_value) if isinstance(to_value, list) else str(to_value)
+            )
             cc_field = cc_value if isinstance(cc_value, list) else [cc_value]
             bcc_field = bcc_value if isinstance(bcc_value, list) else [bcc_value]
 
@@ -373,15 +405,12 @@ def handle_tool_call(tool_call: object) -> dict:
             as_html = bool(args.get("as_html", False))
 
             if not message_id:
-                return {
-                    "status": "error",
-                    "message": "Falta 'message_id'"
-                }
+                return {"status": "error", "message": "Falta 'message_id'"}
 
             if not str(body).strip():
                 return {
                     "status": "error",
-                    "message": "Falta el cuerpo de la respuesta 'body'"
+                    "message": "Falta el cuerpo de la respuesta 'body'",
                 }
 
             original_email = read_email_by_id(message_id, clean_body=True)
@@ -389,17 +418,25 @@ def handle_tool_call(tool_call: object) -> dict:
             if not original_email:
                 return {
                     "status": "error",
-                    "message": "No se ha encontrado el correo original para responder"
+                    "message": "No se ha encontrado el correo original para responder",
                 }
 
             original_subject = original_email.subject or ""
-            reply_subject = original_subject if original_subject.lower().startswith("re:") else f"Re: {original_subject}"
+            reply_subject = (
+                original_subject
+                if original_subject.lower().startswith("re:")
+                else f"Re: {original_subject}"
+            )
 
             to_field = original_email.sender
 
             cc_field = []
             if reply_all and original_email.cc:
-                cc_field = original_email.cc if isinstance(original_email.cc, list) else [original_email.cc]
+                cc_field = (
+                    original_email.cc
+                    if isinstance(original_email.cc, list)
+                    else [original_email.cc]
+                )
 
             reply_email_obj = Email(
                 id="",
@@ -509,7 +546,7 @@ def handle_tool_call(tool_call: object) -> dict:
             if not title or not str(title).strip():
                 return {
                     "status": "error",
-                    "message": "Falta el título del recordatorio 'title'"
+                    "message": "Falta el título del recordatorio 'title'",
                 }
 
             tasklist = _resolve_tasklist(tasklist_title)
@@ -542,10 +579,7 @@ def handle_tool_call(tool_call: object) -> dict:
             tasklist_title = args.get("tasklist_title", "Kai IA")
 
             if not task_id:
-                return {
-                    "status": "error",
-                    "message": "Falta 'task_id'"
-                }
+                return {"status": "error", "message": "Falta 'task_id'"}
 
             if (
                 title is None
@@ -555,7 +589,7 @@ def handle_tool_call(tool_call: object) -> dict:
             ):
                 return {
                     "status": "error",
-                    "message": "No se ha indicado ningún campo para actualizar"
+                    "message": "No se ha indicado ningún campo para actualizar",
                 }
 
             tasklist = _resolve_tasklist(tasklist_title)
@@ -585,16 +619,15 @@ def handle_tool_call(tool_call: object) -> dict:
             tasklist_title = args.get("tasklist_title", "Kai IA")
 
             if not task_id:
-                return {
-                    "status": "error",
-                    "message": "Falta 'task_id'"
-                }
+                return {"status": "error", "message": "Falta 'task_id'"}
 
             tasklist = _resolve_tasklist(tasklist_title)
 
             original_task = None
             try:
-                original_task = get_reminder(tasklist_id=tasklist["id"], task_id=task_id)
+                original_task = get_reminder(
+                    tasklist_id=tasklist["id"], task_id=task_id
+                )
             except Exception:
                 original_task = None
 
@@ -608,7 +641,9 @@ def handle_tool_call(tool_call: object) -> dict:
                         "id": tasklist.get("id"),
                         "title": tasklist.get("title"),
                     },
-                    "task": _compact_task(original_task) if original_task else {"id": task_id},
+                    "task": _compact_task(original_task)
+                    if original_task
+                    else {"id": task_id},
                 },
             }
         if name == "list_drive_files":
@@ -630,14 +665,10 @@ def handle_tool_call(tool_call: object) -> dict:
             max_results = args.get("max_results", 20)
 
             if not name_query:
-                return {
-                    "status": "error",
-                    "message": "Falta 'name_query'"
-                }
+                return {"status": "error", "message": "Falta 'name_query'"}
 
             result = search_drive_files_by_name(
-                name_query=name_query,
-                max_results=max_results
+                name_query=name_query, max_results=max_results
             )
 
             return {
@@ -650,29 +681,19 @@ def handle_tool_call(tool_call: object) -> dict:
                 },
             }
 
-
         if name == "get_public_download_link":
             file_id = args.get("file_id")
             export_fmt = args.get("export_fmt")
 
             if not file_id:
-                return {
-                    "status": "error",
-                    "message": "Falta 'file_id'"
-                }
+                return {"status": "error", "message": "Falta 'file_id'"}
 
-            result = get_public_download_link(
-                file_id=file_id,
-                export_fmt=export_fmt
-            )
+            result = get_public_download_link(file_id=file_id, export_fmt=export_fmt)
 
             return {
                 "status": "success",
-                "data": {
-                    "file": result
-                },
+                "data": {"file": result},
             }
-
 
         return {"status": "warning", "message": f"Tool no encontrada: {name}"}
     except Exception as e:
@@ -680,9 +701,6 @@ def handle_tool_call(tool_call: object) -> dict:
 
         if is_google_token_expired_error(e):
             print(f"[TOOLS] Token expirado detectado en tool '{name}'")
-            return {
-                "status": "auth_expired",
-                "message": build_google_reauth_message()
-            }
+            return {"status": "auth_expired", "message": build_google_reauth_message()}
 
         return {"status": "error", "message": str(e)}

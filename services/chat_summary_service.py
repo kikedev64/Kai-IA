@@ -16,19 +16,9 @@ def clean_summary_title(text: str) -> str:
     if not text:
         return ""
 
-    text = re.sub(
-        r"<think>.*?</think>",
-        "",
-        text,
-        flags=re.DOTALL | re.IGNORECASE
-    )
+    text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL | re.IGNORECASE)
 
-    text = re.sub(
-        r"<think>.*",
-        "",
-        text,
-        flags=re.DOTALL | re.IGNORECASE
-    )
+    text = re.sub(r"<think>.*", "", text, flags=re.DOTALL | re.IGNORECASE)
 
     text = text.strip().strip('"').strip("'")
     text = " ".join(text.split())
@@ -45,10 +35,7 @@ def generate_chat_summary_from_text(user_text: str) -> str:
     Returns:
         str
     """
-    req = AskRequest(
-        prompt=user_text,
-        system_prompt="chat_summary"
-    )
+    req = AskRequest(prompt=user_text, system_prompt="chat_summary")
 
     response = ask_without_context(req)
 

@@ -2,8 +2,9 @@ import base64
 import mimetypes
 from email.message import EmailMessage
 from core.models.email import Email
-from services.gmail.utils import _get_service,_apply_thread_headers
+from services.gmail.utils import _get_service, _apply_thread_headers
 from core.config import get_email_max_total_size_attachment
+
 
 def send_email(email: Email, as_html: bool = False) -> dict:
     """Send the email.
@@ -36,10 +37,8 @@ def send_email(email: Email, as_html: bool = False) -> dict:
     if getattr(email, "thread_id", None):
         body["threadId"] = email.thread_id
 
-    return service.users().messages().send(
-        userId="me",
-        body=body
-    ).execute()
+    return service.users().messages().send(userId="me", body=body).execute()
+
 
 def send_email_with_attachments(
     email: Email,
@@ -100,7 +99,12 @@ def send_email_with_attachments(
     if getattr(email, "thread_id", None):
         body["threadId"] = email.thread_id
 
-    return service.users().messages().send(
-        userId="me",
-        body=body,
-    ).execute()
+    return (
+        service.users()
+        .messages()
+        .send(
+            userId="me",
+            body=body,
+        )
+        .execute()
+    )

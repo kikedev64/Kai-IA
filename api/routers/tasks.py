@@ -60,6 +60,7 @@ def _task_to_api(t: dict) -> dict:
         "updated": t.get("updated"),
     }
 
+
 def _norm(s: Optional[str]) -> str:
     """Normalize optional text for case-insensitive comparisons.
 
@@ -136,14 +137,16 @@ def find_reminders_by_conditions(
         if due_to and (not task_due or task_due > due_to):
             continue
 
-        out.append({
-            "id": task.get("id"),
-            "title": task.get("title"),
-            "status": task.get("status"),
-            "due": task.get("due"),
-            "notes": task.get("notes"),
-            "updated": task.get("updated"),
-        })
+        out.append(
+            {
+                "id": task.get("id"),
+                "title": task.get("title"),
+                "status": task.get("status"),
+                "due": task.get("due"),
+                "notes": task.get("notes"),
+                "updated": task.get("updated"),
+            }
+        )
 
     return {
         "tasklist_id": tasklist_id,

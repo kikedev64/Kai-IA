@@ -30,10 +30,7 @@ def get_config_value(key: str, default=None) -> str | None:
     """
     conn = get_connection()
     cur = conn.cursor()
-    cur.execute(
-        "SELECT value FROM app_config WHERE key = ?",
-        (key,)
-    )
+    cur.execute("SELECT value FROM app_config WHERE key = ?", (key,))
     row = cur.fetchone()
     conn.close()
 
@@ -90,6 +87,7 @@ def get_config_float(key: str, default: float | None = None) -> float | None:
         return default
     return float(raw)
 
+
 def count_chats() -> int:
     """Count stored chats.
 
@@ -119,10 +117,13 @@ def create_initial_chat_summary(chat_id: str, short_summary: str) -> None:
     conn = get_connection()
     cur = conn.cursor()
 
-    cur.execute("""
+    cur.execute(
+        """
     INSERT OR REPLACE INTO chat_summaries (chat_id, short_summary, updated_at)
     VALUES (?, ?, CURRENT_TIMESTAMP)
-    """, (chat_id, short_summary))
+    """,
+        (chat_id, short_summary),
+    )
 
     conn.commit()
     conn.close()
@@ -141,13 +142,16 @@ def update_chat_summary(chat_id: str, short_summary: str) -> None:
     conn = get_connection()
     cur = conn.cursor()
 
-    cur.execute("""
+    cur.execute(
+        """
     INSERT INTO chat_summaries (chat_id, short_summary, updated_at)
     VALUES (?, ?, CURRENT_TIMESTAMP)
     ON CONFLICT(chat_id) DO UPDATE SET
         short_summary = excluded.short_summary,
         updated_at = CURRENT_TIMESTAMP
-    """, (chat_id, short_summary))
+    """,
+        (chat_id, short_summary),
+    )
 
     conn.commit()
     conn.close()
@@ -165,11 +169,14 @@ def get_chat_summary(chat_id: str) -> str | None:
     conn = get_connection()
     cur = conn.cursor()
 
-    cur.execute("""
+    cur.execute(
+        """
     SELECT short_summary
     FROM chat_summaries
     WHERE chat_id = ?
-    """, (chat_id,))
+    """,
+        (chat_id,),
+    )
 
     row = cur.fetchone()
     conn.close()
@@ -189,16 +196,20 @@ def count_user_messages(chat_id: str) -> int:
     conn = get_connection()
     cur = conn.cursor()
 
-    cur.execute("""
+    cur.execute(
+        """
     SELECT COUNT(*) AS total
     FROM chat_messages
     WHERE chat_id = ? AND role = 'user'
-    """, (chat_id,))
+    """,
+        (chat_id,),
+    )
 
     row = cur.fetchone()
     conn.close()
 
     return int(row["total"] if row else 0)
+
 
 def get_all_config_as_dict() -> dict[str, str]:
     """Return all config values as a dictionary.

@@ -1,5 +1,6 @@
 from core.auth import get_google_auth_url
 
+
 def is_google_token_expired_error(error: Exception | str) -> bool:
     """Check whether an error means the Google token expired.
 

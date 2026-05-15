@@ -24,4 +24,3 @@ def _calendar_service() -> object:
         )
 
     raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=res["error"])
-

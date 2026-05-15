@@ -1,5 +1,6 @@
 from pydantic import BaseModel, Field
 
+
 class ChatStreamRequest(BaseModel):
     """Request payload used by the streaming chat endpoint.
 
@@ -11,6 +12,7 @@ class ChatStreamRequest(BaseModel):
     message: str = Field(..., min_length=1)
     system_prompt: str | None = None
 
+
 class ChatResetRequest(BaseModel):
     """Request payload used to reset a chat session.
 
@@ -19,6 +21,7 @@ class ChatResetRequest(BaseModel):
     """
 
     chat_id: str = Field(..., min_length=1)
+
 
 class AskRequest(BaseModel):
     """Request payload for a one-off LLM prompt.
@@ -29,6 +32,7 @@ class AskRequest(BaseModel):
 
     prompt: str
     system_prompt: str | None = None
+
 
 class ChatStream(BaseModel):
     """Lightweight chat stream payload.

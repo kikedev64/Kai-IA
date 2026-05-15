@@ -1,5 +1,6 @@
 from markdown import markdown
 
+
 def build_emails_context_block(data: dict) -> str:
     """Build the emails context block.
 

@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import Optional, Any, Literal
 from pydantic import BaseModel, Field, EmailStr
+
+
 class CalendarEventTime(BaseModel):
     """Date or datetime block used by Google Calendar events.
 
@@ -13,6 +15,7 @@ class CalendarEventTime(BaseModel):
     date: Optional[str] = None
     timeZone: Optional[str] = None
 
+
 class CalendarAttendee(BaseModel):
     """Attendee entry returned for a Calendar event.
 
@@ -21,7 +24,10 @@ class CalendarAttendee(BaseModel):
     """
 
     email: EmailStr
-    responseStatus: Optional[Literal["needsAction","declined","tentative","accepted"]]
+    responseStatus: Optional[
+        Literal["needsAction", "declined", "tentative", "accepted"]
+    ]
+
 
 class CalendarEventOut(BaseModel):
     """Public representation of a Google Calendar event.
@@ -102,6 +108,7 @@ class CalendarDeleteResponse(BaseModel):
     end: Optional[dict[str, Any]] = None
     error: Optional[str] = None
 
+
 class CalendarFreeBusyRequest(BaseModel):
     """Request payload used to query Calendar availability.
 
@@ -123,7 +130,7 @@ class CalendarBusyPeriod(BaseModel):
     """
 
     start: str
-    end: str  
+    end: str
 
 
 class CalendarFreeBusyCalendarOut(BaseModel):
@@ -149,6 +156,7 @@ class CalendarFreeBusyResponse(BaseModel):
     time_zone: Optional[str] = None
     calendars: dict[str, CalendarFreeBusyCalendarOut] = Field(default_factory=dict)
 
+
 class CalendarMeetCreateRequest(BaseModel):
     """Request payload used to create a Google Meet event.
 
@@ -166,6 +174,7 @@ class CalendarMeetCreateRequest(BaseModel):
     timezone: Optional[str] = None
     reminders: Optional[dict[str, Any]] = None
     send_updates: str = "all"
+
 
 class CalendarMeetEventOut(CalendarEventOut):
     """Public representation of a Calendar event with a Meet link.

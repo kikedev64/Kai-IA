@@ -4,6 +4,7 @@ from googleapiclient.errors import HttpError
 from core.database import get_connection
 from services.gmail.utils import _get_service
 
+
 def get_latest_history_id() -> str | None:
     """Return the latest history id.
 
@@ -16,11 +17,12 @@ def get_latest_history_id() -> str | None:
     if profile.get("historyId"):
         return profile.get("historyId")
 
-    res = service.users().messages().list(
-        userId="me",
-        labelIds=["INBOX"],
-        maxResults=1
-    ).execute()
+    res = (
+        service.users()
+        .messages()
+        .list(userId="me", labelIds=["INBOX"], maxResults=1)
+        .execute()
+    )
 
     messages = res.get("messages", [])
     if not messages:
@@ -28,11 +30,12 @@ def get_latest_history_id() -> str | None:
 
     msg_id = messages[0]["id"]
 
-    msg = service.users().messages().get(
-        userId="me",
-        id=msg_id,
-        format="minimal"
-    ).execute()
+    msg = (
+        service.users()
+        .messages()
+        .get(userId="me", id=msg_id, format="minimal")
+        .execute()
+    )
 
     return msg.get("historyId")
 
@@ -60,13 +63,18 @@ def read_history_since(
 
     try:
         while True:
-            response = service.users().history().list(
-                userId="me",
-                startHistoryId=start_history_id,
-                historyTypes=["messageAdded"],
-                labelId=label_id,
-                pageToken=page_token,
-            ).execute()
+            response = (
+                service.users()
+                .history()
+                .list(
+                    userId="me",
+                    startHistoryId=start_history_id,
+                    historyTypes=["messageAdded"],
+                    labelId=label_id,
+                    pageToken=page_token,
+                )
+                .execute()
+            )
 
             latest_history_id = response.get("historyId", latest_history_id)
 
@@ -136,6 +144,7 @@ def check_history_changes(
         "needs_rebootstrap": result["needs_rebootstrap"],
     }
 
+
 def get_history_ids(only_latest: bool = False) -> list[dict]:
     """Return the history ids.
 
@@ -167,18 +176,24 @@ def get_history_ids(only_latest: bool = False) -> list[dict]:
     """
 
     if only_latest:
-        query = base_query + """
+        query = (
+            base_query
+            + """
             ORDER BY
                 COALESCE(gss.updated_at, gss.created_at) DESC,
                 gss.id DESC
             LIMIT 1
         """
+        )
     else:
-        query = base_query + """
+        query = (
+            base_query
+            + """
             ORDER BY
                 COALESCE(gss.updated_at, gss.created_at) DESC,
                 gss.id DESC
         """
+        )
 
     cur.execute(query)
     rows = cur.fetchall()

@@ -34,56 +34,53 @@ def _build_initial_config() -> dict[str, str]:
     ]
     llm_context_length = 8192
     tool_activation_keywords = [
-    "correo",
-    "correos",
-    "email",
-    "emails",
-    "gmail",
-    "bandeja",
-    "remitente",
-    "asunto",
-    "responde",
-    "responder",
-    "contesta",
-    "contestar",
-    "envía un correo",
-    "enviar correo",
-    "manda un correo",
-    "mandar correo",
-
-    "calendario",
-    "evento",
-    "eventos",
-    "reunión",
-    "reunion",
-    "meet",
-    "google meet",
-    "agenda",
-    "cita",
-    "quedar",
-    "disponible",
-    "ocupado",
-    "hueco",
-
-    "recordatorio",
-    "recordatorios",
-    "recuérdame",
-    "recuerdame",
-    "tarea",
-    "tareas",
-    "tasks",
-    "pendiente",
-    "pendientes",
-
-    "drive",
-    "archivo",
-    "archivos",
-    "documento",
-    "documentos",
-    "pdf",
-    "descarga",
-    "enlace",
-]
+        "correo",
+        "correos",
+        "email",
+        "emails",
+        "gmail",
+        "bandeja",
+        "remitente",
+        "asunto",
+        "responde",
+        "responder",
+        "contesta",
+        "contestar",
+        "envía un correo",
+        "enviar correo",
+        "manda un correo",
+        "mandar correo",
+        "calendario",
+        "evento",
+        "eventos",
+        "reunión",
+        "reunion",
+        "meet",
+        "google meet",
+        "agenda",
+        "cita",
+        "quedar",
+        "disponible",
+        "ocupado",
+        "hueco",
+        "recordatorio",
+        "recordatorios",
+        "recuérdame",
+        "recuerdame",
+        "tarea",
+        "tareas",
+        "tasks",
+        "pendiente",
+        "pendientes",
+        "drive",
+        "archivo",
+        "archivos",
+        "documento",
+        "documentos",
+        "pdf",
+        "descarga",
+        "enlace",
+    ]
     google_credentials_file = str(BASE_DIR / "credentials.json")
     google_token_file = str(BASE_DIR / "token.json")
 
@@ -146,7 +143,6 @@ def _build_initial_config() -> dict[str, str]:
 
     """.strip()
 
-
     model_name = "qwen/qwen3-14b"
     temperature = 0.0
 
@@ -159,7 +155,9 @@ def _build_initial_config() -> dict[str, str]:
         "model_name": model_name,
         "temperature": str(temperature),
         "llm_context_length": str(llm_context_length),
-        "tool_activation_keywords": json.dumps(tool_activation_keywords, ensure_ascii=False),
+        "tool_activation_keywords": json.dumps(
+            tool_activation_keywords, ensure_ascii=False
+        ),
     }
 
 
@@ -175,11 +173,14 @@ def _seed_initial_config(cur: sqlite3.Cursor) -> None:
     initial_config = _build_initial_config()
 
     for key, value in initial_config.items():
-        cur.execute("""
+        cur.execute(
+            """
             INSERT INTO app_config (key, value, updated_at)
             VALUES (?, ?, CURRENT_TIMESTAMP)
             ON CONFLICT(key) DO NOTHING
-        """, (key, value))
+        """,
+            (key, value),
+        )
 
 
 def init_db() -> None:

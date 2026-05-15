@@ -1,11 +1,19 @@
 from __future__ import annotations
 import uuid
 from googleapiclient.errors import HttpError
-from datetime import datetime,timezone, timedelta
+from datetime import datetime, timezone, timedelta
 from typing import Any, Optional, Literal
 from services.calendar.client import _calendar_service
 
-def list_calendar_events( calendar_id: str = "primary", max_results: int = 10, time_min: Optional[str] = None, time_max: Optional[str] = None, q: Optional[str] = None, single_events: bool = True, order_by: Literal["startTime", "updated"] = "startTime",
+
+def list_calendar_events(
+    calendar_id: str = "primary",
+    max_results: int = 10,
+    time_min: Optional[str] = None,
+    time_max: Optional[str] = None,
+    q: Optional[str] = None,
+    single_events: bool = True,
+    order_by: Literal["startTime", "updated"] = "startTime",
 ) -> list[dict]:
     """Return the calendar events list.
 
@@ -48,16 +56,17 @@ def list_calendar_events( calendar_id: str = "primary", max_results: int = 10, t
     return res.get("items", [])
 
 
-def create_calendar_event( summary: str,
-                          start_rfc3339: str,
-                          end_rfc3339: str,
-                          calendar_id: str = "primary",
-                          description: Optional[str] = None,
-                          location: Optional[str] = None,
-                          attendees: Optional[list[str]] = None,
-                          timezone: Optional[str] = None,
-                          reminders: Optional[dict[str, Any]] = None,
-                        ) -> dict:
+def create_calendar_event(
+    summary: str,
+    start_rfc3339: str,
+    end_rfc3339: str,
+    calendar_id: str = "primary",
+    description: Optional[str] = None,
+    location: Optional[str] = None,
+    attendees: Optional[list[str]] = None,
+    timezone: Optional[str] = None,
+    reminders: Optional[dict[str, Any]] = None,
+) -> dict:
     """Create the calendar event.
 
     Args:
@@ -99,7 +108,18 @@ def create_calendar_event( summary: str,
     return created
 
 
-def update_calendar_event( event_id: str, calendar_id: str = "primary", summary: Optional[str] = None, start_rfc3339: Optional[str] = None, end_rfc3339: Optional[str] = None, description: Optional[str] = None, location: Optional[str] = None,attendees: Optional[list[str]] = None, timezone: Optional[str] = None, reminders: Optional[dict[str, Any]] = None, ) -> dict:
+def update_calendar_event(
+    event_id: str,
+    calendar_id: str = "primary",
+    summary: Optional[str] = None,
+    start_rfc3339: Optional[str] = None,
+    end_rfc3339: Optional[str] = None,
+    description: Optional[str] = None,
+    location: Optional[str] = None,
+    attendees: Optional[list[str]] = None,
+    timezone: Optional[str] = None,
+    reminders: Optional[dict[str, Any]] = None,
+) -> dict:
     """Update the calendar event.
 
     Args:
@@ -143,16 +163,19 @@ def update_calendar_event( event_id: str, calendar_id: str = "primary", summary:
     if attendees is not None:
         patch["attendees"] = [{"email": e} for e in attendees]
 
-    updated = service.events().patch(
-        calendarId=calendar_id,
-        eventId=event_id,
-        body=patch
-    ).execute()
+    updated = (
+        service.events()
+        .patch(calendarId=calendar_id, eventId=event_id, body=patch)
+        .execute()
+    )
 
     return updated
 
 
-def get_calendar_event(event_id: str,calendar_id: str =  "primary", ) -> dict:
+def get_calendar_event(
+    event_id: str,
+    calendar_id: str = "primary",
+) -> dict:
     """Return the calendar event.
 
     Args:
@@ -165,7 +188,8 @@ def get_calendar_event(event_id: str,calendar_id: str =  "primary", ) -> dict:
     service = _calendar_service()
     return service.events().get(calendarId=calendar_id, eventId=event_id).execute()
 
-def delete_calendar_event( event_id: str, calendar_id: str = "primary" ) -> dict:
+
+def delete_calendar_event(event_id: str, calendar_id: str = "primary") -> dict:
     """Delete the calendar event.
 
     Args:
@@ -179,33 +203,24 @@ def delete_calendar_event( event_id: str, calendar_id: str = "primary" ) -> dict
     service = _calendar_service()
 
     try:
-        event = service.events().get(
-            calendarId=calendar_id,
-            eventId=event_id
-        ).execute()
+        event = service.events().get(calendarId=calendar_id, eventId=event_id).execute()
 
-        service.events().delete(
-            calendarId=calendar_id,
-            eventId=event_id
-        ).execute()
+        service.events().delete(calendarId=calendar_id, eventId=event_id).execute()
 
         return {
             "deleted": True,
             "id": event.get("id"),
             "summary": event.get("summary"),
             "start": event.get("start"),
-            "end": event.get("end")
+            "end": event.get("end"),
         }
 
     except HttpError as e:
         if e.resp.status == 404:
-            return {
-                "deleted": False,
-                "error": "Event not found",
-                "id": event_id
-            }
+            return {"deleted": False, "error": "Event not found", "id": event_id}
         else:
             raise
+
 
 def freebusy_query(
     calendar_ids: list[str],
@@ -234,6 +249,7 @@ def freebusy_query(
     }
 
     return svc.freebusy().query(body=body).execute()
+
 
 def delete_calendar_events_by_conditions(
     calendar_id: str = "primary",
@@ -284,16 +300,24 @@ def delete_calendar_events_by_conditions(
 
     deleted_items = []
     for e in events:
-        deleted_items.append(delete_calendar_event(event_id=e["id"], calendar_id=calendar_id))
+        deleted_items.append(
+            delete_calendar_event(event_id=e["id"], calendar_id=calendar_id)
+        )
 
     return {
         "status": "deleted_many" if len(deleted_items) > 1 else "deleted",
         "matched_count": len(events),
         "deleted": deleted_items,
-        "query_used": {"query": query, "location": location, "summary": summary, "description": description},
+        "query_used": {
+            "query": query,
+            "location": location,
+            "summary": summary,
+            "description": description,
+        },
         "time_min": found["time_min"],
         "time_max": found["time_max"],
     }
+
 
 def _utc_now_rfc3339() -> str:
     """Return the current UTC time in RFC3339 format.
@@ -301,7 +325,13 @@ def _utc_now_rfc3339() -> str:
     Returns:
         str
     """
-    return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    return (
+        datetime.now(timezone.utc)
+        .replace(microsecond=0)
+        .isoformat()
+        .replace("+00:00", "Z")
+    )
+
 
 def _utc_in_days_rfc3339(days: int) -> str:
     """Return a future UTC timestamp in RFC3339 format.
@@ -312,7 +342,13 @@ def _utc_in_days_rfc3339(days: int) -> str:
     Returns:
         str
     """
-    return (datetime.now(timezone.utc) + timedelta(days=days)).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    return (
+        (datetime.now(timezone.utc) + timedelta(days=days))
+        .replace(microsecond=0)
+        .isoformat()
+        .replace("+00:00", "Z")
+    )
+
 
 def _norm(s: Optional[str]) -> str:
     """Normalize optional text for case-insensitive comparisons.
@@ -324,6 +360,7 @@ def _norm(s: Optional[str]) -> str:
         str
     """
     return (s or "").strip().lower()
+
 
 def find_calendar_events(
     calendar_id: str = "primary",
@@ -352,7 +389,6 @@ def find_calendar_events(
     Returns:
         dict
     """
-
 
     if time_min is None:
         time_min = _utc_now_rfc3339()
@@ -389,14 +425,16 @@ def find_calendar_events(
         if desc and desc not in e_desc:
             continue
 
-        out.append({
-            "id": e.get("id"),
-            "summary": e.get("summary"),
-            "start": e.get("start"),
-            "end": e.get("end"),
-            "location": e.get("location"),
-            "description": e.get("description"),
-        })
+        out.append(
+            {
+                "id": e.get("id"),
+                "summary": e.get("summary"),
+                "start": e.get("start"),
+                "end": e.get("end"),
+                "location": e.get("location"),
+                "description": e.get("description"),
+            }
+        )
 
     return {
         "calendar_id": calendar_id,
@@ -405,6 +443,7 @@ def find_calendar_events(
         "count": len(out),
         "events": out,
     }
+
 
 def create_meet_invitation(
     summary: str,
@@ -462,12 +501,16 @@ def create_meet_invitation(
     if reminders:
         event["reminders"] = reminders
 
-    created = service.events().insert(
-        calendarId=calendar_id,
-        body=event,
-        conferenceDataVersion=1,
-        sendUpdates=send_updates,
-    ).execute()
+    created = (
+        service.events()
+        .insert(
+            calendarId=calendar_id,
+            body=event,
+            conferenceDataVersion=1,
+            sendUpdates=send_updates,
+        )
+        .execute()
+    )
 
     meet_link = None
     for entry in created.get("conferenceData", {}).get("entryPoints", []):

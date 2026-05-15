@@ -1,4 +1,5 @@
 from dotenv import load_dotenv
+load_dotenv()
 from contextlib import asynccontextmanager
 from typing import AsyncIterator
 import logging
@@ -18,8 +19,9 @@ from api.routers.settings import router as settings_router
 
 from core.database import init_db
 
-load_dotenv()
+
 logger = logging.getLogger("uvicorn")
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
@@ -29,11 +31,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     yield
 
 
-app = FastAPI(
-    title="Kai IA API",
-    version="1.0.0",
-    lifespan=lifespan
-)
+app = FastAPI(title="Kai IA API", version="1.0.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,

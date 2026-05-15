@@ -102,10 +102,7 @@ def get_google_credentials_file() -> Path:
         Path
     """
     return Path(
-        get_config_value(
-            "google_credentials_file",
-            str(BASE_DIR / "credentials.json")
-        )
+        get_config_value("google_credentials_file", str(BASE_DIR / "credentials.json"))
     )
 
 
@@ -115,12 +112,7 @@ def get_google_token_file() -> Path:
     Returns:
         Path
     """
-    return Path(
-        get_config_value(
-            "google_token_file",
-            str(BASE_DIR / "token.json")
-        )
-    )
+    return Path(get_config_value("google_token_file", str(BASE_DIR / "token.json")))
 
 
 def get_email_max_total_size_attachment() -> int:
@@ -129,10 +121,7 @@ def get_email_max_total_size_attachment() -> int:
     Returns:
         int
     """
-    return get_config_int(
-        "email_max_total_size_attachment",
-        18 * 1024 * 1024
-    )
+    return get_config_int("email_max_total_size_attachment", 18 * 1024 * 1024)
 
 
 def get_system_prompt_default() -> str:
@@ -161,6 +150,7 @@ def get_temperature() -> float:
     """
     return get_config_float("temperature", 0.0)
 
+
 def get_llm_context_length() -> int:
     """Return the configured LLM context length.
 
@@ -182,10 +172,9 @@ def get_tool_activation_keywords() -> list[str]:
         return []
 
     return [
-        str(keyword).strip().lower()
-        for keyword in keywords
-        if str(keyword).strip()
+        str(keyword).strip().lower() for keyword in keywords if str(keyword).strip()
     ]
+
 
 class DEFAULT_PROMPTS:
     """Factory for default prompts stored in runtime configuration.
@@ -207,7 +196,7 @@ class DEFAULT_PROMPTS:
                 "Tu unica tarea es leer el correo y hacer un resumen completo, "
                 "detallado y exhaustivo de el, indicando tambien quien lo envia. "
                 "NO OLVIDES NINGUN DETALLE DE ESPACIO, LUGAR O TIEMPO."
-            )
+            ),
         )
 
     @staticmethod
@@ -222,18 +211,15 @@ class DEFAULT_PROMPTS:
             (
                 "Vas a recibir un texto con información personal del usuario.\n\n"
                 "Tu tarea es extraer la información relevante y devolverla en formato JSON válido.\n\n"
-
                 "Reglas:\n"
                 "- Devuelve SOLO JSON válido (sin explicaciones).\n"
                 "- Usa claves en inglés y valores en español.\n"
                 "- No inventes información.\n"
                 "- Si un dato no aparece, no lo incluyas.\n\n"
-
                 "IMPORTANTE (desambiguación):\n"
                 "- Si el usuario está estudiando algo → usa 'study'.\n"
                 "- Solo usa 'job' si el usuario indica claramente que trabaja.\n"
                 "- Si menciona curso/año (ej: 'cuarto año') → inclúyelo dentro de 'study'.\n\n"
-
                 "Campos posibles:\n"
                 "- name\n"
                 "- age\n"
@@ -242,12 +228,11 @@ class DEFAULT_PROMPTS:
                 "- location\n"
                 "- interests\n"
                 "- goals\n\n"
-
                 "Ejemplo:\n"
                 "Input: Me llamo Marcos, tengo 24 años y estudio diseño gráfico.\n"
                 "Output:\n"
-                "{\"name\": \"Marcos\", \"age\": 24, \"study\": \"Diseño gráfico\"}\n"
-            )
+                '{"name": "Marcos", "age": 24, "study": "Diseño gráfico"}\n'
+            ),
         )
 
     @staticmethod
@@ -275,7 +260,7 @@ class DEFAULT_PROMPTS:
                 "Correos universidad\n"
                 "Ideas TFG IA\n"
                 "Configuración Odoo"
-            )
+            ),
         )
 
 

@@ -11,10 +11,8 @@ import os
 from typing import Iterator
 
 client = openai.OpenAI(
-    base_url=os.getenv("BASE_URL_OPEN_AI"),
-    api_key=os.getenv("API_KEY_OPEN_AI")
+    base_url=os.getenv("BASE_URL_OPEN_AI"), api_key=os.getenv("API_KEY_OPEN_AI")
 )
-
 
 
 def call_lm_studio(
@@ -79,9 +77,7 @@ def call_lm_studio_stream(
             yield delta.content
 
 
-def ask_without_context(
-    req: AskRequest
-) -> dict[str, str]:
+def ask_without_context(req: AskRequest) -> dict[str, str]:
     """Ask the model without chat history.
 
     Args:
@@ -98,7 +94,7 @@ def ask_without_context(
             if selected_prompt is None:
                 raise HTTPException(
                     status_code=400,
-                    detail=f"Prompt por defecto no válido: {req.system_prompt}"
+                    detail=f"Prompt por defecto no válido: {req.system_prompt}",
                 )
             messages.append({"role": "system", "content": selected_prompt})
 

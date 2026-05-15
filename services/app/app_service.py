@@ -12,6 +12,7 @@ def check_backend() -> bool:
     """
     return True
 
+
 def check_database() -> bool:
     """Check whether the local database can be reached.
 
@@ -49,6 +50,7 @@ def check_database() -> bool:
     finally:
         if conn is not None:
             conn.close()
+
 
 def check_config() -> bool:
     """Check whether required configuration is available.

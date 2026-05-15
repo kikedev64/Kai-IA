@@ -23,6 +23,7 @@ def ensure_tasklist(tasklist_title: str = "Kai IA") -> dict:
     created = service.tasklists().insert(body={"title": tasklist_title}).execute()
     return created
 
+
 def get_reminder(tasklist_id: str, task_id: str) -> dict:
     """Return the reminder.
 
@@ -35,6 +36,7 @@ def get_reminder(tasklist_id: str, task_id: str) -> dict:
     """
     service = _tasks_service()
     return service.tasks().get(tasklist=tasklist_id, task=task_id).execute()
+
 
 def list_reminders(
     tasklist_id: str,
@@ -58,18 +60,28 @@ def list_reminders(
 
     service = _tasks_service()
 
-    res = service.tasks().list(
-        tasklist=tasklist_id,
-        maxResults=max_results,
-        showCompleted=show_completed,
-        showDeleted=show_deleted,
-        showHidden=show_hidden,
-    ).execute()
+    res = (
+        service.tasks()
+        .list(
+            tasklist=tasklist_id,
+            maxResults=max_results,
+            showCompleted=show_completed,
+            showDeleted=show_deleted,
+            showHidden=show_hidden,
+        )
+        .execute()
+    )
 
     return res.get("items", []) or []
 
 
-def create_reminder( tasklist_id: str, title: str, due_rfc3339: Optional[str] = None, notes: Optional[str] = None, status: Literal["needsAction", "completed"] = "needsAction", ) -> dict:
+def create_reminder(
+    tasklist_id: str,
+    title: str,
+    due_rfc3339: Optional[str] = None,
+    notes: Optional[str] = None,
+    status: Literal["needsAction", "completed"] = "needsAction",
+) -> dict:
     """Create the reminder.
 
     Args:
@@ -95,7 +107,14 @@ def create_reminder( tasklist_id: str, title: str, due_rfc3339: Optional[str] = 
     return created
 
 
-def update_reminder( tasklist_id: str, task_id: str, title: Optional[str] = None, due_rfc3339: Optional[str] = None, notes: Optional[str] = None, status: Optional[Literal["needsAction", "completed"]] = None,) -> dict:
+def update_reminder(
+    tasklist_id: str,
+    task_id: str,
+    title: Optional[str] = None,
+    due_rfc3339: Optional[str] = None,
+    notes: Optional[str] = None,
+    status: Optional[Literal["needsAction", "completed"]] = None,
+) -> dict:
     """Update the reminder.
 
     Args:
@@ -122,11 +141,9 @@ def update_reminder( tasklist_id: str, task_id: str, title: Optional[str] = None
     if status is not None:
         patch["status"] = status
 
-    updated = service.tasks().patch(
-        tasklist=tasklist_id,
-        task=task_id,
-        body=patch
-    ).execute()
+    updated = (
+        service.tasks().patch(tasklist=tasklist_id, task=task_id, body=patch).execute()
+    )
 
     return updated
 
@@ -143,4 +160,3 @@ def delete_reminder(tasklist_id: str, task_id: str) -> None:
     """
     service = _tasks_service()
     service.tasks().delete(tasklist=tasklist_id, task=task_id).execute()
-

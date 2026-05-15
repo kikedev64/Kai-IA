@@ -1,5 +1,6 @@
 from pydantic import BaseModel
 
+
 class StartChatRequest(BaseModel):
     """Request payload used to start an assistant chat.
 
@@ -8,6 +9,7 @@ class StartChatRequest(BaseModel):
     """
 
     system_prompt: str | None = None
+
 
 class StartChatResponse(BaseModel):
     """Response returned after creating an assistant chat.
@@ -18,6 +20,7 @@ class StartChatResponse(BaseModel):
 
     chat_id: str
 
+
 class ChatMessageRequest(BaseModel):
     """Request payload for sending a message to an existing chat.
 
@@ -27,6 +30,7 @@ class ChatMessageRequest(BaseModel):
 
     chat_id: str
     message: str
+
 
 class ChatMessageResponse(BaseModel):
     """Response payload returned by a chat message request.

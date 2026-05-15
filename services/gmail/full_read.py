@@ -6,7 +6,9 @@ from services.gmail.html_formatter import clean_email_body
 from services.gmail.utils import _get_service, _gmail_msg_to_email
 
 
-def read_last_emails_full(max_results: int = 5, clean_body: bool = False) -> List[Email]:
+def read_last_emails_full(
+    max_results: int = 5, clean_body: bool = False
+) -> List[Email]:
     """Read the last emails full.
 
     Args:
@@ -25,7 +27,12 @@ def read_last_emails_full(max_results: int = 5, clean_body: bool = False) -> Lis
 
     out: List[Email] = []
     for m in msgs:
-        full_msg = service.users().messages().get(userId="me", id=m["id"], format="full").execute()
+        full_msg = (
+            service.users()
+            .messages()
+            .get(userId="me", id=m["id"], format="full")
+            .execute()
+        )
         email = _gmail_msg_to_email(full_msg)
 
         if clean_body:
@@ -36,7 +43,9 @@ def read_last_emails_full(max_results: int = 5, clean_body: bool = False) -> Lis
     return out
 
 
-def read_last_emails_from_sender(sender: str, max_results: int = 5, clean_body: bool = False) -> List[Email]:
+def read_last_emails_from_sender(
+    sender: str, max_results: int = 5, clean_body: bool = False
+) -> List[Email]:
     """Read the last emails from sender.
 
     Args:
@@ -49,11 +58,12 @@ def read_last_emails_from_sender(sender: str, max_results: int = 5, clean_body: 
     """
     service = _get_service()
 
-    res = service.users().messages().list(
-        userId="me",
-        q=f"from:{sender}",
-        maxResults=max_results
-    ).execute()
+    res = (
+        service.users()
+        .messages()
+        .list(userId="me", q=f"from:{sender}", maxResults=max_results)
+        .execute()
+    )
 
     msgs = res.get("messages", [])
     if not msgs:
@@ -61,7 +71,12 @@ def read_last_emails_from_sender(sender: str, max_results: int = 5, clean_body: 
 
     out: List[Email] = []
     for m in msgs:
-        full_msg = service.users().messages().get(userId="me", id=m["id"], format="full").execute()
+        full_msg = (
+            service.users()
+            .messages()
+            .get(userId="me", id=m["id"], format="full")
+            .execute()
+        )
         email = _gmail_msg_to_email(full_msg)
 
         if clean_body:
@@ -72,7 +87,9 @@ def read_last_emails_from_sender(sender: str, max_results: int = 5, clean_body: 
     return out
 
 
-def read_last_emails_by_subject(subject_text: str, max_results: int = 5, clean_body: bool = False) -> List[Email]:
+def read_last_emails_by_subject(
+    subject_text: str, max_results: int = 5, clean_body: bool = False
+) -> List[Email]:
     """Read the last emails by subject.
 
     Args:
@@ -87,11 +104,12 @@ def read_last_emails_by_subject(subject_text: str, max_results: int = 5, clean_b
 
     query = f"subject:{subject_text}"
 
-    res = service.users().messages().list(
-        userId="me",
-        q=query,
-        maxResults=max_results
-    ).execute()
+    res = (
+        service.users()
+        .messages()
+        .list(userId="me", q=query, maxResults=max_results)
+        .execute()
+    )
 
     msgs = res.get("messages", [])
     if not msgs:
@@ -99,7 +117,12 @@ def read_last_emails_by_subject(subject_text: str, max_results: int = 5, clean_b
 
     out: List[Email] = []
     for m in msgs:
-        full_msg = service.users().messages().get(userId="me", id=m["id"], format="full").execute()
+        full_msg = (
+            service.users()
+            .messages()
+            .get(userId="me", id=m["id"], format="full")
+            .execute()
+        )
         email = _gmail_msg_to_email(full_msg)
 
         if clean_body:
@@ -110,7 +133,9 @@ def read_last_emails_by_subject(subject_text: str, max_results: int = 5, clean_b
     return out
 
 
-def read_thread_from_message_id(message_id: str, clean_body: bool = False) -> EmailThread | None:
+def read_thread_from_message_id(
+    message_id: str, clean_body: bool = False
+) -> EmailThread | None:
     """Read the thread from message id.
 
     Args:
@@ -122,12 +147,22 @@ def read_thread_from_message_id(message_id: str, clean_body: bool = False) -> Em
     """
     service = _get_service()
 
-    meta = service.users().messages().get(userId="me", id=message_id, format="metadata").execute()
+    meta = (
+        service.users()
+        .messages()
+        .get(userId="me", id=message_id, format="metadata")
+        .execute()
+    )
     thread_id = meta.get("threadId")
     if not thread_id:
         return None
 
-    thread = service.users().threads().get(userId="me", id=thread_id, format="full").execute()
+    thread = (
+        service.users()
+        .threads()
+        .get(userId="me", id=thread_id, format="full")
+        .execute()
+    )
     messages = thread.get("messages", [])
     if not messages:
         return EmailThread(thread_id, [])
@@ -146,6 +181,7 @@ def read_thread_from_message_id(message_id: str, clean_body: bool = False) -> Em
 
     return EmailThread(thread_id, emails)
 
+
 def read_email_by_id(message_id: str, clean_body: bool = False) -> Email | None:
     """Read the email by id.
 
@@ -159,11 +195,12 @@ def read_email_by_id(message_id: str, clean_body: bool = False) -> Email | None:
     service = _get_service()
 
     try:
-        full_msg = service.users().messages().get(
-            userId="me",
-            id=message_id,
-            format="full"
-        ).execute()
+        full_msg = (
+            service.users()
+            .messages()
+            .get(userId="me", id=message_id, format="full")
+            .execute()
+        )
 
         email = _gmail_msg_to_email(full_msg)
 

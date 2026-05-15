@@ -68,6 +68,7 @@ def add_message(chat_id: str, role: str, content: str) -> None:
     conn.commit()
     conn.close()
 
+
 def get_messages(chat_id: str, limit: int = 50) -> list[dict]:
     """Return the messages.
 
@@ -206,6 +207,7 @@ def count_user_messages(chat_id: str) -> int:
 
     return int(row["total"] if row else 0)
 
+
 def list_chat_sessions() -> list[dict]:
     """Return the chat sessions list.
 
@@ -231,6 +233,7 @@ def list_chat_sessions() -> list[dict]:
     conn.close()
 
     return [dict(row) for row in rows]
+
 
 def get_full_chat_by_id(chat_id: str) -> dict | None:
     """Return the full chat by id.

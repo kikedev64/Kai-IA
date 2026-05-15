@@ -57,6 +57,7 @@ def _event_to_api(e: dict) -> dict:
         "updated": e.get("updated"),
     }
 
+
 @router.get("/events", response_model=CalendarListResponse)
 def api_list_events(
     calendar_id: str = "primary",
@@ -161,7 +162,9 @@ def api_update_event(event_id: str, req: CalendarUpdateRequest) -> dict:
             end_rfc3339=req.end_rfc3339,
             description=req.description,
             location=req.location,
-            attendees=[str(x) for x in req.attendees] if req.attendees is not None else None,
+            attendees=[str(x) for x in req.attendees]
+            if req.attendees is not None
+            else None,
             timezone=req.timezone,
             reminders=req.reminders,
         )
@@ -193,6 +196,7 @@ def api_delete_event(event_id: str, calendar_id: str = "primary") -> dict:
         }
     except HttpError as e:
         raise HTTPException(status_code=e.resp.status, detail=str(e))
+
 
 @router.post("/freebusy", response_model=CalendarFreeBusyResponse)
 def api_freebusy(req: CalendarFreeBusyRequest) -> dict:
@@ -228,6 +232,7 @@ def api_freebusy(req: CalendarFreeBusyRequest) -> dict:
 
     except HttpError as e:
         raise HTTPException(status_code=e.resp.status, detail=str(e))
+
 
 @router.post("/events/meet", response_model=CalendarMeetEventOut)
 def api_create_meet_event(req: CalendarMeetCreateRequest) -> dict:

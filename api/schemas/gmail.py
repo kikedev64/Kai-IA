@@ -74,6 +74,7 @@ class GmailSendResponse(BaseModel):
     threadId: str
     labelIds: Optional[list[str]] = None
 
+
 class GmailEmail(BaseModel):
     """Public representation of a Gmail email.
 

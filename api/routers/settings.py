@@ -15,7 +15,7 @@ from core.config import (
     get_system_prompt_default,
     get_temperature,
     get_llm_context_length,
-    get_tool_activation_keywords
+    get_tool_activation_keywords,
 )
 from core.runtime_config import set_runtime_config_values
 

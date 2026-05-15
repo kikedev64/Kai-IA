@@ -67,7 +67,9 @@ def get_creds() -> dict:
         dict
     """
     if os.path.exists(str(get_google_token_file())):
-        creds = Credentials.from_authorized_user_file(str(get_google_token_file()), get_google_scopes())
+        creds = Credentials.from_authorized_user_file(
+            str(get_google_token_file()), get_google_scopes()
+        )
 
         if creds and creds.valid:
             return {"creds": creds}
@@ -160,4 +162,3 @@ def exchange_code_for_token(code: str, state: str) -> Credentials:
     _clear_oauth_temp_data()
 
     return creds
-

@@ -36,6 +36,8 @@ from services.chat_store import (
 router = APIRouter(prefix="/assistant", tags=["Assistant"])
 
 MAX_TOOL_STEPS = 6
+
+
 class ChatStreamRequest(BaseModel):
     """Request payload used by the streaming assistant endpoint.
 
@@ -49,6 +51,7 @@ class ChatStreamRequest(BaseModel):
     profile_context: str | None = None
     debug: bool = False
 
+
 DEBUG_TOOLS = True
 
 GMAIL_CONTEXT_TOOLS = {
@@ -57,6 +60,7 @@ GMAIL_CONTEXT_TOOLS = {
     "read_last_emails_by_subject",
     "read_thread_from_message_id",
 }
+
 
 def should_enable_tools(prompt: str) -> bool:
     """Decide whether to enable tools.
@@ -74,6 +78,7 @@ def should_enable_tools(prompt: str) -> bool:
         return False
 
     return any(keyword in text for keyword in keywords)
+
 
 def is_legacy_tool_json(text: str) -> bool:
     """Check whether the value is legacy tool json.
@@ -158,6 +163,7 @@ def now_context_system_message() -> dict:
         ),
     }
 
+
 def clean_model_output(text: str) -> str:
     """Clean the model output.
 
@@ -179,12 +185,13 @@ def clean_model_output(text: str) -> str:
         if end == -1:
             break
 
-        cleaned = cleaned[:start] + cleaned[end + len("</think>"):]
+        cleaned = cleaned[:start] + cleaned[end + len("</think>") :]
 
     if "<think>" in cleaned:
         cleaned = cleaned.split("<think>", 1)[0]
 
     return cleaned.strip()
+
 
 def should_store_assistant_message(text: str) -> bool:
     """Decide whether to store assistant message.
@@ -210,6 +217,7 @@ def should_store_assistant_message(text: str) -> bool:
 
     return True
 
+
 def post_tool_instruction_message(user_input: str) -> dict:
     """Build the instruction message used after a tool call.
 
@@ -233,6 +241,7 @@ def post_tool_instruction_message(user_input: str) -> dict:
             "- Responde directamente o continúa con la siguiente acción necesaria.\n"
         ),
     }
+
 
 def build_gmail_context_message(tool_name: str, result: dict) -> dict | None:
     """Build the Gmail context message.
@@ -672,7 +681,7 @@ def split_text_for_stream(text: str) -> Iterator[str]:
     Returns:
         Iterator[str]
     """
-    
+
     words = text.split(" ")
     for i, word in enumerate(words):
         if i == 0:
@@ -718,8 +727,12 @@ def assistant_chat_stream(req: ChatStreamRequest) -> StreamingResponse:
                 "stage": "token",
                 "content": chunk,
                 "token_index": token_index,
-                "output_elapsed_ms": round((time.perf_counter() - output_started_at) * 1000, 2),
-                "elapsed_ms": round((time.perf_counter() - stream_started_at) * 1000, 2),
+                "output_elapsed_ms": round(
+                    (time.perf_counter() - output_started_at) * 1000, 2
+                ),
+                "elapsed_ms": round(
+                    (time.perf_counter() - stream_started_at) * 1000, 2
+                ),
             }
             yield f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
             time.sleep(0.02)
@@ -886,7 +899,9 @@ def assistant_chat_stream(req: ChatStreamRequest) -> StreamingResponse:
             meet_link = data.get("meet_link")
             summary = data.get("summary", "la reunión")
             if meet_link:
-                return f"Listo, he creado {summary} con Google Meet. Enlace: {meet_link}"
+                return (
+                    f"Listo, he creado {summary} con Google Meet. Enlace: {meet_link}"
+                )
             return f"Listo, he creado {summary} en el calendario."
 
         if last_tool_name == "send_email":
@@ -1015,7 +1030,9 @@ def assistant_chat_stream(req: ChatStreamRequest) -> StreamingResponse:
                 profile_context=bool(profile_context),
                 model=get_model_name(),
                 temperature=get_temperature(),
-                available_tools=[tool.get("function", {}).get("name") for tool in TOOLS],
+                available_tools=[
+                    tool.get("function", {}).get("name") for tool in TOOLS
+                ],
                 messages=safe_debug_value(messages),
             )
             if event:
@@ -1056,7 +1073,9 @@ def assistant_chat_stream(req: ChatStreamRequest) -> StreamingResponse:
 
                 lmstudio_started_at = time.perf_counter()
                 msg = call_lm_studio(messages, use_tools=use_tools)
-                lmstudio_ms = round((time.perf_counter() - lmstudio_started_at) * 1000, 2)
+                lmstudio_ms = round(
+                    (time.perf_counter() - lmstudio_started_at) * 1000, 2
+                )
                 content = clean_model_output(msg.content or "")
                 tool_calls = getattr(msg, "tool_calls", None) or []
                 event = debug_event(
@@ -1175,7 +1194,9 @@ def assistant_chat_stream(req: ChatStreamRequest) -> StreamingResponse:
                         step=step + 1,
                         tool_name=tc.function.name,
                         arguments=tc.function.arguments,
-                        parsed_arguments=safe_debug_value(parse_tool_arguments(tc.function.arguments)),
+                        parsed_arguments=safe_debug_value(
+                            parse_tool_arguments(tc.function.arguments)
+                        ),
                     )
                     if event:
                         yield event
@@ -1189,7 +1210,9 @@ def assistant_chat_stream(req: ChatStreamRequest) -> StreamingResponse:
                         f"La tool {tc.function.name} termina y su resultado vuelve al contexto.",
                         step=step + 1,
                         tool_name=tc.function.name,
-                        status=result.get("status") if isinstance(result, dict) else None,
+                        status=result.get("status")
+                        if isinstance(result, dict)
+                        else None,
                         duration_ms=tool_ms,
                         result=safe_debug_value(result),
                     )
@@ -1202,7 +1225,10 @@ def assistant_chat_stream(req: ChatStreamRequest) -> StreamingResponse:
                             f"[{request_id}] result: {json.dumps(result, ensure_ascii=False)[:1500]}"
                         )
 
-                    if isinstance(result, dict) and result.get("status") == "auth_expired":
+                    if (
+                        isinstance(result, dict)
+                        and result.get("status") == "auth_expired"
+                    ):
                         final_auth_reply = result.get("message") or (
                             "No puedo acceder a tus servicios de Google porque la sesión ha expirado."
                         )

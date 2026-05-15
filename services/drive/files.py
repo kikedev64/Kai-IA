@@ -17,12 +17,16 @@ def list_drive_files(max_results: int = 20) -> dict:
     """
     service = _get_service()
 
-    res = service.files().list(
-        pageSize=max_results,
-        fields="files(id,name,mimeType,webViewLink,modifiedTime,size,ownedByMe,capabilities(canShare,canDelete,canTrash)),nextPageToken",
-        supportsAllDrives=True,
-        includeItemsFromAllDrives=True,
-    ).execute()
+    res = (
+        service.files()
+        .list(
+            pageSize=max_results,
+            fields="files(id,name,mimeType,webViewLink,modifiedTime,size,ownedByMe,capabilities(canShare,canDelete,canTrash)),nextPageToken",
+            supportsAllDrives=True,
+            includeItemsFromAllDrives=True,
+        )
+        .execute()
+    )
 
     items = res.get("files", [])
 
@@ -34,10 +38,7 @@ def list_drive_files(max_results: int = 20) -> dict:
         f["canTrash"] = bool(caps.get("canTrash"))
         f["ownedByMe"] = bool(f.get("ownedByMe"))
 
-    return {
-        "items": items,
-        "nextPageToken": res.get("nextPageToken")
-    }
+    return {"items": items, "nextPageToken": res.get("nextPageToken")}
 
 
 def get_public_download_link(file_id: str, export_fmt: str | None = None) -> dict:
@@ -52,15 +53,19 @@ def get_public_download_link(file_id: str, export_fmt: str | None = None) -> dic
     """
     service = _get_service()
 
-    perms = service.permissions().list(
-        fileId=file_id,
-        fields="permissions(id,type,role)",
-        supportsAllDrives=True,
-    ).execute().get("permissions", [])
+    perms = (
+        service.permissions()
+        .list(
+            fileId=file_id,
+            fields="permissions(id,type,role)",
+            supportsAllDrives=True,
+        )
+        .execute()
+        .get("permissions", [])
+    )
 
     already_public = any(
-        p.get("type") == "anyone" and p.get("role") == "reader"
-        for p in perms
+        p.get("type") == "anyone" and p.get("role") == "reader" for p in perms
     )
 
     if not already_public:
@@ -74,11 +79,15 @@ def get_public_download_link(file_id: str, export_fmt: str | None = None) -> dic
             supportsAllDrives=True,
         ).execute()
 
-    meta = service.files().get(
-        fileId=file_id,
-        fields="id,name,mimeType,webViewLink",
-        supportsAllDrives=True,
-    ).execute()
+    meta = (
+        service.files()
+        .get(
+            fileId=file_id,
+            fields="id,name,mimeType,webViewLink",
+            supportsAllDrives=True,
+        )
+        .execute()
+    )
 
     mime_type = meta["mimeType"]
 
@@ -123,10 +132,7 @@ def delete_drive_file(file_id: str) -> dict:
     service = _get_service()
 
     try:
-        meta = service.files().get(
-            fileId=file_id,
-            fields="id,name,mimeType"
-        ).execute()
+        meta = service.files().get(fileId=file_id, fields="id,name,mimeType").execute()
 
         service.files().delete(fileId=file_id).execute()
 
@@ -134,11 +140,7 @@ def delete_drive_file(file_id: str) -> dict:
 
     except HttpError as e:
         if e.resp.status == 404:
-            return {
-                "deleted": False,
-                "error": "File not found",
-                "id": file_id
-            }
+            return {"deleted": False, "error": "File not found", "id": file_id}
         raise
 
 
@@ -173,17 +175,15 @@ def upload_drive_file(
 
     fh = io.BytesIO(file_data)
 
-    media = MediaIoBaseUpload(
-        fh,
-        mimetype=mime_type,
-        resumable=True
-    )
+    media = MediaIoBaseUpload(fh, mimetype=mime_type, resumable=True)
 
-    uploaded = service.files().create(
-        body=metadata,
-        media_body=media,
-        fields="id,name,mimeType,modifiedTime,size"
-    ).execute()
+    uploaded = (
+        service.files()
+        .create(
+            body=metadata, media_body=media, fields="id,name,mimeType,modifiedTime,size"
+        )
+        .execute()
+    )
 
     return uploaded
 
@@ -203,13 +203,17 @@ def search_drive_files_by_name(name_query: str, max_results: int = 20) -> dict:
 
     query = f"name contains '{name_query}' and trashed=false"
 
-    res = service.files().list(
-        q=query,
-        pageSize=max_results,
-        fields="files(id,name,mimeType,modifiedTime,size,ownedByMe,capabilities(canShare,canDelete,canTrash)),nextPageToken",
-        supportsAllDrives=True,
-        includeItemsFromAllDrives=True,
-    ).execute()
+    res = (
+        service.files()
+        .list(
+            q=query,
+            pageSize=max_results,
+            fields="files(id,name,mimeType,modifiedTime,size,ownedByMe,capabilities(canShare,canDelete,canTrash)),nextPageToken",
+            supportsAllDrives=True,
+            includeItemsFromAllDrives=True,
+        )
+        .execute()
+    )
 
     items = res.get("files", [])
 
@@ -223,24 +227,25 @@ def search_drive_files_by_name(name_query: str, max_results: int = 20) -> dict:
         f["canTrash"] = bool(caps.get("canTrash"))
         f["ownedByMe"] = bool(f.get("ownedByMe"))
 
-        perms = service.permissions().list(
-            fileId=file_id,
-            fields="permissions(id,type,role)",
-            supportsAllDrives=True,
-        ).execute().get("permissions", [])
+        perms = (
+            service.permissions()
+            .list(
+                fileId=file_id,
+                fields="permissions(id,type,role)",
+                supportsAllDrives=True,
+            )
+            .execute()
+            .get("permissions", [])
+        )
 
         already_public = any(
-            p.get("type") == "anyone" and p.get("role") == "reader"
-            for p in perms
+            p.get("type") == "anyone" and p.get("role") == "reader" for p in perms
         )
 
         if not already_public:
             service.permissions().create(
                 fileId=file_id,
-                body={
-                    "type": "anyone",
-                    "role": "reader"
-                },
+                body={"type": "anyone", "role": "reader"},
                 fields="id",
                 supportsAllDrives=True,
             ).execute()
