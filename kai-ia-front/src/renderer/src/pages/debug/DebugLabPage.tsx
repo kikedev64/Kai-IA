@@ -71,10 +71,11 @@ type DebugGraphNode = Node<GraphNodeData, 'debugNode'>
 type DebugGraphEdge = Edge
 
 const NODE_SIZE = 132
+const NODE_HANDLE_GAP = 26
 const MAIN_X = 280
 const TOOL_X = 585
 const START_Y = 40
-const ROW_GAP = 190
+const ROW_GAP = 220
 
 const STAGE_CONFIG: Record<DebugStage, StageConfig> = {
   backend_receive: {
@@ -498,8 +499,8 @@ function buildGraphElements(
       markerEnd: {
         type: MarkerType.ArrowClosed,
         color,
-        width: 18,
-        height: 18
+        width: 14,
+        height: 14
       },
       zIndex: 0
     }
@@ -1044,7 +1045,7 @@ function DebugRoundNode({ data }: NodeProps<DebugGraphNode>) {
         type="target"
         position={Position.Top}
         isConnectable={false}
-        style={{ opacity: 0, top: -10, pointerEvents: 'none' }}
+        style={{ opacity: 0, top: -NODE_HANDLE_GAP, pointerEvents: 'none' }}
       />
       <div
         className={`flex items-center justify-center rounded-full border text-center transition ${
@@ -1061,7 +1062,7 @@ function DebugRoundNode({ data }: NodeProps<DebugGraphNode>) {
               : '0 18px 42px rgba(0,0,0,.32)',
           background: isSelected
             ? '#ffffff'
-            : `radial-gradient(circle at 40% 30%, ${data.softColor}, rgba(2,6,23,.96) 62%)`,
+            : `radial-gradient(circle at 40% 30%, ${data.softColor}, #020617 62%)`,
           animation: isActive ? 'nodeBreath 1.55s ease-in-out infinite' : undefined
         }}
       >
@@ -1092,7 +1093,12 @@ function DebugRoundNode({ data }: NodeProps<DebugGraphNode>) {
         type="source"
         position={Position.Bottom}
         isConnectable={false}
-        style={{ opacity: 0, top: NODE_SIZE + 10, bottom: 'auto', pointerEvents: 'none' }}
+        style={{
+          opacity: 0,
+          top: NODE_SIZE + NODE_HANDLE_GAP,
+          bottom: 'auto',
+          pointerEvents: 'none'
+        }}
       />
     </div>
   )
