@@ -188,6 +188,12 @@ def get_tool_activation_keywords() -> list[str]:
     ]
 
 class DEFAULT_PROMPTS:
+    """Factory for default prompts stored in runtime configuration.
+
+    Centralises fallback prompt text used for email summaries, user
+    profile extraction and chat title generation.
+    """
+
     @staticmethod
     def resume_mail() -> str:
         """Return the default prompt used to summarize email messages.

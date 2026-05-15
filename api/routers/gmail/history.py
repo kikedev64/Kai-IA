@@ -6,11 +6,23 @@ router = APIRouter(prefix="/history",tags=["History"])
 
 
 class GmailHistoryCheckRequest(BaseModel):
+    """Request payload used to check Gmail history changes.
+
+    Carries the last known Gmail history id and the label that should
+    be inspected for new messages.
+    """
+
     start_history_id: str
     label_id: str = "INBOX"
 
 
 class GmailHistoryReadRequest(BaseModel):
+    """Request payload used to read Gmail history rows.
+
+    Defines the starting history id and label used to fetch added
+    message ids from Gmail.
+    """
+
     start_history_id: str
     label_id: str = "INBOX"
 

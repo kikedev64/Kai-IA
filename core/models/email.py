@@ -2,6 +2,12 @@ from __future__ import annotations
 from typing import List, Optional
 
 class Email:
+    """Domain model representing one email message.
+
+    Stores Gmail identifiers, recipients, body content and threading
+    headers used by send and reply workflows.
+    """
+
     def __init__(
         self,
         id: str,

@@ -3,6 +3,12 @@ import html
 from html.parser import HTMLParser
 
 class _HTMLTextExtractor(HTMLParser):
+    """HTML parser that extracts readable text from email bodies.
+
+    Skips non-content tags and keeps simple block boundaries so HTML
+    email content can be shown as plain text.
+    """
+
     def __init__(self) -> None:
         """Store the values needed by this object.
 

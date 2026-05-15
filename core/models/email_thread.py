@@ -2,6 +2,12 @@ from typing import List, Optional
 from core.models.email import Email
 
 class EmailThread:
+    """Domain model representing a Gmail conversation thread.
+
+    Groups ordered Email objects and exposes helpers for thread
+    participants and LLM-ready context rendering.
+    """
+
     def __init__(self, thread_id: str, emails: List["Email"]) -> None:
         """Store the values needed by this object.
 

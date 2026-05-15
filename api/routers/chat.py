@@ -37,6 +37,12 @@ router = APIRouter(prefix="/assistant", tags=["Assistant"])
 
 MAX_TOOL_STEPS = 6
 class ChatStreamRequest(BaseModel):
+    """Request payload used by the streaming assistant endpoint.
+
+    Includes the active chat id, prompt, history window and optional
+    debug flags used by the Debug Lab view.
+    """
+
     chat_id: str = Field(..., min_length=1)
     prompt: str = Field(..., min_length=1)
     limit_history: int = Field(default=6, ge=1, le=20)
@@ -429,6 +435,12 @@ def chat_endpoint(
                     args = legacy_tc.get("arguments") or {}
 
                     class _Fn:
+                        """Small adapter for legacy tool-call function data.
+
+                        Converts an old JSON tool payload into the shape
+                        expected by the shared tool handler.
+                        """
+
                         def __init__(self, n: str, a: dict) -> None:
                             """Store a legacy tool-call function payload.
 
@@ -443,6 +455,12 @@ def chat_endpoint(
                             self.arguments = json.dumps(a, ensure_ascii=False)
 
                     class _TC:
+                        """Small adapter for a legacy tool-call wrapper.
+
+                        Provides the id and function attributes consumed by
+                        the current tool execution path.
+                        """
+
                         def __init__(self, n: str, a: dict) -> None:
                             """Store a legacy tool-call wrapper payload.
 

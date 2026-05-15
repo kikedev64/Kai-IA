@@ -39,6 +39,12 @@ ALLOWED_KEYS = {
 
 
 class SettingsUpdatePayload(BaseModel):
+    """Request payload used to update runtime settings.
+
+    The values dictionary contains the allowed configuration keys
+    submitted from the settings screen.
+    """
+
     values: dict[str, Any]
 
 

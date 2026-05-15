@@ -13,6 +13,12 @@ router = APIRouter(prefix="/config", tags=["config"])
 
 
 class ConfigSetRequest(BaseModel):
+    """Request payload used to store a configuration value.
+
+    Contains the config key and the string value that should be
+    persisted in the application database.
+    """
+
     key: str
     value: str
 
