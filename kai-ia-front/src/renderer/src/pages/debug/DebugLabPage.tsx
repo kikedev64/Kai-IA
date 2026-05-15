@@ -61,6 +61,8 @@ type DebugLabHardwareInfo = {
   cpuCores: number
   totalMemoryBytes: number
   gpuDevices: string[]
+  primaryGpuName?: string
+  vramTotalBytes?: number
 }
 
 type ResourceUsageSample = {
@@ -71,7 +73,32 @@ type ResourceUsageSample = {
   memoryFreeBytes: number
   memoryTotalBytes: number
   memoryUsedPercent: number
+  gpuPercent: number | null
+  vramUsedBytes: number | null
+  vramTotalBytes: number | null
+  vramUsedPercent: number | null
 }
+
+type NodeResourceUsageSample = ResourceUsageSample & {
+  nodeId: string
+  nodeLabel: string
+  phase: 'start' | 'end'
+}
+
+type DebugLabCsvFile = {
+  filename: string
+  content: string
+}
+
+type TemporalDistributionItem = {
+  label: string
+  value?: number
+  color: string
+}
+
+type UsageChartField = 'cpuPercent' | 'memoryUsedBytes' | 'gpuPercent' | 'vramUsedBytes'
+
+type UsageChartUnit = 'percent' | 'gb'
 
 type GraphNodeData = {
   label: string
@@ -357,10 +384,19 @@ function buildMetrics(events: DebugLabEvent[]) {
   const done = events.findLast((event) => event.type === 'done')
   const tokenEvents = events.filter((event) => event.type === 'token')
   const tokenizeEvent = events.find((event) => event.stage === 'tokenize')
+  const backendReceiveEvent = events.find((event) => event.stage === 'backend_receive')
   const contextEvent = events.find((event) => event.stage === 'context')
   const lmRequest = events.find((event) => event.stage === 'lmstudio_request')
   const firstToken = tokenEvents[0]
   const lastToken = tokenEvents[tokenEvents.length - 1]
+  const promptPreview = stringField(backendReceiveEvent?.prompt_preview)
+  const promptChars =
+    numberField(tokenizeEvent?.prompt_chars) ??
+    numberField(backendReceiveEvent?.prompt_chars) ??
+    promptPreview?.length
+  const inputTokens =
+    numberField(tokenizeEvent?.prompt_tokens_estimate) ??
+    (typeof promptChars === 'number' ? Math.max(1, Math.ceil(promptChars / 4)) : undefined)
   const currentStage =
     events.length > 0 ? normalizeStage(events[events.length - 1]) : 'backend_receive'
   const lmMs = events
@@ -389,7 +425,7 @@ function buildMetrics(events: DebugLabEvent[]) {
   return {
     currentStage,
     totalMs,
-    inputTokens: tokenizeEvent?.prompt_tokens_estimate,
+    inputTokens,
     inputMs: tokenizeEvent?.duration_ms,
     outputTokens: tokenEvents.length,
     outputMs,
@@ -398,7 +434,7 @@ function buildMetrics(events: DebugLabEvent[]) {
     toolMs,
     firstTokenMs,
     tokensPerSecond,
-    promptChars: tokenizeEvent?.prompt_chars,
+    promptChars,
     messagesCount: numberField(contextEvent?.messages_count),
     historyMessages: numberField(contextEvent?.history_messages),
     toolsEnabled:
@@ -568,50 +604,290 @@ function buildGraphElements(
 }
 
 /**
- * Build an inline SVG line chart for CPU or RAM samples.
+ * Build the temporal distribution bars used in the report.
+ *
+ * Args:
+ *   metrics: Calculated report metrics.
+ *
+ * Returns:
+ *   TemporalDistributionItem[]
+ */
+function buildTemporalDistributionItems(
+  metrics: ReturnType<typeof buildMetrics>
+): TemporalDistributionItem[] {
+  return [
+    { label: 'Entrada', value: metrics.inputMs, color: '#22d3ee' },
+    { label: 'Hasta LM', value: metrics.timeToLmMs, color: '#38bdf8' },
+    { label: 'LM Studio', value: metrics.lmMs, color: '#06b6d4' },
+    { label: 'Tools', value: metrics.toolMs, color: '#e879f9' },
+    { label: 'Salida', value: metrics.outputMs, color: '#34d399' },
+    { label: 'Total', value: metrics.totalMs, color: '#64748b' }
+  ]
+}
+
+/**
+ * Format values for the resource charts.
+ *
+ * Args:
+ *   value: Numeric chart value.
+ *   unit: Unit rendered by the chart.
+ *
+ * Returns:
+ *   string
+ */
+function formatChartValue(value: number | undefined, unit: UsageChartUnit): string {
+  if (typeof value !== 'number') return '-'
+  if (unit === 'gb') return `${value.toFixed(2)} GB`
+  return `${value.toFixed(1)}%`
+}
+
+/**
+ * Build an inline SVG line chart for resource samples.
  *
  * Args:
  *   samples: Resource usage samples captured during the trace.
  *   field: Numeric sample field rendered in the chart.
  *   color: Stroke color used by the chart.
+ *   unit: Unit rendered on the y axis.
  *
  * Returns:
  *   string
  */
 function buildUsageChartSvg(
-  samples: ResourceUsageSample[],
-  field: 'cpuPercent' | 'memoryUsedPercent',
-  color: string
+  samples: NodeResourceUsageSample[],
+  field: UsageChartField,
+  color: string,
+  unit: UsageChartUnit
 ): string {
   if (samples.length === 0) return '<p class="muted tiny">Sin muestras disponibles.</p>'
 
   const width = 360
-  const height = 92
-  const paddingX = 10
-  const paddingY = 14
+  const height = 112
+  const paddingX = 12
+  const paddingTop = 12
+  const paddingBottom = 27
   const plotWidth = width - paddingX * 2
-  const plotHeight = height - paddingY * 2
-  const points = samples
+  const plotHeight = height - paddingTop - paddingBottom
+  const validSamples = samples.filter((sample) => typeof sample[field] === 'number')
+
+  if (validSamples.length === 0) return '<p class="muted tiny">Sin datos disponibles.</p>'
+
+  const values = validSamples.map((sample) => {
+    const rawValue = sample[field]
+    const numericValue = typeof rawValue === 'number' ? rawValue : 0
+
+    return unit === 'gb' ? numericValue / 1024 / 1024 / 1024 : numericValue
+  })
+  const maxValue =
+    unit === 'percent' ? 100 : Math.max(1, Math.max(...values) * (values.length > 1 ? 1.15 : 1.4))
+  const points = validSamples
     .map((sample, index) => {
-      const value = Math.max(0, Math.min(100, sample[field]))
+      const rawValue = sample[field]
+      const value =
+        unit === 'gb'
+          ? (typeof rawValue === 'number' ? rawValue : 0) / 1024 / 1024 / 1024
+          : Math.max(0, Math.min(100, typeof rawValue === 'number' ? rawValue : 0))
       const x =
-        paddingX + (samples.length === 1 ? plotWidth : (index / (samples.length - 1)) * plotWidth)
-      const y = paddingY + plotHeight - (value / 100) * plotHeight
+        paddingX +
+        (validSamples.length === 1 ? plotWidth : (index / (validSamples.length - 1)) * plotWidth)
+      const y = paddingTop + plotHeight - (value / maxValue) * plotHeight
 
       return `${x.toFixed(1)},${y.toFixed(1)}`
     })
     .join(' ')
-  const last = samples[samples.length - 1]
+  const last = validSamples[validSamples.length - 1]
+  const first = validSamples[0]
+  const middle = validSamples[Math.floor(validSamples.length / 2)]
+  const topLabel = formatChartValue(maxValue, unit)
 
   return `
     <svg viewBox="0 0 ${width} ${height}" width="100%" height="${height}" role="img">
       <rect x="0" y="0" width="${width}" height="${height}" rx="10" fill="#f8fafc" />
-      <path d="M ${paddingX} ${paddingY} H ${width - paddingX} M ${paddingX} ${height / 2} H ${width - paddingX} M ${paddingX} ${height - paddingY} H ${width - paddingX}" stroke="#e2e8f0" stroke-width="1" />
+      <path d="M ${paddingX} ${paddingTop} H ${width - paddingX} M ${paddingX} ${paddingTop + plotHeight / 2} H ${width - paddingX} M ${paddingX} ${paddingTop + plotHeight} H ${width - paddingX}" stroke="#e2e8f0" stroke-width="1" />
       <polyline points="${points}" fill="none" stroke="${color}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
-      <text x="${paddingX}" y="${height - 3}" fill="#64748b" font-size="9">0</text>
-      <text x="${width - 52}" y="${height - 3}" fill="#64748b" font-size="9">${escapeHtml(formatMs(last.elapsedMs))}</text>
+      <text x="${paddingX}" y="9" fill="#64748b" font-size="8">${escapeHtml(topLabel)}</text>
+      <text x="${paddingX}" y="${paddingTop + plotHeight + 11}" fill="#64748b" font-size="8">0</text>
+      <text x="${paddingX}" y="${height - 5}" fill="#64748b" font-size="8">${escapeHtml(`${first.nodeLabel} ${first.phase === 'start' ? 'inicio' : 'fin'}`)}</text>
+      <text x="${width / 2}" y="${height - 5}" fill="#64748b" font-size="8" text-anchor="middle">${escapeHtml(`${middle.nodeLabel} ${middle.phase === 'start' ? 'inicio' : 'fin'}`)}</text>
+      <text x="${width - paddingX}" y="${height - 5}" fill="#64748b" font-size="8" text-anchor="end">${escapeHtml(`${last.nodeLabel} ${last.phase === 'start' ? 'inicio' : 'fin'}`)}</text>
     </svg>
   `
+}
+
+/**
+ * Build resource samples located at the start and end of every flow node.
+ *
+ * Args:
+ *   flowNodes: Ordered flow nodes from the debug timeline.
+ *   samples: Resource samples captured during execution.
+ *
+ * Returns:
+ *   NodeResourceUsageSample[]
+ */
+function buildNodeResourceSamples(
+  flowNodes: FlowNode[],
+  samples: ResourceUsageSample[]
+): NodeResourceUsageSample[] {
+  if (flowNodes.length === 0 || samples.length === 0) return []
+
+  const closestSample = (targetMs?: number): ResourceUsageSample | null => {
+    if (typeof targetMs !== 'number') return null
+
+    return samples.reduce<ResourceUsageSample | null>((closest, sample) => {
+      if (!closest) return sample
+
+      const currentDistance = Math.abs(sample.elapsedMs - targetMs)
+      const closestDistance = Math.abs(closest.elapsedMs - targetMs)
+
+      return currentDistance < closestDistance ? sample : closest
+    }, null)
+  }
+
+  return flowNodes.flatMap((node) => {
+    const start = closestSample(node.elapsedMs)
+    const end = closestSample((node.elapsedMs ?? 0) + (node.durationMs ?? 0))
+
+    return [
+      start
+        ? {
+            ...start,
+            nodeId: node.id,
+            nodeLabel: node.label,
+            phase: 'start' as const
+          }
+        : null,
+      end
+        ? {
+            ...end,
+            nodeId: node.id,
+            nodeLabel: node.label,
+            phase: 'end' as const
+          }
+        : null
+    ].filter((sample): sample is NodeResourceUsageSample => sample !== null)
+  })
+}
+
+/**
+ * Escape one value for a CSV cell.
+ *
+ * Args:
+ *   value: Cell value.
+ *
+ * Returns:
+ *   string
+ */
+function csvCell(value: unknown): string {
+  if (value === undefined || value === null) return ''
+
+  const text = String(value)
+
+  if (!/[",\n\r]/.test(text)) return text
+
+  return `"${text.replace(/"/g, '""')}"`
+}
+
+/**
+ * Build a CSV document from headers and rows.
+ *
+ * Args:
+ *   headers: CSV header names.
+ *   rows: CSV rows.
+ *
+ * Returns:
+ *   string
+ */
+function buildCsv(headers: string[], rows: unknown[][]): string {
+  return [headers.map(csvCell).join(','), ...rows.map((row) => row.map(csvCell).join(','))].join(
+    '\r\n'
+  )
+}
+
+/**
+ * Export one resource chart as CSV rows.
+ *
+ * Args:
+ *   samples: Node-level samples rendered in the report.
+ *   field: Resource field exported.
+ *   unit: Unit name written in the CSV.
+ *
+ * Returns:
+ *   string
+ */
+function buildResourceCsv(
+  samples: NodeResourceUsageSample[],
+  field: UsageChartField,
+  unit: UsageChartUnit
+): string {
+  return buildCsv(
+    ['node_id', 'node_label', 'phase', 'elapsed_ms', 'captured_at', 'value', 'unit'],
+    samples.map((sample) => {
+      const rawValue = sample[field]
+      const value =
+        typeof rawValue === 'number' && unit === 'gb'
+          ? rawValue / 1024 / 1024 / 1024
+          : typeof rawValue === 'number'
+            ? rawValue
+            : ''
+
+      return [
+        sample.nodeId,
+        sample.nodeLabel,
+        sample.phase,
+        sample.elapsedMs,
+        new Date(sample.capturedAt).toISOString(),
+        typeof value === 'number' ? Number(value.toFixed(unit === 'gb' ? 4 : 2)) : value,
+        unit === 'gb' ? 'GB' : '%'
+      ]
+    })
+  )
+}
+
+/**
+ * Build the CSV files that accompany the exported report.
+ *
+ * Args:
+ *   metrics: Calculated report metrics.
+ *   flowNodes: Ordered pipeline nodes.
+ *   resourceSamples: System samples captured during the trace.
+ *
+ * Returns:
+ *   DebugLabCsvFile[]
+ */
+function buildReportCsvFiles(
+  metrics: ReturnType<typeof buildMetrics>,
+  flowNodes: FlowNode[],
+  resourceSamples: ResourceUsageSample[]
+): DebugLabCsvFile[] {
+  const nodeResourceSamples = buildNodeResourceSamples(flowNodes, resourceSamples)
+  const temporalRows = buildTemporalDistributionItems(metrics).map((item) => [
+    item.label,
+    item.value ?? '',
+    'ms'
+  ])
+
+  return [
+    {
+      filename: 'distribucion-temporal.csv',
+      content: buildCsv(['fase', 'valor', 'unidad'], temporalRows)
+    },
+    {
+      filename: 'uso-cpu.csv',
+      content: buildResourceCsv(nodeResourceSamples, 'cpuPercent', 'percent')
+    },
+    {
+      filename: 'uso-ram.csv',
+      content: buildResourceCsv(nodeResourceSamples, 'memoryUsedBytes', 'gb')
+    },
+    {
+      filename: 'uso-gpu.csv',
+      content: buildResourceCsv(nodeResourceSamples, 'gpuPercent', 'percent')
+    },
+    {
+      filename: 'uso-vram.csv',
+      content: buildResourceCsv(nodeResourceSamples, 'vramUsedBytes', 'gb')
+    }
+  ]
 }
 
 /**
@@ -623,6 +899,7 @@ function buildUsageChartSvg(
  *   events: Debug events included in the report.
  *   outputContentLength: Number of characters generated by the assistant.
  *   tools: Tool traces extracted from the events.
+ *   flowNodes: Ordered pipeline nodes for resource sampling.
  *   systemInfo: Hardware information captured from Electron.
  *   resourceSamples: CPU and RAM samples captured during execution.
  *
@@ -635,6 +912,7 @@ function buildReportHtml({
   events,
   outputContentLength,
   tools,
+  flowNodes,
   systemInfo,
   resourceSamples
 }: {
@@ -643,17 +921,11 @@ function buildReportHtml({
   events: DebugLabEvent[]
   outputContentLength: number
   tools: ToolTrace[]
+  flowNodes: FlowNode[]
   systemInfo: DebugLabHardwareInfo | null
   resourceSamples: ResourceUsageSample[]
 }): string {
-  const chartItems = [
-    { label: 'Entrada', value: metrics.inputMs, color: '#22d3ee' },
-    { label: 'Hasta LM', value: metrics.timeToLmMs, color: '#38bdf8' },
-    { label: 'LM Studio', value: metrics.lmMs, color: '#06b6d4' },
-    { label: 'Tools', value: metrics.toolMs, color: '#e879f9' },
-    { label: 'Salida', value: metrics.outputMs, color: '#34d399' },
-    { label: 'Total', value: metrics.totalMs, color: '#64748b' }
-  ]
+  const chartItems = buildTemporalDistributionItems(metrics)
   const maxChartValue = Math.max(1, ...chartItems.map((item) => item.value ?? 0))
   const chartRows = chartItems
     .map((item) => {
@@ -669,30 +941,29 @@ function buildReportHtml({
       `
     })
     .join('')
-  const cpuValues = resourceSamples.map((sample) => sample.cpuPercent)
-  const ramValues = resourceSamples.map((sample) => sample.memoryUsedPercent)
+  const nodeResourceSamples = buildNodeResourceSamples(flowNodes, resourceSamples)
+  const cpuValues = nodeResourceSamples.map((sample) => sample.cpuPercent)
+  const ramValues = nodeResourceSamples.map((sample) => sample.memoryUsedBytes / 1024 / 1024 / 1024)
+  const gpuValues = nodeResourceSamples
+    .map((sample) => sample.gpuPercent)
+    .filter((value): value is number => typeof value === 'number')
+  const vramValues = nodeResourceSamples
+    .map((sample) =>
+      typeof sample.vramUsedBytes === 'number' ? sample.vramUsedBytes / 1024 / 1024 / 1024 : null
+    )
+    .filter((value): value is number => typeof value === 'number')
   const cpuAverage = average(cpuValues)
   const ramAverage = average(ramValues)
+  const gpuAverage = average(gpuValues)
+  const vramAverage = average(vramValues)
   const cpuMax = cpuValues.length > 0 ? Math.max(...cpuValues) : undefined
   const ramMax = ramValues.length > 0 ? Math.max(...ramValues) : undefined
+  const gpuMax = gpuValues.length > 0 ? Math.max(...gpuValues) : undefined
+  const vramMax = vramValues.length > 0 ? Math.max(...vramValues) : undefined
   const promptPreview = compactJson(
     events.find((event) => event.stage === 'backend_receive')?.prompt_preview,
-    260
+    1200
   )
-  const eventRows = events
-    .map((event, index) => {
-      const stage = normalizeStage(event)
-      return `
-        <tr>
-          <td>${index + 1}</td>
-          <td>${escapeHtml(STAGE_CONFIG[stage].label)}</td>
-          <td>${escapeHtml(formatMs(event.elapsed_ms))}</td>
-          <td>${escapeHtml(formatMs(event.duration_ms))}</td>
-          <td>${escapeHtml(event.message || event.content || '')}</td>
-        </tr>
-      `
-    })
-    .join('')
   const toolRows = tools
     .map(
       (tool, index) => `
@@ -722,7 +993,7 @@ function buildReportHtml({
       `
     )
     .join('')
-  const gpuText = systemInfo?.gpuDevices.join(', ') || '-'
+  const gpuText = systemInfo?.primaryGpuName || systemInfo?.gpuDevices.join(', ') || '-'
 
   return `
     <!doctype html>
@@ -731,9 +1002,9 @@ function buildReportHtml({
         <meta charset="utf-8" />
         <title>Informe Kai Debug Lab</title>
         <style>
-          @page { size: A4; margin: 10mm; }
+          @page { size: A4; margin: 14mm 12mm 14mm 16mm; }
           * { box-sizing: border-box; }
-          body { font-family: Arial, sans-serif; color: #0f172a; margin: 0; }
+          body { font-family: Arial, sans-serif; color: #0f172a; margin: 0; padding-left: 2mm; }
           h1 { margin: 0 0 4px; font-size: 23px; }
           h2 { margin: 14px 0 8px; font-size: 15px; }
           h3 { margin: 0 0 8px; font-size: 15px; }
@@ -742,7 +1013,7 @@ function buildReportHtml({
           .tiny { font-size: 10px; }
           .page { page-break-after: always; }
           .hero { border: 1px solid #cbd5e1; border-radius: 14px; padding: 12px; background: linear-gradient(135deg, #f8fafc, #ecfeff); }
-          .prompt-preview { margin: 7px 0 0; font-size: 10px; line-height: 1.35; color: #334155; max-height: 28px; overflow: hidden; }
+          .prompt-preview { margin: 7px 0 0; font-size: 10px; line-height: 1.35; color: #334155; white-space: pre-wrap; word-break: break-word; }
           .metrics { display: grid; grid-template-columns: repeat(5, 1fr); gap: 7px; margin: 10px 0; }
           .metric { border: 1px solid #cbd5e1; border-radius: 10px; padding: 7px; background: white; min-height: 48px; }
           .metric span { display: block; color: #64748b; font-size: 9px; text-transform: uppercase; }
@@ -792,8 +1063,9 @@ function buildReportHtml({
               <div class="kv"><span>Sistema</span><strong>${escapeHtml(systemInfo?.platform || '-')} ${escapeHtml(systemInfo?.arch || '')}</strong></div>
               <div class="kv"><span>Procesador</span><strong>${escapeHtml(systemInfo?.cpuModel || '-')}</strong></div>
               <div class="kv"><span>Núcleos</span><strong>${formatNumber(systemInfo?.cpuCores)}</strong></div>
-              <div class="kv"><span>Memoria RAM</span><strong>${escapeHtml(formatBytes(systemInfo?.totalMemoryBytes))}</strong></div>
+              <div class="kv"><span>RAM instalada</span><strong>${escapeHtml(formatBytes(systemInfo?.totalMemoryBytes))}</strong></div>
               <div class="kv"><span>GPU</span><strong>${escapeHtml(gpuText)}</strong></div>
+              <div class="kv"><span>VRAM</span><strong>${escapeHtml(formatBytes(systemInfo?.vramTotalBytes))}</strong></div>
             </section>
 
             <section class="panel">
@@ -815,11 +1087,19 @@ function buildReportHtml({
           <div class="grid-2">
             <section class="panel">
               <div class="chart-title"><strong>Uso de CPU</strong><span>media ${cpuAverage?.toFixed(1) ?? '-'}% · máx ${cpuMax?.toFixed(1) ?? '-'}%</span></div>
-              ${buildUsageChartSvg(resourceSamples, 'cpuPercent', '#0ea5e9')}
+              ${buildUsageChartSvg(nodeResourceSamples, 'cpuPercent', '#0ea5e9', 'percent')}
             </section>
             <section class="panel">
-              <div class="chart-title"><strong>Uso de RAM</strong><span>media ${ramAverage?.toFixed(1) ?? '-'}% · máx ${ramMax?.toFixed(1) ?? '-'}%</span></div>
-              ${buildUsageChartSvg(resourceSamples, 'memoryUsedPercent', '#10b981')}
+              <div class="chart-title"><strong>Uso de RAM</strong><span>media ${ramAverage?.toFixed(2) ?? '-'} GB · máx ${ramMax?.toFixed(2) ?? '-'} GB</span></div>
+              ${buildUsageChartSvg(nodeResourceSamples, 'memoryUsedBytes', '#10b981', 'gb')}
+            </section>
+            <section class="panel">
+              <div class="chart-title"><strong>Uso de GPU</strong><span>media ${gpuAverage?.toFixed(1) ?? '-'}% · máx ${gpuMax?.toFixed(1) ?? '-'}%</span></div>
+              ${buildUsageChartSvg(nodeResourceSamples, 'gpuPercent', '#a855f7', 'percent')}
+            </section>
+            <section class="panel">
+              <div class="chart-title"><strong>Uso de VRAM</strong><span>media ${vramAverage?.toFixed(2) ?? '-'} GB · máx ${vramMax?.toFixed(2) ?? '-'} GB</span></div>
+              ${buildUsageChartSvg(nodeResourceSamples, 'vramUsedBytes', '#f97316', 'gb')}
             </section>
           </div>
 
@@ -833,13 +1113,6 @@ function buildReportHtml({
           </table>
           <h2>Tools</h2>
           ${toolBlocks || '<p class="muted">No se ejecutaron tools.</p>'}
-        </section>
-        <section>
-          <h2>Timeline técnico</h2>
-          <table>
-            <thead><tr><th>#</th><th>Fase</th><th>Acumulado</th><th>Duración</th><th>Resumen</th></tr></thead>
-            <tbody>${eventRows}</tbody>
-          </table>
         </section>
       </body>
     </html>
@@ -869,10 +1142,12 @@ export default function DebugLabPage() {
   const [resourceSamples, setResourceSamples] = useState<ResourceUsageSample[]>([])
   const previousLatestNodeId = useRef<string | null>(null)
   const traceStartedAt = useRef<number | null>(null)
+  const sampledNodeMarks = useRef<Set<string>>(new Set())
 
   useEffect(() => {
     previousLatestNodeId.current = null
     traceStartedAt.current = null
+    sampledNodeMarks.current = new Set()
     setEvents([])
     setOutput('')
     setSelectedNodeId(null)
@@ -945,13 +1220,16 @@ export default function DebugLabPage() {
      * Returns:
      *   Promise<void>
      */
-    const captureSystemSample = async (): Promise<void> => {
+    const captureSystemSample = async (elapsedOverride?: number): Promise<void> => {
       try {
         const snapshot = await window.electronAPI.getDebugLabSystemSnapshot()
 
         if (cancelled) return
 
-        const elapsedMs = Math.max(0, Date.now() - (traceStartedAt.current ?? Date.now()))
+        const elapsedMs =
+          typeof elapsedOverride === 'number'
+            ? elapsedOverride
+            : Math.max(0, Date.now() - (traceStartedAt.current ?? Date.now()))
         setSystemInfo(snapshot.hardware)
         setResourceSamples((current) =>
           [
@@ -967,7 +1245,23 @@ export default function DebugLabPage() {
       }
     }
 
-    void captureSystemSample()
+    const marks = flowNodes.flatMap((node) => [
+      { key: `${node.id}:start`, elapsedMs: node.elapsedMs },
+      {
+        key: `${node.id}:end`,
+        elapsedMs:
+          typeof node.elapsedMs === 'number'
+            ? node.elapsedMs + (typeof node.durationMs === 'number' ? node.durationMs : 0)
+            : undefined
+      }
+    ])
+
+    for (const mark of marks) {
+      if (typeof mark.elapsedMs !== 'number' || sampledNodeMarks.current.has(mark.key)) continue
+
+      sampledNodeMarks.current.add(mark.key)
+      void captureSystemSample(mark.elapsedMs)
+    }
 
     if (!running) {
       return () => {
@@ -975,18 +1269,13 @@ export default function DebugLabPage() {
       }
     }
 
-    const interval = window.setInterval(() => {
-      void captureSystemSample()
-    }, 1000)
-
     return () => {
       cancelled = true
-      window.clearInterval(interval)
     }
-  }, [firstEventElapsedMs, hasEvents, running])
+  }, [firstEventElapsedMs, flowNodes, hasEvents, running])
 
   /**
-   * Open a printable benchmark report for the current debug trace.
+   * Export a ZIP report for the current debug trace.
    *
    * Args:
    *   None.
@@ -994,7 +1283,7 @@ export default function DebugLabPage() {
    * Returns:
    *   void
    */
-  const exportPdf = async () => {
+  const exportReport = async () => {
     if (events.length === 0 || exporting) return
 
     try {
@@ -1023,13 +1312,15 @@ export default function DebugLabPage() {
         events,
         outputContentLength: output.length,
         tools,
+        flowNodes,
         systemInfo: reportSystemInfo,
         resourceSamples: reportResourceSamples
       })
-      const result = await window.electronAPI.exportDebugLabPdf(html)
+      const csvFiles = buildReportCsvFiles(metrics, flowNodes, reportResourceSamples)
+      const result = await window.electronAPI.exportDebugLabReport({ html, csvFiles })
 
       if (!result.ok && !result.cancelled) {
-        console.error('No se pudo exportar el PDF:', result.error)
+        console.error('No se pudo exportar el informe:', result.error)
       }
     } finally {
       setExporting(false)
@@ -1049,6 +1340,7 @@ export default function DebugLabPage() {
     if (running) return
     previousLatestNodeId.current = null
     traceStartedAt.current = null
+    sampledNodeMarks.current = new Set()
     setEvents([])
     setOutput('')
     setSelectedNodeId(null)
@@ -1125,9 +1417,9 @@ export default function DebugLabPage() {
             <RotateCcw size={15} />
           </IconButton>
           <IconButton
-            label={exporting ? 'Exportando' : 'PDF'}
+            label={exporting ? 'Exportando' : 'ZIP'}
             disabled={events.length === 0 || exporting}
-            onClick={() => void exportPdf()}
+            onClick={() => void exportReport()}
           >
             <Download size={15} />
           </IconButton>

@@ -7,9 +7,10 @@ declare global {
       closeApp: () => Promise<boolean>
       openSettingsWindow: () => Promise<boolean>
       openDebugLabWindow: (chatId?: string) => Promise<boolean>
-      exportDebugLabPdf: (
+      exportDebugLabReport: (payload: {
         html: string
-      ) => Promise<{ ok: boolean; path?: string; cancelled?: boolean; error?: string }>
+        csvFiles: Array<{ filename: string; content: string }>
+      }) => Promise<{ ok: boolean; path?: string; cancelled?: boolean; error?: string }>
       getDebugLabSystemSnapshot: () => Promise<{
         hardware: {
           hostname: string
@@ -19,6 +20,8 @@ declare global {
           cpuCores: number
           totalMemoryBytes: number
           gpuDevices: string[]
+          primaryGpuName?: string
+          vramTotalBytes?: number
         }
         sample: {
           capturedAt: number
@@ -27,6 +30,10 @@ declare global {
           memoryFreeBytes: number
           memoryTotalBytes: number
           memoryUsedPercent: number
+          gpuPercent: number | null
+          vramUsedBytes: number | null
+          vramTotalBytes: number | null
+          vramUsedPercent: number | null
         }
       }>
     }
