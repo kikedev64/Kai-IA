@@ -26,7 +26,6 @@ def api_list_files(max_results: int = Query(20, ge=1, le=200)) -> dict:
     except HttpError as e:
         raise HTTPException(status_code=e.resp.status, detail=str(e))
 
-
 @router.post("/files/{file_id}/public-link", response_model=DrivePublicLinkResponse)
 def api_make_public_and_get_link(file_id: str, export_fmt: str | None = None) -> dict:
     """Serve the make public and get link endpoint.
@@ -42,7 +41,6 @@ def api_make_public_and_get_link(file_id: str, export_fmt: str | None = None) ->
         return get_public_download_link(file_id=file_id, export_fmt=export_fmt)
     except HttpError as e:
         raise HTTPException(status_code=e.resp.status, detail=str(e))
-
 
 @router.delete("/files/{file_id}", response_model=DriveDeleteResponse)
 def api_delete_file(file_id: str) -> dict:
