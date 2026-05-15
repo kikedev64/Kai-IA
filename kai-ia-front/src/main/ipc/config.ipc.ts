@@ -2,16 +2,16 @@ import { app, ipcMain } from 'electron'
 import { configRepository } from '../db/config.repository'
 import { getBackendBaseUrl } from '../db/database'
 
+/**
+ * Register IPC handlers used by the renderer configuration API.
+ *
+ * Args:
+ *   None.
+ *
+ * Returns:
+ *   void
+ */
 export function registerConfigIpc(): void {
-  /**
-   * Register IPC handlers used by the renderer configuration API.
-   *
-   * Args:
-   *   None.
-   *
-   * Returns:
-   *   void
-   */
 
   ipcMain.handle('config:is-first-run', () => {
     return configRepository.isFirstRun()

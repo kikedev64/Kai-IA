@@ -9,16 +9,16 @@ export type CreateChatAndSendMessageResult = {
   fullReply: string
 }
 
+/**
+ * Build the backend base URL from saved local configuration.
+ *
+ * Args:
+ *   None.
+ *
+ * Returns:
+ *   string
+ */
 async function getBackendBaseUrl(): Promise<string> {
-  /**
-   * Build the backend base URL from saved local configuration.
-   *
-   * Args:
-   *   None.
-   *
-   * Returns:
-   *   string
-   */
 
   const backendUrl = await window.configApi.getServerUrl()
   const backendPort = await window.configApi.getServerPort()
@@ -30,20 +30,20 @@ async function getBackendBaseUrl(): Promise<string> {
   return `${backendUrl}:${backendPort}`
 }
 
+/**
+ * Create a chat, send a prompt through the streaming endpoint and collect the answer.
+ *
+ * Args:
+ *   prompt: Prompt sent to the assistant.
+ *   options: Optional token callback used while streaming.
+ *
+ * Returns:
+ *   Promise<CreateChatAndSendResult>
+ */
 export async function createChatAndSendAssistantMessage(
   prompt: string,
   options: CreateChatAndSendMessageOptions = {}
 ): Promise<CreateChatAndSendMessageResult> {
-  /**
-   * Create a chat, send a prompt through the streaming endpoint and collect the answer.
-   *
-   * Args:
-   *   prompt: Prompt sent to the assistant.
-   *   options: Optional token callback used while streaming.
-   *
-   * Returns:
-   *   Promise<CreateChatAndSendResult>
-   */
 
   const chatId = await createChat()
   const baseUrl = await getBackendBaseUrl()

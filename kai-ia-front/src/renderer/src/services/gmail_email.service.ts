@@ -20,16 +20,16 @@ type FullEmailResponse = {
   data: GmailApiEmail
 }
 
+/**
+ * Build the backend base URL from saved local configuration.
+ *
+ * Args:
+ *   None.
+ *
+ * Returns:
+ *   string
+ */
 async function getBackendBaseUrl(): Promise<string> {
-  /**
-   * Build the backend base URL from saved local configuration.
-   *
-   * Args:
-   *   None.
-   *
-   * Returns:
-   *   string
-   */
 
   const backendUrl = await window.configApi.getServerUrl()
   const backendPort = await window.configApi.getServerPort()
@@ -41,16 +41,16 @@ async function getBackendBaseUrl(): Promise<string> {
   return `${backendUrl}:${backendPort}`
 }
 
+/**
+ * Load one Gmail message by id through the backend.
+ *
+ * Args:
+ *   messageId: Gmail message identifier.
+ *
+ * Returns:
+ *   Promise<GmailApiEmail>
+ */
 export async function readEmailById(messageId: string): Promise<GmailApiEmail> {
-  /**
-   * Load one Gmail message by id through the backend.
-   *
-   * Args:
-   *   messageId: Gmail message identifier.
-   *
-   * Returns:
-   *   Promise<GmailApiEmail>
-   */
 
   const baseUrl = await getBackendBaseUrl()
 

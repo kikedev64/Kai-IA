@@ -22,17 +22,17 @@ type GoogleTestResponse = {
 const DEFAULT_HOST = 'http://localhost'
 const DEFAULT_PORT = '8000'
 
+/**
+ * Render the Google connection step and verify Gmail access.
+ *
+ * Args:
+ *   onNext: Moves the user to the next onboarding step.
+ *   onPrev: Moves the user back to the previous onboarding step.
+ *
+ * Returns:
+ *   React.JSX.Element
+ */
 const ConnectGoogleSlide = ({ onNext, onPrev }: Props) => {
-  /**
-   * Render the Google connection step and verify Gmail access.
-   *
-   * Args:
-   *   onNext: Moves the user to the next onboarding step.
-   *   onPrev: Moves the user back to the previous onboarding step.
-   *
-   * Returns:
-   *   React.JSX.Element
-   */
 
   const [host, setHost] = useState(DEFAULT_HOST)
   const [port, setPort] = useState(DEFAULT_PORT)
@@ -49,17 +49,17 @@ const ConnectGoogleSlide = ({ onNext, onPrev }: Props) => {
     return `${cleanHost}:${cleanPort}`
   }, [host, port])
 
+  /**
+   * Load saved connection settings into the current onboarding form.
+   *
+   * Args:
+   *   None.
+   *
+   * Returns:
+   *   Promise<void>
+   */
   useEffect(() => {
     const loadSavedConfig = async () => {
-      /**
-       * Load saved connection settings into the current onboarding form.
-       *
-       * Args:
-       *   None.
-       *
-       * Returns:
-       *   Promise<void>
-       */
 
       try {
         const savedHost = await window.configApi.getServerUrl()
@@ -82,16 +82,16 @@ const ConnectGoogleSlide = ({ onNext, onPrev }: Props) => {
     void loadSavedConfig()
   }, [])
 
+  /**
+   * Check whether the configured backend can access the Google account.
+   *
+   * Args:
+   *   None.
+   *
+   * Returns:
+   *   Promise<boolean>
+   */
   const checkGoogleConnection = async () => {
-    /**
-     * Check whether the configured backend can access the Google account.
-     *
-     * Args:
-     *   None.
-     *
-     * Returns:
-     *   Promise<boolean>
-     */
 
     try {
       const res = await fetch(`${backendUrl}/auth/google/test`, {
@@ -123,16 +123,16 @@ const ConnectGoogleSlide = ({ onNext, onPrev }: Props) => {
     }
   }
 
+  /**
+   * Open the Google login flow through the configured backend.
+   *
+   * Args:
+   *   None.
+   *
+   * Returns:
+   *   Promise<void>
+   */
   const handleGoogleLogin = async () => {
-    /**
-     * Open the Google login flow through the configured backend.
-     *
-     * Args:
-     *   None.
-     *
-     * Returns:
-     *   Promise<void>
-     */
 
     try {
       setStatus('loading')
@@ -178,16 +178,16 @@ const ConnectGoogleSlide = ({ onNext, onPrev }: Props) => {
     }
   }
 
+  /**
+   * Validate the current step and continue when its required data is ready.
+   *
+   * Args:
+   *   None.
+   *
+   * Returns:
+   *   Promise<void>
+   */
   const handleContinue = async () => {
-    /**
-     * Validate the current step and continue when its required data is ready.
-     *
-     * Args:
-     *   None.
-     *
-     * Returns:
-     *   Promise<void>
-     */
 
     if (!connected) return
 

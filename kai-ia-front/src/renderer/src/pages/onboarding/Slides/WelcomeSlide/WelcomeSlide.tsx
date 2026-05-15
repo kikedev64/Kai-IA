@@ -4,16 +4,16 @@ type Props  = {
   onNext?: () => void
 }
 
+/**
+ * Render the welcome step that starts onboarding.
+ *
+ * Args:
+ *   onNext: Moves the user to the next onboarding step.
+ *
+ * Returns:
+ *   React.JSX.Element
+ */
 const WelcomeSlide = ({onNext}:Props) => {
-  /**
-   * Render the welcome step that starts onboarding.
-   *
-   * Args:
-   *   onNext: Moves the user to the next onboarding step.
-   *
-   * Returns:
-   *   React.JSX.Element
-   */
 
   return (
     <section className="flex min-h-screen w-full items-center justify-center bg-slate-950 px-6 text-white">

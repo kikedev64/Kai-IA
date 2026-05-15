@@ -9,17 +9,17 @@ type AskResponse = {
   reply: string
 }
 
+/**
+ * Render the profile setup step and save the generated structured profile.
+ *
+ * Args:
+ *   onNext: Moves the user to the next onboarding step after saving.
+ *   onPrev: Moves the user back to the previous onboarding step.
+ *
+ * Returns:
+ *   React.JSX.Element
+ */
 const ProfileSetupSlide = ({ onNext, onPrev }: Props) => {
-  /**
-   * Render the profile setup step and save the generated structured profile.
-   *
-   * Args:
-   *   onNext: Moves the user to the next onboarding step after saving.
-   *   onPrev: Moves the user back to the previous onboarding step.
-   *
-   * Returns:
-   *   React.JSX.Element
-   */
 
   const [inputText, setInputText] = useState('')
   const [previewJson, setPreviewJson] = useState<Record<string, unknown> | null>(null)
@@ -27,30 +27,30 @@ const ProfileSetupSlide = ({ onNext, onPrev }: Props) => {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
+  /**
+   * Check that a parsed model response is a plain JSON object.
+   *
+   * Args:
+   *   value: Value returned by JSON parsing.
+   *
+   * Returns:
+   *   value is Record<string, unknown>
+   */
   const isValidPlainObject = (value: unknown): value is Record<string, unknown> => {
-    /**
-     * Check that a parsed model response is a plain JSON object.
-     *
-     * Args:
-     *   value: Value returned by JSON parsing.
-     *
-     * Returns:
-     *   value is Record<string, unknown>
-     */
 
     return typeof value === 'object' && value !== null && !Array.isArray(value)
   }
 
+  /**
+   * Generate and validate the JSON profile preview from the free-text profile.
+   *
+   * Args:
+   *   None.
+   *
+   * Returns:
+   *   Promise<void>
+   */
   const handlePreview = async () => {
-    /**
-     * Generate and validate the JSON profile preview from the free-text profile.
-     *
-     * Args:
-     *   None.
-     *
-     * Returns:
-     *   Promise<void>
-     */
 
     setError('')
     setLoadingPreview(true)
@@ -104,16 +104,16 @@ const ProfileSetupSlide = ({ onNext, onPrev }: Props) => {
     }
   }
 
+  /**
+   * Validate the current step and continue when its required data is ready.
+   *
+   * Args:
+   *   None.
+   *
+   * Returns:
+   *   Promise<void>
+   */
   const handleContinue = async () => {
-    /**
-     * Validate the current step and continue when its required data is ready.
-     *
-     * Args:
-     *   None.
-     *
-     * Returns:
-     *   Promise<void>
-     */
 
     setError('')
 
@@ -239,16 +239,16 @@ const ProfileSetupSlide = ({ onNext, onPrev }: Props) => {
 
 export default ProfileSetupSlide
 
+/**
+ * Build the backend origin from the persisted host and port configuration.
+ *
+ * Args:
+ *   None.
+ *
+ * Returns:
+ *   Promise<string>
+ */
 async function getBackendBaseURL(): Promise<string> {
-  /**
-   * Build the backend origin from the persisted host and port configuration.
-   *
-   * Args:
-   *   None.
-   *
-   * Returns:
-   *   Promise<string>
-   */
 
   const savedHost = await window.configApi.getServerUrl()
   const savedPort = await window.configApi.getServerPort()

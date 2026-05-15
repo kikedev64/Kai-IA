@@ -9,16 +9,16 @@ import type {
 
 type UserProfilePayload = Record<string, unknown>
 
+/**
+ * Build the assistant backend base URL from renderer configuration.
+ *
+ * Args:
+ *   None.
+ *
+ * Returns:
+ *   Promise<string>
+ */
 async function getBaseUrl(): Promise<string> {
-  /**
-   * Build the assistant backend base URL from renderer configuration.
-   *
-   * Args:
-   *   None.
-   *
-   * Returns:
-   *   Promise<string>
-   */
 
   const [backendUrl, backendPort] = await Promise.all([
     window.configApi.getServerUrl(),
@@ -39,16 +39,16 @@ async function getBaseUrl(): Promise<string> {
   return `${url}:${port}`
 }
 
+/**
+ * Format a chat update timestamp for the sidebar.
+ *
+ * Args:
+ *   dateString: ISO date returned by the backend.
+ *
+ * Returns:
+ *   string
+ */
 function formatUpdatedAt(dateString?: string | null): string {
-  /**
-   * Format a chat update timestamp for the sidebar.
-   *
-   * Args:
-   *   dateString: ISO date returned by the backend.
-   *
-   * Returns:
-   *   string
-   */
 
   if (!dateString) return 'Sin fecha'
 
@@ -81,16 +81,16 @@ function formatUpdatedAt(dateString?: string | null): string {
   })
 }
 
+/**
+ * Create the sidebar preview for the most recent visible chat message.
+ *
+ * Args:
+ *   messages: Messages returned for a chat.
+ *
+ * Returns:
+ *   string
+ */
 function buildLastMessagePreview(messages: ApiFullChatResponse['messages']): string {
-  /**
-   * Create the sidebar preview for the most recent visible chat message.
-   *
-   * Args:
-   *   messages: Messages returned for a chat.
-   *
-   * Returns:
-   *   string
-   */
 
   if (!messages?.length) return 'Sin mensajes todavía'
 
@@ -105,17 +105,17 @@ function buildLastMessagePreview(messages: ApiFullChatResponse['messages']): str
   return lastMessage.content?.trim() || 'Sin contenido'
 }
 
+/**
+ * Map a backend chat summary to the renderer chat item model.
+ *
+ * Args:
+ *   chat: Backend chat summary.
+ *   index: Position in the returned chat list.
+ *
+ * Returns:
+ *   ChatItem
+ */
 function mapChatToChatItem(chat: ApiChatsResponse['chats'][number], index: number): ChatItem {
-  /**
-   * Map a backend chat summary to the renderer chat item model.
-   *
-   * Args:
-   *   chat: Backend chat summary.
-   *   index: Position in the returned chat list.
-   *
-   * Returns:
-   *   ChatItem
-   */
 
   return {
     id: chat.chat_id,
@@ -125,16 +125,16 @@ function mapChatToChatItem(chat: ApiChatsResponse['chats'][number], index: numbe
   }
 }
 
+/**
+ * Load chat summaries from the backend.
+ *
+ * Args:
+ *   None.
+ *
+ * Returns:
+ *   Promise<ChatItem[]>
+ */
 export async function getChats(): Promise<ChatItem[]> {
-  /**
-   * Load chat summaries from the backend.
-   *
-   * Args:
-   *   None.
-   *
-   * Returns:
-   *   Promise<ChatItem[]>
-   */
 
   const baseUrl = await getBaseUrl()
 
@@ -151,16 +151,16 @@ export async function getChats(): Promise<ChatItem[]> {
   return (data.chats ?? []).map(mapChatToChatItem)
 }
 
+/**
+ * Load a full chat by identifier.
+ *
+ * Args:
+ *   chatId: Backend chat identifier.
+ *
+ * Returns:
+ *   Promise<ApiFullChatResponse>
+ */
 export async function getChatById(chatId: string): Promise<ApiFullChatResponse> {
-  /**
-   * Load a full chat by identifier.
-   *
-   * Args:
-   *   chatId: Backend chat identifier.
-   *
-   * Returns:
-   *   Promise<ApiFullChatResponse>
-   */
 
   const baseUrl = await getBaseUrl()
 
@@ -175,16 +175,16 @@ export async function getChatById(chatId: string): Promise<ApiFullChatResponse> 
   return response.json()
 }
 
+/**
+ * Load visible user and assistant messages for a chat.
+ *
+ * Args:
+ *   chatId: Backend chat identifier.
+ *
+ * Returns:
+ *   Promise<Message[]>
+ */
 export async function getChatMessages(chatId: string): Promise<Message[]> {
-  /**
-   * Load visible user and assistant messages for a chat.
-   *
-   * Args:
-   *   chatId: Backend chat identifier.
-   *
-   * Returns:
-   *   Promise<Message[]>
-   */
 
   const chat = await getChatById(chatId)
 
@@ -199,16 +199,16 @@ export async function getChatMessages(chatId: string): Promise<Message[]> {
   }))
 }
 
+/**
+ * Create a new backend chat and return its identifier.
+ *
+ * Args:
+ *   None.
+ *
+ * Returns:
+ *   Promise<string>
+ */
 export async function createChat(): Promise<string> {
-  /**
-   * Create a new backend chat and return its identifier.
-   *
-   * Args:
-   *   None.
-   *
-   * Returns:
-   *   Promise<string>
-   */
 
   const baseUrl = await getBaseUrl()
 
@@ -224,22 +224,22 @@ export async function createChat(): Promise<string> {
   return data.chat_id
 }
 
+/**
+ * Send one prompt to an existing chat.
+ *
+ * Args:
+ *   chatId: Target chat identifier.
+ *   userInput: Prompt text sent by the user.
+ *   limitHistory: Maximum history messages included by the backend.
+ *
+ * Returns:
+ *   Promise<SendChatMessageResponse>
+ */
 export async function sendMessage(
   chatId: string,
   userInput: string,
   limitHistory = 50
 ): Promise<SendChatMessageResponse> {
-  /**
-   * Send one prompt to an existing chat.
-   *
-   * Args:
-   *   chatId: Target chat identifier.
-   *   userInput: Prompt text sent by the user.
-   *   limitHistory: Maximum history messages included by the backend.
-   *
-   * Returns:
-   *   Promise<SendChatMessageResponse>
-   */
 
   const baseUrl = await getBaseUrl()
 
@@ -260,16 +260,16 @@ export async function sendMessage(
   return response.json()
 }
 
+/**
+ * Load one chat and convert it to a sidebar item.
+ *
+ * Args:
+ *   chatId: Backend chat identifier.
+ *
+ * Returns:
+ *   Promise<ChatItem>
+ */
 export async function getChatItemById(chatId: string): Promise<ChatItem> {
-  /**
-   * Load one chat and convert it to a sidebar item.
-   *
-   * Args:
-   *   chatId: Backend chat identifier.
-   *
-   * Returns:
-   *   Promise<ChatItem>
-   */
 
   const chat = await getChatById(chatId)
 
@@ -281,16 +281,16 @@ export async function getChatItemById(chatId: string): Promise<ChatItem> {
   }
 }
 
+/**
+ * Send the onboarding profile payload to the backend.
+ *
+ * Args:
+ *   data: Structured profile data collected during onboarding.
+ *
+ * Returns:
+ *   Promise<void>
+ */
 export async function saveUserProfileOnboarding(data: UserProfilePayload): Promise<void> {
-  /**
-   * Send the onboarding profile payload to the backend.
-   *
-   * Args:
-   *   data: Structured profile data collected during onboarding.
-   *
-   * Returns:
-   *   Promise<void>
-   */
 
   const baseUrl = await getBaseUrl()
 
@@ -307,16 +307,16 @@ export async function saveUserProfileOnboarding(data: UserProfilePayload): Promi
   }
 }
 
+/**
+ * Load the saved user profile from the backend.
+ *
+ * Args:
+ *   None.
+ *
+ * Returns:
+ *   Promise<Record<string, unknown>>
+ */
 export async function getUserProfile(): Promise<Record<string, unknown>> {
-  /**
-   * Load the saved user profile from the backend.
-   *
-   * Args:
-   *   None.
-   *
-   * Returns:
-   *   Promise<Record<string, unknown>>
-   */
 
   const baseUrl = await getBaseUrl()
 
@@ -338,16 +338,16 @@ export type InitialChatBootstrapData = {
   messagesByChatId: Record<string, Message[]>
 }
 
+/**
+ * Load chats and the first chat messages for initial renderer state.
+ *
+ * Args:
+ *   None.
+ *
+ * Returns:
+ *   Promise<InitialChatBootstrapData>
+ */
 export async function loadInitialChatBootstrap(): Promise<InitialChatBootstrapData> {
-  /**
-   * Load chats and the first chat messages for initial renderer state.
-   *
-   * Args:
-   *   None.
-   *
-   * Returns:
-   *   Promise<InitialChatBootstrapData>
-   */
 
   const chats = await getChats()
 

@@ -8,16 +8,16 @@ export type SystemNotificationPayload = {
   }
 }
 
+/**
+ * Request a desktop notification from the Electron main process.
+ *
+ * Args:
+ *   payload: Notification title, body and optional metadata.
+ *
+ * Returns:
+ *   Promise<void>
+ */
 export async function showSystemNotification(payload: SystemNotificationPayload): Promise<void> {
-  /**
-   * Request a desktop notification from the Electron main process.
-   *
-   * Args:
-   *   payload: Notification title, body and optional metadata.
-   *
-   * Returns:
-   *   Promise<void>
-   */
 
   if (!window.systemNotificationsApi) {
     throw new Error('systemNotificationsApi no está disponible en window')
@@ -31,8 +31,6 @@ export async function showSystemNotification(payload: SystemNotificationPayload)
 }
 
 export function onEmailNotificationClick(
-  callback: (payload: { messageId: string }) => void
-): () => void {
   /**
    * Subscribe to email notification click events from the main process.
    *
@@ -42,6 +40,8 @@ export function onEmailNotificationClick(
    * Returns:
    *   () => void
    */
+  callback: (payload: { messageId: string }) => void
+): () => void {
 
   if (!window.systemNotificationsApi) {
     throw new Error('systemNotificationsApi no está disponible en window')

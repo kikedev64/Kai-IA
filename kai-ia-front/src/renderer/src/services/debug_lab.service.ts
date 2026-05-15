@@ -43,16 +43,16 @@ export type DebugLabBroadcastMessage = {
 
 export const DEBUG_LAB_CHANNEL = 'kai-debug-lab-events'
 
+/**
+ * Broadcast one debug event to any open Debug Lab panel.
+ *
+ * Args:
+ *   message: Debug Lab event payload with chat context.
+ *
+ * Returns:
+ *   void
+ */
 export function publishDebugLabEvent(message: DebugLabBroadcastMessage): void {
-  /**
-   * Broadcast one debug event to any open Debug Lab panel.
-   *
-   * Args:
-   *   message: Debug Lab event payload with chat context.
-   *
-   * Returns:
-   *   void
-   */
 
   const channel = new BroadcastChannel(DEBUG_LAB_CHANNEL)
   channel.postMessage(message)

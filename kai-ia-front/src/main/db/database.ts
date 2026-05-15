@@ -4,16 +4,16 @@ import { app } from 'electron'
 
 let db: Database.Database | null = null
 
+/**
+ * Open or reuse the local SQLite database.
+ *
+ * Args:
+ *   None.
+ *
+ * Returns:
+ *   Database.Database
+ */
 export function getDatabase(): Database.Database {
-  /**
-   * Open or reuse the local SQLite database.
-   *
-   * Args:
-   *   None.
-   *
-   * Returns:
-   *   Database.Database
-   */
 
   if (db) return db
 
@@ -36,16 +36,16 @@ export function getDatabase(): Database.Database {
   return db
 }
 
+/**
+ * Read one configuration key from the local database.
+ *
+ * Args:
+ *   key: Configuration key to read.
+ *
+ * Returns:
+ *   string | null
+ */
 export function getConfigValue(key: string): string | null {
-  /**
-   * Read one configuration key from the local database.
-   *
-   * Args:
-   *   key: Configuration key to read.
-   *
-   * Returns:
-   *   string | null
-   */
 
   const db = getDatabase()
 
@@ -56,17 +56,17 @@ export function getConfigValue(key: string): string | null {
   return row?.value ?? null
 }
 
+/**
+ * Store one configuration key in the local database.
+ *
+ * Args:
+ *   key: Configuration key to write.
+ *   value: String value persisted for that key.
+ *
+ * Returns:
+ *   void
+ */
 export function setConfigValue(key: string, value: string): void {
-  /**
-   * Store one configuration key in the local database.
-   *
-   * Args:
-   *   key: Configuration key to write.
-   *   value: String value persisted for that key.
-   *
-   * Returns:
-   *   void
-   */
 
   const db = getDatabase()
 
@@ -81,16 +81,16 @@ export function setConfigValue(key: string, value: string): void {
   ).run(key, value)
 }
 
+/**
+ * Read whether onboarding has already been completed.
+ *
+ * Args:
+ *   None.
+ *
+ * Returns:
+ *   boolean
+ */
 export function getOnboardingCompleted(): boolean {
-  /**
-   * Read whether onboarding has already been completed.
-   *
-   * Args:
-   *   None.
-   *
-   * Returns:
-   *   boolean
-   */
 
   const value = getConfigValue('onboarding_completed')
 
@@ -100,16 +100,16 @@ export function getOnboardingCompleted(): boolean {
   return normalized === 'true' || normalized === '1'
 }
 
+/**
+ * Build the backend base URL from saved local configuration.
+ *
+ * Args:
+ *   None.
+ *
+ * Returns:
+ *   string
+ */
 export function getBackendBaseUrl(): string {
-  /**
-   * Build the backend base URL from saved local configuration.
-   *
-   * Args:
-   *   None.
-   *
-   * Returns:
-   *   string
-   */
 
   const serverUrl = getConfigValue('server_url') ?? 'http://localhost'
   const serverPort = getConfigValue('server_port') ?? '8000'

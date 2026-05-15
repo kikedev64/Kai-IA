@@ -5,17 +5,17 @@ type Props = {
   onPrev?: () => void
 }
 
+/**
+ * Render the personal introduction step for onboarding.
+ *
+ * Args:
+ *   onNext: Moves the user to the next onboarding step.
+ *   onPrev: Moves the user back to the previous onboarding step.
+ *
+ * Returns:
+ *   React.JSX.Element
+ */
 const WhoamiSlide = ({ onNext,onPrev }: Props) => {
-  /**
-   * Render the personal introduction step for onboarding.
-   *
-   * Args:
-   *   onNext: Moves the user to the next onboarding step.
-   *   onPrev: Moves the user back to the previous onboarding step.
-   *
-   * Returns:
-   *   React.JSX.Element
-   */
 
   return (
     <section className="relative flex min-h-screen w-full items-center justify-center bg-slate-950 px-6 text-white">

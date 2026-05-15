@@ -23,17 +23,17 @@ let currentStartupStatus = {
   message: 'Iniciando Kai IA...'
 }
 
+/**
+ * Send a startup progress update to the splash window.
+ *
+ * Args:
+ *   step: Machine-readable startup step.
+ *   message: User-facing startup message.
+ *
+ * Returns:
+ *   void
+ */
 function sendStartupStatus(step: string, message: string): void {
-  /**
-   * Send a startup progress update to the splash window.
-   *
-   * Args:
-   *   step: Machine-readable startup step.
-   *   message: User-facing startup message.
-   *
-   * Returns:
-   *   void
-   */
 
   currentStartupStatus = { step, message }
 
@@ -42,16 +42,16 @@ function sendStartupStatus(step: string, message: string): void {
   }
 }
 
+/**
+ * Create a BrowserWindow with the shared app defaults.
+ *
+ * Args:
+ *   options: Optional Electron window options merged into the defaults.
+ *
+ * Returns:
+ *   BrowserWindow
+ */
 function createBaseWindow(options?: Electron.BrowserWindowConstructorOptions): BrowserWindow {
-  /**
-   * Create a BrowserWindow with the shared app defaults.
-   *
-   * Args:
-   *   options: Optional Electron window options merged into the defaults.
-   *
-   * Returns:
-   *   BrowserWindow
-   */
 
   const win = new BrowserWindow({
     width: 1200,
@@ -74,17 +74,17 @@ function createBaseWindow(options?: Electron.BrowserWindowConstructorOptions): B
   return win
 }
 
+/**
+ * Load a renderer route in development or packaged mode.
+ *
+ * Args:
+ *   win: Window that should load the route.
+ *   route: Hash route opened in the renderer.
+ *
+ * Returns:
+ *   void
+ */
 function loadRendererRoute(win: BrowserWindow, route: string): void {
-  /**
-   * Load a renderer route in development or packaged mode.
-   *
-   * Args:
-   *   win: Window that should load the route.
-   *   route: Hash route opened in the renderer.
-   *
-   * Returns:
-   *   void
-   */
 
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
     void win.loadURL(`${process.env['ELECTRON_RENDERER_URL']}#${route}`)
@@ -95,16 +95,16 @@ function loadRendererRoute(win: BrowserWindow, route: string): void {
   }
 }
 
+/**
+ * Close and clear the splash window when startup finishes.
+ *
+ * Args:
+ *   None.
+ *
+ * Returns:
+ *   void
+ */
 function destroySplashWindow(): void {
-  /**
-   * Close and clear the splash window when startup finishes.
-   *
-   * Args:
-   *   None.
-   *
-   * Returns:
-   *   void
-   */
 
   if (splashWindow && !splashWindow.isDestroyed()) {
     splashWindow.close()
@@ -112,16 +112,16 @@ function destroySplashWindow(): void {
   splashWindow = null
 }
 
+/**
+ * Create the splash window shown during startup checks.
+ *
+ * Args:
+ *   None.
+ *
+ * Returns:
+ *   void
+ */
 function createSplashWindow(): void {
-  /**
-   * Create the splash window shown during startup checks.
-   *
-   * Args:
-   *   None.
-   *
-   * Returns:
-   *   void
-   */
 
   splashWindow = createBaseWindow({
     width: 720,
@@ -148,16 +148,16 @@ function createSplashWindow(): void {
   loadRendererRoute(splashWindow, '/splash')
 }
 
+/**
+ * Open or focus the settings window.
+ *
+ * Args:
+ *   None.
+ *
+ * Returns:
+ *   void
+ */
 function createSettingsWindow(): void {
-  /**
-   * Open or focus the settings window.
-   *
-   * Args:
-   *   None.
-   *
-   * Returns:
-   *   void
-   */
 
   if (settingsWindow && !settingsWindow.isDestroyed()) {
     settingsWindow.focus()
@@ -182,16 +182,16 @@ function createSettingsWindow(): void {
   loadRendererRoute(settingsWindow, '/settings')
 }
 
+/**
+ * Find the current window that should own the debug panel.
+ *
+ * Args:
+ *   None.
+ *
+ * Returns:
+ *   BrowserWindow | null
+ */
 function getDebugParentWindow(): BrowserWindow | null {
-  /**
-   * Find the current window that should own the debug panel.
-   *
-   * Args:
-   *   None.
-   *
-   * Returns:
-   *   BrowserWindow | null
-   */
 
   if (mainWindow && !mainWindow.isDestroyed()) return mainWindow
   if (settingsWindow && !settingsWindow.isDestroyed()) return settingsWindow
@@ -199,16 +199,16 @@ function getDebugParentWindow(): BrowserWindow | null {
   return null
 }
 
+/**
+ * Calculate the bounds used to dock Debug Lab next to its parent window.
+ *
+ * Args:
+ *   None.
+ *
+ * Returns:
+ *   Electron.Rectangle | null
+ */
 function getDockedDebugBounds(): Electron.Rectangle | null {
-  /**
-   * Calculate the bounds used to dock Debug Lab next to its parent window.
-   *
-   * Args:
-   *   None.
-   *
-   * Returns:
-   *   Electron.Rectangle | null
-   */
 
   const parentWindow = getDebugParentWindow()
 
@@ -230,16 +230,16 @@ function getDockedDebugBounds(): Electron.Rectangle | null {
   return { x, y, width, height }
 }
 
+/**
+ * Move the debug window back to its docked position.
+ *
+ * Args:
+ *   None.
+ *
+ * Returns:
+ *   void
+ */
 function syncDebugWindowBounds(): void {
-  /**
-   * Move the debug window back to its docked position.
-   *
-   * Args:
-   *   None.
-   *
-   * Returns:
-   *   void
-   */
 
   if (!debugWindow || debugWindow.isDestroyed()) return
 
@@ -250,16 +250,16 @@ function syncDebugWindowBounds(): void {
   }
 }
 
+/**
+ * Open or refresh the docked Debug Lab window for a chat.
+ *
+ * Args:
+ *   chatId: Optional chat identifier passed to the debug route.
+ *
+ * Returns:
+ *   void
+ */
 function createDebugWindow(chatId?: string): void {
-  /**
-   * Open or refresh the docked Debug Lab window for a chat.
-   *
-   * Args:
-   *   chatId: Optional chat identifier passed to the debug route.
-   *
-   * Returns:
-   *   void
-   */
 
   const route = chatId ? `/debug-lab?chatId=${encodeURIComponent(chatId)}` : '/debug-lab'
 
@@ -313,16 +313,16 @@ function createDebugWindow(chatId?: string): void {
   loadRendererRoute(debugWindow, route)
 }
 
+/**
+ * Create the main chat window.
+ *
+ * Args:
+ *   None.
+ *
+ * Returns:
+ *   void
+ */
 function createMainWindow(): void {
-  /**
-   * Create the main chat window.
-   *
-   * Args:
-   *   None.
-   *
-   * Returns:
-   *   void
-   */
 
   mainWindow = createBaseWindow({
     width: 1200,
@@ -342,16 +342,16 @@ function createMainWindow(): void {
   loadRendererRoute(mainWindow, '/')
 }
 
+/**
+ * Create the onboarding window.
+ *
+ * Args:
+ *   None.
+ *
+ * Returns:
+ *   void
+ */
 function createOnboardingWindow(): void {
-  /**
-   * Create the onboarding window.
-   *
-   * Args:
-   *   None.
-   *
-   * Returns:
-   *   void
-   */
 
   onboardingWindow = createBaseWindow({
     width: 1200,
@@ -371,16 +371,16 @@ function createOnboardingWindow(): void {
   loadRendererRoute(onboardingWindow, '/onboarding')
 }
 
+/**
+ * Run the splash startup flow and open the correct next window.
+ *
+ * Args:
+ *   None.
+ *
+ * Returns:
+ *   Promise<void>
+ */
 async function runStartupFlow(): Promise<void> {
-  /**
-   * Run the splash startup flow and open the correct next window.
-   *
-   * Args:
-   *   None.
-   *
-   * Returns:
-   *   Promise<void>
-   */
 
   createSplashWindow()
 

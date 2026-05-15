@@ -21,33 +21,33 @@ type EmailNotificationClickPayload = {
   messageId: string
 }
 
+/**
+ * Register IPC handlers for desktop notifications and notification clicks.
+ *
+ * Args:
+ *   options: Accessors used to send clicks back to the main window.
+ *
+ * Returns:
+ *   void
+ */
 export function registerNotificationsIpc({ getMainWindow }: RegisterNotificationsIpcParams): void {
+
+  let pendingEmailNotificationClick: EmailNotificationClickPayload | null = null
+
   /**
-   * Register IPC handlers for desktop notifications and notification clicks.
+   * Forward an email notification click to the renderer or keep it pending.
    *
    * Args:
-   *   options: Accessors used to send clicks back to the main window.
+   *   mainWindow: Main app window that should receive the event.
+   *   payload: Email notification click payload.
    *
    * Returns:
    *   void
    */
-
-  let pendingEmailNotificationClick: EmailNotificationClickPayload | null = null
-
   const sendEmailNotificationClick = (
     mainWindow: BrowserWindow,
     payload: EmailNotificationClickPayload
   ): void => {
-    /**
-     * Forward an email notification click to the renderer or keep it pending.
-     *
-     * Args:
-     *   mainWindow: Main app window that should receive the event.
-     *   payload: Email notification click payload.
-     *
-     * Returns:
-     *   void
-     */
 
     pendingEmailNotificationClick = payload
 

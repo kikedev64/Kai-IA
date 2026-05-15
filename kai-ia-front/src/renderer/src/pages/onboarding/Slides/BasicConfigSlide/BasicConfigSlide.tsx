@@ -10,17 +10,17 @@ type ConnectionStatus = "idle" | "checking" | "success" | "error"
 const DEFAULT_HOST = "http://localhost"
 const DEFAULT_PORT = "8000"
 
+/**
+ * Render the backend connection step and save the local server settings.
+ *
+ * Args:
+ *   onNext: Moves the user to the next onboarding step.
+ *   onPrev: Moves the user back to the previous onboarding step.
+ *
+ * Returns:
+ *   React.JSX.Element
+ */
 const BasicConfigSlide = ({ onNext, onPrev }: Props) => {
-  /**
-   * Render the backend connection step and save the local server settings.
-   *
-   * Args:
-   *   onNext: Moves the user to the next onboarding step.
-   *   onPrev: Moves the user back to the previous onboarding step.
-   *
-   * Returns:
-   *   React.JSX.Element
-   */
 
   const [host, setHost] = useState(DEFAULT_HOST)
   const [port, setPort] = useState(DEFAULT_PORT)
@@ -28,17 +28,17 @@ const BasicConfigSlide = ({ onNext, onPrev }: Props) => {
   const [message, setMessage] = useState("")
   const [loadingConfig, setLoadingConfig] = useState(true)
 
+  /**
+   * Load saved connection settings into the current onboarding form.
+   *
+   * Args:
+   *   None.
+   *
+   * Returns:
+   *   Promise<void>
+   */
   useEffect(() => {
     const loadSavedConfig = async () => {
-      /**
-       * Load saved connection settings into the current onboarding form.
-       *
-       * Args:
-       *   None.
-       *
-       * Returns:
-       *   Promise<void>
-       */
 
       try {
         const savedHost = await window.configApi.getServerUrl()
@@ -67,16 +67,16 @@ const BasicConfigSlide = ({ onNext, onPrev }: Props) => {
     return `${cleanHost}:${cleanPort}`
   }, [host, port])
 
+  /**
+   * Persist the server connection settings before continuing onboarding.
+   *
+   * Args:
+   *   None.
+   *
+   * Returns:
+   *   Promise<void>
+   */
   const saveConfig = async () => {
-    /**
-     * Persist the server connection settings before continuing onboarding.
-     *
-     * Args:
-     *   None.
-     *
-     * Returns:
-     *   Promise<void>
-     */
 
     try {
       setStatus("checking")

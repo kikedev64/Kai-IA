@@ -16,16 +16,16 @@ export type StartupResult =
   | { route: 'main'; bootstrap: BootstrapResponse }
   | { route: 'error'; error: string; bootstrap?: BootstrapResponse }
 
+/**
+ * Ask the backend whether the application can start normally.
+ *
+ * Args:
+ *   None.
+ *
+ * Returns:
+ *   Promise<BootstrapResponse>
+ */
 export async function checkBootstrap(): Promise<BootstrapResponse> {
-  /**
-   * Ask the backend whether the application can start normally.
-   *
-   * Args:
-   *   None.
-   *
-   * Returns:
-   *   Promise<BootstrapResponse>
-   */
 
   const baseUrl = getBackendBaseUrl()
 
@@ -48,16 +48,16 @@ export async function checkBootstrap(): Promise<BootstrapResponse> {
   }
 }
 
+/**
+ * Decide which window should open after the splash screen.
+ *
+ * Args:
+ *   None.
+ *
+ * Returns:
+ *   Promise<StartupResult>
+ */
 export async function resolveStartup(): Promise<StartupResult> {
-  /**
-   * Decide which window should open after the splash screen.
-   *
-   * Args:
-   *   None.
-   *
-   * Returns:
-   *   Promise<StartupResult>
-   */
 
   const onboardingCompleted = getOnboardingCompleted()
 

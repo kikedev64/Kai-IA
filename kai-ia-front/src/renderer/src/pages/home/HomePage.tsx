@@ -16,16 +16,16 @@ import {
   type DebugLabEvent
 } from '@renderer/services/debug_lab.service'
 
+/**
+ * Normalize common LaTeX delimiters before rendering markdown content.
+ *
+ * Args:
+ *   content: Assistant message content.
+ *
+ * Returns:
+ *   string
+ */
 function normalizeLatex(content: string): string {
-  /**
-   * Normalize common LaTeX delimiters before rendering markdown content.
-   *
-   * Args:
-   *   content: Assistant message content.
-   *
-   * Returns:
-   *   string
-   */
 
   return content
     .replace(/\\\[/g, '$$')
@@ -34,16 +34,16 @@ function normalizeLatex(content: string): string {
     .replace(/\\\)/g, '$')
 }
 
+/**
+ * Render assistant markdown with math, GitHub-flavored markdown and syntax highlighting.
+ *
+ * Args:
+ *   content: Markdown text produced by the assistant.
+ *
+ * Returns:
+ *   React.JSX.Element
+ */
 const MarkdownContent = ({ content }: { content: string }) => {
-  /**
-   * Render assistant markdown with math, GitHub-flavored markdown and syntax highlighting.
-   *
-   * Args:
-   *   content: Markdown text produced by the assistant.
-   *
-   * Returns:
-   *   React.JSX.Element
-   */
 
   return (
     <ReactMarkdown
@@ -100,16 +100,16 @@ const MarkdownContent = ({ content }: { content: string }) => {
 const STREAM_LIMIT_HISTORY = 6
 type UserProfileJson = Record<string, unknown>
 
+/**
+ * Check that a value is a plain object with at least one key.
+ *
+ * Args:
+ *   value: Unknown value loaded from configuration.
+ *
+ * Returns:
+ *   value is Record<string, unknown>
+ */
 function isNonEmptyPlainObject(value: unknown): value is UserProfileJson {
-  /**
-   * Check that a value is a plain object with at least one key.
-   *
-   * Args:
-   *   value: Unknown value loaded from configuration.
-   *
-   * Returns:
-   *   value is Record<string, unknown>
-   */
 
   return (
     typeof value === 'object' &&
@@ -119,16 +119,16 @@ function isNonEmptyPlainObject(value: unknown): value is UserProfileJson {
   )
 }
 
+/**
+ * Convert stored profile values into compact text suitable for prompt context.
+ *
+ * Args:
+ *   value: Profile value read from the saved profile JSON.
+ *
+ * Returns:
+ *   string | null
+ */
 function cleanProfileValue(value: unknown): unknown {
-  /**
-   * Convert stored profile values into compact text suitable for prompt context.
-   *
-   * Args:
-   *   value: Profile value read from the saved profile JSON.
-   *
-   * Returns:
-   *   string | null
-   */
 
   if (value === null || value === undefined) return undefined
 
@@ -157,16 +157,16 @@ function cleanProfileValue(value: unknown): unknown {
   return value
 }
 
+/**
+ * Create a short profile context string for chat requests.
+ *
+ * Args:
+ *   userProfile: Saved structured profile object.
+ *
+ * Returns:
+ *   string
+ */
 function buildCompactProfileContext(userProfile: UserProfileJson | null): string | null {
-  /**
-   * Create a short profile context string for chat requests.
-   *
-   * Args:
-   *   userProfile: Saved structured profile object.
-   *
-   * Returns:
-   *   string
-   */
 
   if (!isNonEmptyPlainObject(userProfile)) return null
 
@@ -181,16 +181,16 @@ function buildCompactProfileContext(userProfile: UserProfileJson | null): string
   ].join('\n')
 }
 
+/**
+ * Render the chat workspace and coordinate chat, email and debug actions.
+ *
+ * Args:
+ *   None.
+ *
+ * Returns:
+ *   React.JSX.Element
+ */
 const HomePage = (): React.JSX.Element => {
-  /**
-   * Render the chat workspace and coordinate chat, email and debug actions.
-   *
-   * Args:
-   *   None.
-   *
-   * Returns:
-   *   React.JSX.Element
-   */
 
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [input, setInput] = useState('')
@@ -221,32 +221,32 @@ const HomePage = (): React.JSX.Element => {
 
   const [localChats, setLocalChats] = useState<ChatItem[]>(chats)
 
+  /**
+   * Open the email action modal with the selected message payload.
+   *
+   * Args:
+   *   email: Email payload to inspect and answer.
+   *
+   * Returns:
+   *   void
+   */
   const openEmailActionModal = (email: GmailApiEmail) => {
-    /**
-     * Open the email action modal with the selected message payload.
-     *
-     * Args:
-     *   email: Email payload to inspect and answer.
-     *
-     * Returns:
-     *   void
-     */
 
     setIsEmailActionLoading(false)
     setSelectedEmailForAction(email)
     setEmailActionOpen(true)
   }
 
+  /**
+   * Resolve a notification payload and open the matching email action modal.
+   *
+   * Args:
+   *   payload: Notification payload received from the desktop shell.
+   *
+   * Returns:
+   *   Promise<void>
+   */
   const openEmailNotificationPayload = (payload: { messageId: string }) => {
-    /**
-     * Resolve a notification payload and open the matching email action modal.
-     *
-     * Args:
-     *   payload: Notification payload received from the desktop shell.
-     *
-     * Returns:
-     *   Promise<void>
-     */
 
     if (!payload || !payload.messageId) return
 
@@ -273,20 +273,20 @@ const HomePage = (): React.JSX.Element => {
       })
   }
 
+  /**
+   * Send a prompt to the backend and stream tokens, debug events and completion state.
+   *
+   * Args:
+   *   chatId: Target chat identifier.
+   *   promptText: User prompt sent to the backend.
+   *
+   * Returns:
+   *   Promise<string>
+   */
   const postChatStream = async (
     chatId: string,
     promptText: string
   ): Promise<string> => {
-    /**
-     * Send a prompt to the backend and stream tokens, debug events and completion state.
-     *
-     * Args:
-     *   chatId: Target chat identifier.
-     *   promptText: User prompt sent to the backend.
-     *
-     * Returns:
-     *   Promise<string>
-     */
 
     const baseUrl = await window.configApi.getServerUrl()
     const port = await window.configApi.getServerPort()
@@ -320,16 +320,16 @@ const HomePage = (): React.JSX.Element => {
     let buffer = ''
     let streamFinished = false
 
+    /**
+     * Apply one parsed stream event to chat state and debug publishing.
+     *
+     * Args:
+     *   event: Parsed server-sent event from the backend stream.
+     *
+     * Returns:
+     *   void
+     */
     const processStreamEvent = (event: string): boolean => {
-      /**
-       * Apply one parsed stream event to chat state and debug publishing.
-       *
-       * Args:
-       *   event: Parsed server-sent event from the backend stream.
-       *
-       * Returns:
-       *   void
-       */
 
       const lines = event
         .split('\n')
@@ -411,17 +411,17 @@ const HomePage = (): React.JSX.Element => {
     return accumulated.trim() || 'No se recibió contenido desde el asistente.'
   }
 
+  /**
+   * Append a user prompt, run the streaming request and store the assistant answer.
+   *
+   * Args:
+   *   chatId: Target chat identifier.
+   *   promptText: User prompt sent to the backend.
+   *
+   * Returns:
+   *   Promise<void>
+   */
   const sendPromptToChatStream = async (chatId: string, promptText: string) => {
-    /**
-     * Append a user prompt, run the streaming request and store the assistant answer.
-     *
-     * Args:
-     *   chatId: Target chat identifier.
-     *   promptText: User prompt sent to the backend.
-     *
-     * Returns:
-     *   Promise<void>
-     */
 
     const currentMessages = messagesByChatId[chatId] ?? []
 
@@ -474,16 +474,16 @@ const HomePage = (): React.JSX.Element => {
   useEffect(() => {
     let cancelled = false
 
+    /**
+     * Load the structured profile that will be sent with chat prompts.
+     *
+     * Args:
+     *   None.
+     *
+     * Returns:
+     *   Promise<void>
+     */
     const loadUserProfile = async () => {
-      /**
-       * Load the structured profile that will be sent with chat prompts.
-       *
-       * Args:
-       *   None.
-       *
-       * Returns:
-       *   Promise<void>
-       */
 
       try {
         const profile = await window.configApi.getUserProfileJson()
@@ -566,17 +566,17 @@ const HomePage = (): React.JSX.Element => {
     }
   }, [])
 
+  /**
+   * Load persisted messages for the selected chat into the conversation view.
+   *
+   * Args:
+   *   None.
+   *
+   * Returns:
+   *   Promise<void>
+   */
   useEffect(() => {
     const loadMessagesForSelectedChat = async () => {
-      /**
-       * Load persisted messages for the selected chat into the conversation view.
-       *
-       * Args:
-       *   None.
-       *
-       * Returns:
-       *   Promise<void>
-       */
 
       if (!selectedChatId) return
       if (messagesByChatId[selectedChatId]) return
@@ -616,16 +616,16 @@ const HomePage = (): React.JSX.Element => {
   const selectedChatStreamingContent =
     selectedChatId && selectedChatId === streamingChatId ? streamingContent : ''
 
+  /**
+   * Send the chosen email action through the active chat stream.
+   *
+   * Args:
+   *   userPrompt: Prompt describing what should be done with the email.
+   *
+   * Returns:
+   *   Promise<void>
+   */
   const handleEmailActionSubmit = async (userPrompt: string) => {
-    /**
-     * Send the chosen email action through the active chat stream.
-     *
-     * Args:
-     *   userPrompt: Prompt describing what should be done with the email.
-     *
-     * Returns:
-     *   Promise<void>
-     */
 
     if (!selectedEmailForAction?.id || isSubmittingEmailAction || isSending) return
 
@@ -675,16 +675,16 @@ const HomePage = (): React.JSX.Element => {
     }
   }
 
+  /**
+   * Create a new local chat and make it the active conversation.
+   *
+   * Args:
+   *   None.
+   *
+   * Returns:
+   *   Promise<void>
+   */
   const handleCreateChat = async () => {
-    /**
-     * Create a new local chat and make it the active conversation.
-     *
-     * Args:
-     *   None.
-     *
-     * Returns:
-     *   Promise<void>
-     */
 
     try {
       setIsCreatingChat(true)
@@ -707,30 +707,30 @@ const HomePage = (): React.JSX.Element => {
     }
   }
 
+  /**
+   * Switch the workspace to another saved chat.
+   *
+   * Args:
+   *   chatId: Chat identifier selected by the user.
+   *
+   * Returns:
+   *   void
+   */
   const handleSelectChat = (chatId: string) => {
-    /**
-     * Switch the workspace to another saved chat.
-     *
-     * Args:
-     *   chatId: Chat identifier selected by the user.
-     *
-     * Returns:
-     *   void
-     */
 
     setSelectedChatId(chatId)
   }
 
+  /**
+   * Send the text currently written in the chat composer.
+   *
+   * Args:
+   *   None.
+   *
+   * Returns:
+   *   Promise<void>
+   */
   const handleSend = async () => {
-    /**
-     * Send the text currently written in the chat composer.
-     *
-     * Args:
-     *   None.
-     *
-     * Returns:
-     *   Promise<void>
-     */
 
     const trimmedInput = input.trim()
     if (!trimmedInput || !selectedChatId || isSending) return
@@ -796,16 +796,16 @@ const HomePage = (): React.JSX.Element => {
   }
 
 
+  /**
+   * Submit the composer with Enter while preserving multiline input with Shift+Enter.
+   *
+   * Args:
+   *   e: Keyboard event from the chat composer.
+   *
+   * Returns:
+   *   void
+   */
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    /**
-     * Submit the composer with Enter while preserving multiline input with Shift+Enter.
-     *
-     * Args:
-     *   e: Keyboard event from the chat composer.
-     *
-     * Returns:
-     *   void
-     */
 
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()

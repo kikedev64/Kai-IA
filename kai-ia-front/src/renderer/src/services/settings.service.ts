@@ -29,30 +29,30 @@ type BackendTarget = {
   serverPort?: string | number | null
 }
 
+/**
+ * Check whether a value is a non-array object.
+ *
+ * Args:
+ *   value: Unknown value to validate.
+ *
+ * Returns:
+ *   value is Record<string, unknown>
+ */
 function isPlainObject(value: unknown): value is Record<string, unknown> {
-  /**
-   * Check whether a value is a non-array object.
-   *
-   * Args:
-   *   value: Unknown value to validate.
-   *
-   * Returns:
-   *   value is Record<string, unknown>
-   */
 
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
+/**
+ * Resolve the backend base URL from explicit values or saved settings.
+ *
+ * Args:
+ *   target: Optional backend host and port override.
+ *
+ * Returns:
+ *   Promise<string>
+ */
 async function resolveBaseUrl(target?: BackendTarget): Promise<string> {
-  /**
-   * Resolve the backend base URL from explicit values or saved settings.
-   *
-   * Args:
-   *   target: Optional backend host and port override.
-   *
-   * Returns:
-   *   Promise<string>
-   */
 
   const fallbackUrl = await window.configApi.getServerUrl()
   const fallbackPort = await window.configApi.getServerPort()
@@ -72,16 +72,16 @@ async function resolveBaseUrl(target?: BackendTarget): Promise<string> {
   return `${serverUrl.replace(/\/+$/, '')}:${serverPort}`
 }
 
+/**
+ * Load local settings exposed through the preload bridge.
+ *
+ * Args:
+ *   None.
+ *
+ * Returns:
+ *   Promise<LocalSettings>
+ */
 export async function getLocalSettings(): Promise<LocalSettings> {
-  /**
-   * Load local settings exposed through the preload bridge.
-   *
-   * Args:
-   *   None.
-   *
-   * Returns:
-   *   Promise<LocalSettings>
-   */
 
   const [serverUrl, serverPort, userProfileRaw, userProfileJson] = await Promise.all([
     window.configApi.getServerUrl(),
@@ -98,21 +98,21 @@ export async function getLocalSettings(): Promise<LocalSettings> {
   }
 }
 
+/**
+ * Persist local settings through the preload bridge.
+ *
+ * Args:
+ *   payload: Local settings values from the settings form.
+ *
+ * Returns:
+ *   Promise<void>
+ */
 export async function saveLocalSettings(payload: {
   server_url: string
   server_port: string
   user_profile_raw: string
   user_profile_json: Record<string, unknown>
 }): Promise<void> {
-  /**
-   * Persist local settings through the preload bridge.
-   *
-   * Args:
-   *   payload: Local settings values from the settings form.
-   *
-   * Returns:
-   *   Promise<void>
-   */
 
   const parsedPort = Number(payload.server_port)
 
@@ -130,16 +130,16 @@ export async function saveLocalSettings(payload: {
   await window.configApi.setUserProfileJson(payload.user_profile_json)
 }
 
+/**
+ * Load editable backend settings from the configured server.
+ *
+ * Args:
+ *   target: Optional backend host and port override.
+ *
+ * Returns:
+ *   Promise<BackendSettings>
+ */
 export async function getBackendSettings(target?: BackendTarget): Promise<BackendSettings> {
-  /**
-   * Load editable backend settings from the configured server.
-   *
-   * Args:
-   *   target: Optional backend host and port override.
-   *
-   * Returns:
-   *   Promise<BackendSettings>
-   */
 
   const baseUrl = await resolveBaseUrl(target)
 
@@ -156,20 +156,20 @@ export async function getBackendSettings(target?: BackendTarget): Promise<Backen
   return data.settings as BackendSettings
 }
 
+/**
+ * Persist editable backend settings on the configured server.
+ *
+ * Args:
+ *   settings: Backend settings draft to save.
+ *   target: Optional backend host and port override.
+ *
+ * Returns:
+ *   Promise<BackendSettings>
+ */
 export async function saveBackendSettings(
   settings: BackendSettings,
   target?: BackendTarget
 ): Promise<BackendSettings> {
-  /**
-   * Persist editable backend settings on the configured server.
-   *
-   * Args:
-   *   settings: Backend settings draft to save.
-   *   target: Optional backend host and port override.
-   *
-   * Returns:
-   *   Promise<BackendSettings>
-   */
 
   const baseUrl = await resolveBaseUrl(target)
 
@@ -195,20 +195,20 @@ export async function saveBackendSettings(
   return data.settings as BackendSettings
 }
 
+/**
+ * Regenerate the structured profile from raw profile text.
+ *
+ * Args:
+ *   rawText: Free-text profile used as model input.
+ *   target: Optional backend host and port override.
+ *
+ * Returns:
+ *   Promise<Record<string, unknown>>
+ */
 export async function regenerateUserProfile(
   rawText: string,
   target?: BackendTarget
 ): Promise<Record<string, unknown>> {
-  /**
-   * Regenerate the structured profile from raw profile text.
-   *
-   * Args:
-   *   rawText: Free-text profile used as model input.
-   *   target: Optional backend host and port override.
-   *
-   * Returns:
-   *   Promise<Record<string, unknown>>
-   */
 
   const baseUrl = await resolveBaseUrl(target)
 

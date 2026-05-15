@@ -6,27 +6,27 @@ import SplashPage from './pages/splash/SplashPage'
 import SettingsPage from './pages/settings/SettingsPage'
 import DebugLabPage from './pages/debug/DebugLabPage'
 
+/**
+ * Render the top-level renderer shell and switch between onboarding and the main chat.
+ *
+ * Args:
+ *   None.
+ *
+ * Returns:
+ *   React.JSX.Element
+ */
 function App(): React.JSX.Element {
+
   /**
-   * Render the top-level renderer shell and switch between onboarding and the main chat.
+   * Persist the completed onboarding state and open the main application.
    *
    * Args:
    *   None.
    *
    * Returns:
-   *   React.JSX.Element
+   *   Promise<void>
    */
-
   const handleOnboardingFinish = async () => {
-    /**
-     * Persist the completed onboarding state and open the main application.
-     *
-     * Args:
-     *   None.
-     *
-     * Returns:
-     *   Promise<void>
-     */
 
     try {
       await window.startupApi.completeOnboardingAndOpenMain()

@@ -23,16 +23,16 @@ type ChatBootstrapContextType = ChatBootstrapState & {
 
 const ChatBootstrapContext = createContext<ChatBootstrapContextType | null>(null)
 
+/**
+ * Load the from storage data required by the view.
+ *
+ * Args:
+ *   None.
+ *
+ * Returns:
+ *   The Partial<ChatBootstrapState> value produced by loadFromStorage.
+ */
 function loadFromStorage(): Partial<ChatBootstrapState> {
-  /**
-   * Load the from storage data required by the view.
-   *
-   * Args:
-   *   None.
-   *
-   * Returns:
-   *   The Partial<ChatBootstrapState> value produced by loadFromStorage.
-   */
 
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
@@ -43,20 +43,20 @@ function loadFromStorage(): Partial<ChatBootstrapState> {
   }
 }
 
+/**
+ * Load the initial chat list and expose it to the renderer tree.
+ *
+ * Args:
+ *   children: React nodes rendered after the bootstrap data is available.
+ *
+ * Returns:
+ *   React.JSX.Element
+ */
 export function ChatBootstrapProvider({
   children
 }: {
   children: React.ReactNode
 }): React.JSX.Element {
-  /**
-   * Load the initial chat list and expose it to the renderer tree.
-   *
-   * Args:
-   *   children: React nodes rendered after the bootstrap data is available.
-   *
-   * Returns:
-   *   React.JSX.Element
-   */
 
   const stored = loadFromStorage()
   const [chats, setChats] = useState<ChatItem[]>(stored.chats ?? [])
@@ -67,17 +67,17 @@ export function ChatBootstrapProvider({
   const [isReady, setIsReady] = useState(false)
 
 
+  /**
+   * Read the saved chats and publish them through the bootstrap context.
+   *
+   * Args:
+   *   None.
+   *
+   * Returns:
+   *   Promise<void>
+   */
   useEffect(() => {
     async function loadBootstrapData() {
-      /**
-       * Read the saved chats and publish them through the bootstrap context.
-       *
-       * Args:
-       *   None.
-       *
-       * Returns:
-       *   Promise<void>
-       */
 
       try {
         console.log('[Bootstrap] Cargando chats del backend...')
@@ -160,16 +160,16 @@ export function ChatBootstrapProvider({
   )
 }
 
+/**
+ * Read the chat bootstrap context from a mounted provider.
+ *
+ * Args:
+ *   None.
+ *
+ * Returns:
+ *   ChatBootstrapContextValue
+ */
 export function useChatBootstrap(): ChatBootstrapContextType {
-  /**
-   * Read the chat bootstrap context from a mounted provider.
-   *
-   * Args:
-   *   None.
-   *
-   * Returns:
-   *   ChatBootstrapContextValue
-   */
 
   const context = useContext(ChatBootstrapContext)
   if (!context) {

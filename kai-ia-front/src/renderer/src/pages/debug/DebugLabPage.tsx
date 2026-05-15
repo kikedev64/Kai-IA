@@ -169,109 +169,109 @@ const nodeTypes = {
   debugNode: DebugRoundNode
 }
 
+/**
+ * Normalize a streamed debug event into one of the known pipeline stages.
+ *
+ * Args:
+ *   event: Debug event received from the chat stream.
+ *
+ * Returns:
+ *   DebugStage
+ */
 function normalizeStage(event: DebugLabEvent): DebugStage {
-  /**
-   * Normalize a streamed debug event into one of the known pipeline stages.
-   *
-   * Args:
-   *   event: Debug event received from the chat stream.
-   *
-   * Returns:
-   *   DebugStage
-   */
   if (event.type === 'token') return 'token'
   if (event.type === 'done') return 'done'
   if (event.type === 'error') return 'error'
   return event.stage ?? 'context'
 }
 
+/**
+ * Map a pipeline stage to the main lane or the tool lane.
+ *
+ * Args:
+ *   stage: Pipeline stage to place in the diagram.
+ *
+ * Returns:
+ *   FlowBranch
+ */
 function getStageBranch(stage: DebugStage): FlowBranch {
-  /**
-   * Map a pipeline stage to the main lane or the tool lane.
-   *
-   * Args:
-   *   stage: Pipeline stage to place in the diagram.
-   *
-   * Returns:
-   *   FlowBranch
-   */
 
   return stage === 'tool_selected' || stage === 'tool_result' ? 'tool' : 'main'
 }
 
+/**
+ * Format milliseconds for compact UI and report labels.
+ *
+ * Args:
+ *   value: Duration or elapsed time in milliseconds.
+ *
+ * Returns:
+ *   string
+ */
 function formatMs(value?: number): string {
-  /**
-   * Format milliseconds for compact UI and report labels.
-   *
-   * Args:
-   *   value: Duration or elapsed time in milliseconds.
-   *
-   * Returns:
-   *   string
-   */
 
   if (typeof value !== 'number') return '-'
   if (value >= 1000) return `${(value / 1000).toFixed(2)} s`
   return `${Math.round(value)} ms`
 }
 
+/**
+ * Format a numeric metric with Spanish grouping separators.
+ *
+ * Args:
+ *   value: Numeric metric to display.
+ *
+ * Returns:
+ *   string
+ */
 function formatNumber(value?: number): string {
-  /**
-   * Format a numeric metric with Spanish grouping separators.
-   *
-   * Args:
-   *   value: Numeric metric to display.
-   *
-   * Returns:
-   *   string
-   */
 
   if (typeof value !== 'number') return '-'
   return new Intl.NumberFormat('es-ES').format(value)
 }
 
+/**
+ * Convert unknown debug payloads into readable text.
+ *
+ * Args:
+ *   value: Payload value from a debug event.
+ *
+ * Returns:
+ *   string
+ */
 function toText(value: unknown): string {
-  /**
-   * Convert unknown debug payloads into readable text.
-   *
-   * Args:
-   *   value: Payload value from a debug event.
-   *
-   * Returns:
-   *   string
-   */
 
   if (value === undefined || value === null) return '-'
   if (typeof value === 'string') return value
   return JSON.stringify(value, null, 2)
 }
 
+/**
+ * Serialize a payload and trim it for dense previews.
+ *
+ * Args:
+ *   value: Payload to serialize.
+ *   maxLength: Maximum number of characters kept in the preview.
+ *
+ * Returns:
+ *   string
+ */
 function compactJson(value: unknown, maxLength = 900): string {
-  /**
-   * Serialize a payload and trim it for dense previews.
-   *
-   * Args:
-   *   value: Payload to serialize.
-   *   maxLength: Maximum number of characters kept in the preview.
-   *
-   * Returns:
-   *   string
-   */
 
   const text = toText(value)
   return text.length > maxLength ? `${text.slice(0, maxLength)}\n...` : text
 }
 
+/**
+ * Escape user and model content before embedding it in the generated report.
+ *
+ * Args:
+ *   value: Raw text inserted into report HTML.
+ *
+ * Returns:
+ *   string
+ */
 function escapeHtml(value: string): string {
-  /**
-   * Escape user and model content before embedding it in the generated report.
-   *
-   * Args:
-   *   value: Raw text inserted into report HTML.
-   *
-   * Returns:
-   *   string
-   */
 
   return value
     .replace(/&/g, '&amp;')
@@ -281,44 +281,44 @@ function escapeHtml(value: string): string {
     .replace(/'/g, '&#039;')
 }
 
+/**
+ * Read a string property from an unknown object.
+ *
+ * Args:
+ *   value: Source object or primitive value.
+ *
+ * Returns:
+ *   string | undefined
+ */
 function stringField(value: unknown): string | undefined {
-  /**
-   * Read a string property from an unknown object.
-   *
-   * Args:
-   *   value: Source object or primitive value.
-   *
-   * Returns:
-   *   string | undefined
-   */
 
   return typeof value === 'string' && value.trim() ? value : undefined
 }
 
+/**
+ * Read a number property from an unknown object.
+ *
+ * Args:
+ *   value: Source object or primitive value.
+ *
+ * Returns:
+ *   number | undefined
+ */
 function numberField(value: unknown): number | undefined {
-  /**
-   * Read a number property from an unknown object.
-   *
-   * Args:
-   *   value: Source object or primitive value.
-   *
-   * Returns:
-   *   number | undefined
-   */
 
   return typeof value === 'number' && Number.isFinite(value) ? value : undefined
 }
 
+/**
+ * Parse stringified JSON when possible and keep plain text otherwise.
+ *
+ * Args:
+ *   value: Value received from a tool call or debug event.
+ *
+ * Returns:
+ *   unknown
+ */
 function parseMaybeJson(value: unknown): unknown {
-  /**
-   * Parse stringified JSON when possible and keep plain text otherwise.
-   *
-   * Args:
-   *   value: Value received from a tool call or debug event.
-   *
-   * Returns:
-   *   unknown
-   */
   if (typeof value !== 'string') return value
 
   const trimmed = value.trim()
@@ -333,16 +333,16 @@ function parseMaybeJson(value: unknown): unknown {
   }
 }
 
+/**
+ * Calculate the benchmark metrics shown in the summary panel and PDF report.
+ *
+ * Args:
+ *   events: Streamed debug events collected for the active chat.
+ *
+ * Returns:
+ *   DebugMetrics
+ */
 function buildMetrics(events: DebugLabEvent[]) {
-  /**
-   * Calculate the benchmark metrics shown in the summary panel and PDF report.
-   *
-   * Args:
-   *   events: Streamed debug events collected for the active chat.
-   *
-   * Returns:
-   *   DebugMetrics
-   */
   const done = events.findLast((event) => event.type === 'done')
   const tokenEvents = events.filter((event) => event.type === 'token')
   const tokenizeEvent = events.find((event) => event.stage === 'tokenize')
@@ -397,16 +397,16 @@ function buildMetrics(events: DebugLabEvent[]) {
   }
 }
 
+/**
+ * Convert streamed events into ordered diagram nodes with timing metadata.
+ *
+ * Args:
+ *   events: Streamed debug events collected for the active chat.
+ *
+ * Returns:
+ *   FlowNode[]
+ */
 function buildFlowNodes(events: DebugLabEvent[]): FlowNode[] {
-  /**
-   * Convert streamed events into ordered diagram nodes with timing metadata.
-   *
-   * Args:
-   *   events: Streamed debug events collected for the active chat.
-   *
-   * Returns:
-   *   FlowNode[]
-   */
   const nodes: FlowNode[] = []
 
   events.forEach((event, index) => {
@@ -440,16 +440,16 @@ function buildFlowNodes(events: DebugLabEvent[]): FlowNode[] {
   return nodes
 }
 
+/**
+ * Extract tool calls and tool results from the debug event list.
+ *
+ * Args:
+ *   events: Streamed debug events collected for the active chat.
+ *
+ * Returns:
+ *   ToolTrace[]
+ */
 function buildTools(events: DebugLabEvent[]): ToolTrace[] {
-  /**
-   * Extract tool calls and tool results from the debug event list.
-   *
-   * Args:
-   *   events: Streamed debug events collected for the active chat.
-   *
-   * Returns:
-   *   ToolTrace[]
-   */
   const traces: ToolTrace[] = []
 
   for (const event of events) {
@@ -480,24 +480,24 @@ function buildTools(events: DebugLabEvent[]): ToolTrace[] {
   return traces
 }
 
+/**
+ * Create React Flow nodes and edges for the dynamic debug diagram.
+ *
+ * Args:
+ *   flowNodes: Ordered pipeline nodes.
+ *   activeStage: Stage currently receiving events.
+ *   selectedNodeId: Node currently pinned by the user.
+ *   running: Whether the request is still streaming.
+ *
+ * Returns:
+ *   { nodes: DebugGraphNode[]; edges: DebugGraphEdge[] }
+ */
 function buildGraphElements(
   flowNodes: FlowNode[],
   activeStage: DebugStage,
   selectedNodeId: string | null,
   running: boolean
 ): { nodes: DebugGraphNode[]; edges: DebugGraphEdge[] } {
-  /**
-   * Create React Flow nodes and edges for the dynamic debug diagram.
-   *
-   * Args:
-   *   flowNodes: Ordered pipeline nodes.
-   *   activeStage: Stage currently receiving events.
-   *   selectedNodeId: Node currently pinned by the user.
-   *   running: Whether the request is still streaming.
-   *
-   * Returns:
-   *   { nodes: DebugGraphNode[]; edges: DebugGraphEdge[] }
-   */
   const nodes: DebugGraphNode[] = flowNodes.map((node, index) => {
     const config = STAGE_CONFIG[node.stage]
     const x = node.branch === 'tool' ? TOOL_X : MAIN_X
@@ -554,16 +554,16 @@ function buildGraphElements(
   return { nodes, edges }
 }
 
+/**
+ * Build the static SVG version of the pipeline diagram used in PDF export.
+ *
+ * Args:
+ *   flowNodes: Ordered pipeline nodes included in the report.
+ *
+ * Returns:
+ *   string
+ */
 function buildReportFlowSvg(flowNodes: FlowNode[]): string {
-  /**
-   * Build the static SVG version of the pipeline diagram used in PDF export.
-   *
-   * Args:
-   *   flowNodes: Ordered pipeline nodes included in the report.
-   *
-   * Returns:
-   *   string
-   */
   if (flowNodes.length === 0) return '<p class="muted">No hay diagrama disponible.</p>'
 
   const rowHeight = 86
@@ -599,6 +599,20 @@ function buildReportFlowSvg(flowNodes: FlowNode[]): string {
   `
 }
 
+/**
+ * Build the printable benchmark report with metrics, diagram, tools and output.
+ *
+ * Args:
+ *   chatId: Chat identifier for the report.
+ *   metrics: Calculated benchmark metrics.
+ *   events: Debug events included in the report.
+ *   output: Assistant output produced by the request.
+ *   tools: Tool traces extracted from the events.
+ *   flowNodes: Ordered pipeline nodes for the report diagram.
+ *
+ * Returns:
+ *   string
+ */
 function buildReportHtml({
   chatId,
   metrics,
@@ -614,20 +628,6 @@ function buildReportHtml({
   tools: ToolTrace[]
   flowNodes: FlowNode[]
 }): string {
-  /**
-   * Build the printable benchmark report with metrics, diagram, tools and output.
-   *
-   * Args:
-   *   chatId: Chat identifier for the report.
-   *   metrics: Calculated benchmark metrics.
-   *   events: Debug events included in the report.
-   *   output: Assistant output produced by the request.
-   *   tools: Tool traces extracted from the events.
-   *   flowNodes: Ordered pipeline nodes for the report diagram.
-   *
-   * Returns:
-   *   string
-   */
   const chartItems = [
     { label: 'Entrada', value: metrics.inputMs, color: '#22d3ee' },
     { label: 'Hasta LM', value: metrics.timeToLmMs, color: '#38bdf8' },
@@ -757,16 +757,16 @@ function buildReportHtml({
   `
 }
 
+/**
+ * Render the docked debug lab for the currently active chat stream.
+ *
+ * Args:
+ *   None.
+ *
+ * Returns:
+ *   React.JSX.Element
+ */
 export default function DebugLabPage() {
-  /**
-   * Render the docked debug lab for the currently active chat stream.
-   *
-   * Args:
-   *   None.
-   *
-   * Returns:
-   *   React.JSX.Element
-   */
   const location = useLocation()
   const targetChatId = useMemo(() => {
     const params = new URLSearchParams(location.search)
@@ -828,16 +828,16 @@ export default function DebugLabPage() {
         ? { label: 'Completado', icon: CheckCircle2, color: 'text-emerald-100', bg: 'bg-emerald-400/10' }
         : { label: 'Escuchando', icon: Activity, color: 'text-slate-300', bg: 'bg-white/[0.06]' }
 
+  /**
+   * Open a printable benchmark report for the current debug trace.
+   *
+   * Args:
+   *   None.
+   *
+   * Returns:
+   *   void
+   */
   const exportPdf = async () => {
-    /**
-     * Open a printable benchmark report for the current debug trace.
-     *
-     * Args:
-     *   None.
-     *
-     * Returns:
-     *   void
-     */
     if (events.length === 0 || exporting) return
 
     try {
@@ -860,16 +860,16 @@ export default function DebugLabPage() {
     }
   }
 
+  /**
+   * Clear the current debug trace and return the diagram to its empty state.
+   *
+   * Args:
+   *   None.
+   *
+   * Returns:
+   *   void
+   */
   const reset = () => {
-    /**
-     * Clear the current debug trace and return the diagram to its empty state.
-     *
-     * Args:
-     *   None.
-     *
-     * Returns:
-     *   void
-     */
     if (running) return
     setEvents([])
     setOutput('')
@@ -1023,8 +1023,6 @@ function FlowCanvas({
 }: {
   nodes: DebugGraphNode[]
   edges: DebugGraphEdge[]
-  onSelectNode: (nodeId: string) => void
-}) {
   /**
    * Render the interactive React Flow canvas and keep it fitted to new nodes.
    *
@@ -1036,6 +1034,8 @@ function FlowCanvas({
    * Returns:
    *   React.JSX.Element
    */
+  onSelectNode: (nodeId: string) => void
+}) {
   const flow = useReactFlow<DebugGraphNode, DebugGraphEdge>()
 
   useEffect(() => {
@@ -1073,16 +1073,16 @@ function FlowCanvas({
   )
 }
 
+/**
+ * Render one circular pipeline node inside the debug diagram.
+ *
+ * Args:
+ *   data: Visual and timing data attached to the React Flow node.
+ *
+ * Returns:
+ *   React.JSX.Element
+ */
 function DebugRoundNode({ data }: NodeProps<DebugGraphNode>) {
-  /**
-   * Render one circular pipeline node inside the debug diagram.
-   *
-   * Args:
-   *   data: Visual and timing data attached to the React Flow node.
-   *
-   * Returns:
-   *   React.JSX.Element
-   */
   const isActive = data.active
   const isSelected = data.selected
 
@@ -1145,6 +1145,19 @@ function DebugRoundNode({ data }: NodeProps<DebugGraphNode>) {
   )
 }
 
+/**
+ * Render details for the active or selected pipeline node.
+ *
+ * Args:
+ *   node: Flow node being inspected.
+ *   events: Debug events used to populate the details.
+ *   tools: Tool traces available for tool nodes.
+ *   output: Assistant output shown for response nodes.
+ *   isPinned: Whether the user selected this node manually.
+ *
+ * Returns:
+ *   React.JSX.Element
+ */
 function NodeDetails({
   node,
   events,
@@ -1158,19 +1171,6 @@ function NodeDetails({
   output: string
   isPinned: boolean
 }) {
-  /**
-   * Render details for the active or selected pipeline node.
-   *
-   * Args:
-   *   node: Flow node being inspected.
-   *   events: Debug events used to populate the details.
-   *   tools: Tool traces available for tool nodes.
-   *   output: Assistant output shown for response nodes.
-   *   isPinned: Whether the user selected this node manually.
-   *
-   * Returns:
-   *   React.JSX.Element
-   */
   const latest = events[events.length - 1]
   const config = STAGE_CONFIG[node.stage]
   const matchingToolName = stringField(latest?.tool_name)
@@ -1217,17 +1217,17 @@ function NodeDetails({
   )
 }
 
+/**
+ * Render the title and timing strip for the selected node details panel.
+ *
+ * Args:
+ *   node: Flow node being inspected.
+ *   isPinned: Whether the node was manually selected.
+ *
+ * Returns:
+ *   React.JSX.Element
+ */
 function NodeHeader({ node, isPinned }: { node: FlowNode; isPinned: boolean }) {
-  /**
-   * Render the title and timing strip for the selected node details panel.
-   *
-   * Args:
-   *   node: Flow node being inspected.
-   *   isPinned: Whether the node was manually selected.
-   *
-   * Returns:
-   *   React.JSX.Element
-   */
   const config = STAGE_CONFIG[node.stage]
 
   return (
@@ -1251,6 +1251,17 @@ function NodeHeader({ node, isPinned }: { node: FlowNode; isPinned: boolean }) {
   )
 }
 
+/**
+ * Render a labelled block inside the node details panel.
+ *
+ * Args:
+ *   title: Block heading.
+ *   children: Block content.
+ *   className: Optional extra layout classes.
+ *
+ * Returns:
+ *   React.JSX.Element
+ */
 function SectionGroup({
   title,
   children,
@@ -1260,17 +1271,6 @@ function SectionGroup({
   children: ReactNode
   className?: string
 }) {
-  /**
-   * Render a labelled block inside the node details panel.
-   *
-   * Args:
-   *   title: Block heading.
-   *   children: Block content.
-   *   className: Optional extra layout classes.
-   *
-   * Returns:
-   *   React.JSX.Element
-   */
   return (
     <section className={`flex min-h-0 flex-col overflow-hidden rounded-2xl border border-white/10 bg-white/[0.055] shadow-[0_12px_30px_rgba(0,0,0,0.2)] backdrop-blur-2xl ${className}`}>
       <div className="shrink-0 border-b border-white/10 px-4 py-3">
@@ -1282,6 +1282,17 @@ function SectionGroup({
   )
 }
 
+/**
+ * Render one benchmark metric tile.
+ *
+ * Args:
+ *   Icon: Icon shown next to the metric label.
+ *   label: Metric name.
+ *   value: Metric value.
+ *
+ * Returns:
+ *   React.JSX.Element
+ */
 function MetricTile({
   icon: Icon,
   label,
@@ -1291,17 +1302,6 @@ function MetricTile({
   label: string
   value: string
 }) {
-  /**
-   * Render one benchmark metric tile.
-   *
-   * Args:
-   *   Icon: Icon shown next to the metric label.
-   *   label: Metric name.
-   *   value: Metric value.
-   *
-   * Returns:
-   *   React.JSX.Element
-   */
   return (
     <div className="min-w-0 rounded-2xl border border-white/10 bg-black/20 p-3">
       <div className="flex min-w-0 items-center gap-2 text-slate-400">
@@ -1313,6 +1313,17 @@ function MetricTile({
   )
 }
 
+/**
+ * Render one key-value row in the information panel.
+ *
+ * Args:
+ *   label: Field label.
+ *   value: Field value.
+ *   highlightColor: Optional accent color for the value.
+ *
+ * Returns:
+ *   React.JSX.Element
+ */
 function InfoLine({
   label,
   value,
@@ -1322,17 +1333,6 @@ function InfoLine({
   value: string
   highlightColor?: string
 }) {
-  /**
-   * Render one key-value row in the information panel.
-   *
-   * Args:
-   *   label: Field label.
-   *   value: Field value.
-   *   highlightColor: Optional accent color for the value.
-   *
-   * Returns:
-   *   React.JSX.Element
-   */
   return (
     <div className="min-w-0 rounded-2xl border border-white/10 bg-black/20 px-3 py-2">
       <div className="text-[10px] uppercase tracking-[0.08em] text-slate-500">{label}</div>
@@ -1346,13 +1346,6 @@ function InfoLine({
 function StatusPill({
   config
 }: {
-  config: {
-    label: string
-    icon: LucideIcon
-    color: string
-    bg: string
-  }
-}) {
   /**
    * Render the current stage pill with its configured color.
    *
@@ -1362,6 +1355,13 @@ function StatusPill({
    * Returns:
    *   React.JSX.Element
    */
+  config: {
+    label: string
+    icon: LucideIcon
+    color: string
+    bg: string
+  }
+}) {
 
   const Icon = config.icon
 
@@ -1381,9 +1381,6 @@ function IconButton({
 }: {
   label: string
   disabled?: boolean
-  onClick: () => void
-  children: ReactNode
-}) {
   /**
    * Render a compact icon button used by debug lab actions.
    *
@@ -1396,6 +1393,9 @@ function IconButton({
    * Returns:
    *   React.JSX.Element
    */
+  onClick: () => void
+  children: ReactNode
+}) {
 
   return (
     <button
@@ -1411,6 +1411,17 @@ function IconButton({
   )
 }
 
+/**
+ * Render a JSON or text payload with structured formatting.
+ *
+ * Args:
+ *   label: Payload label.
+ *   value: Payload value to display.
+ *   maxLength: Maximum text length before truncation.
+ *
+ * Returns:
+ *   React.JSX.Element
+ */
 function DataBlock({
   label,
   value,
@@ -1420,17 +1431,6 @@ function DataBlock({
   value: unknown
   maxLength?: number
 }) {
-  /**
-   * Render a JSON or text payload with structured formatting.
-   *
-   * Args:
-   *   label: Payload label.
-   *   value: Payload value to display.
-   *   maxLength: Maximum text length before truncation.
-   *
-   * Returns:
-   *   React.JSX.Element
-   */
 
   return (
     <div className="overflow-hidden rounded-2xl border border-white/10 bg-black/25">
@@ -1444,6 +1444,17 @@ function DataBlock({
   )
 }
 
+/**
+ * Render nested arrays and objects as a readable debug payload.
+ *
+ * Args:
+ *   value: Value to render.
+ *   depth: Current nesting depth.
+ *   maxLength: Maximum text length for scalar previews.
+ *
+ * Returns:
+ *   React.JSX.Element
+ */
 function StructuredValue({
   value,
   depth = 0,
@@ -1453,17 +1464,6 @@ function StructuredValue({
   depth?: number
   maxLength?: number
 }) {
-  /**
-   * Render nested arrays and objects as a readable debug payload.
-   *
-   * Args:
-   *   value: Value to render.
-   *   depth: Current nesting depth.
-   *   maxLength: Maximum text length for scalar previews.
-   *
-   * Returns:
-   *   React.JSX.Element
-   */
 
   const parsedValue = parseMaybeJson(value)
 
@@ -1530,17 +1530,17 @@ function StructuredValue({
   return <span className="text-xs text-slate-300">{String(parsedValue)}</span>
 }
 
+/**
+ * Render a small labelled statistic in the node details panel.
+ *
+ * Args:
+ *   label: Statistic label.
+ *   value: Statistic value.
+ *
+ * Returns:
+ *   React.JSX.Element
+ */
 function SmallStat({ label, value }: { label: string; value: string }) {
-  /**
-   * Render a small labelled statistic in the node details panel.
-   *
-   * Args:
-   *   label: Statistic label.
-   *   value: Statistic value.
-   *
-   * Returns:
-   *   React.JSX.Element
-   */
 
   return (
     <div className="min-w-0 rounded-xl bg-black/25 p-2">
@@ -1550,16 +1550,16 @@ function SmallStat({ label, value }: { label: string; value: string }) {
   )
 }
 
+/**
+ * Render the empty debug state before events arrive.
+ *
+ * Args:
+ *   None.
+ *
+ * Returns:
+ *   React.JSX.Element
+ */
 function EmptyState() {
-  /**
-   * Render the empty debug state before events arrive.
-   *
-   * Args:
-   *   None.
-   *
-   * Returns:
-   *   React.JSX.Element
-   */
 
   return (
     <div className="flex h-full min-h-[480px] flex-col items-center justify-center rounded-2xl border border-dashed border-white/10 bg-black/15 px-5 text-center">

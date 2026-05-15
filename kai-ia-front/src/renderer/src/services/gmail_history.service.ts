@@ -58,16 +58,16 @@ export type ReadHistoryResponse = {
 
 const DEFAULT_LABEL_ID = 'INBOX'
 
+/**
+ * Build the backend base URL from saved local configuration.
+ *
+ * Args:
+ *   None.
+ *
+ * Returns:
+ *   string
+ */
 async function getBackendBaseUrl(): Promise<string> {
-  /**
-   * Build the backend base URL from saved local configuration.
-   *
-   * Args:
-   *   None.
-   *
-   * Returns:
-   *   string
-   */
 
   const backendUrl = await window.configApi.getServerUrl()
   const backendPort = await window.configApi.getServerPort()
@@ -88,16 +88,16 @@ async function parseJsonOrThrow<T>(response: Response, fallbackMessage: string):
   return response.json() as Promise<T>
 }
 
+/**
+ * Load the latest Gmail history id used as watcher baseline.
+ *
+ * Args:
+ *   None.
+ *
+ * Returns:
+ *   Promise<string>
+ */
 export async function getLatestHistoryId(): Promise<string> {
-  /**
-   * Load the latest Gmail history id used as watcher baseline.
-   *
-   * Args:
-   *   None.
-   *
-   * Returns:
-   *   Promise<string>
-   */
 
   const baseUrl = await getBackendBaseUrl()
 
@@ -117,18 +117,18 @@ export async function getLatestHistoryId(): Promise<string> {
   return data.history_id
 }
 
+/**
+ * Check whether Gmail history changed since a known id.
+ *
+ * Args:
+ *   payload: Gmail history check request.
+ *
+ * Returns:
+ *   Promise<CheckHistoryChangesResponse>
+ */
 export async function checkHistoryChanges(
   payload: GmailHistoryCheckRequest
 ): Promise<CheckHistoryChangesResponse> {
-  /**
-   * Check whether Gmail history changed since a known id.
-   *
-   * Args:
-   *   payload: Gmail history check request.
-   *
-   * Returns:
-   *   Promise<CheckHistoryChangesResponse>
-   */
 
   const baseUrl = await getBackendBaseUrl()
 
@@ -149,18 +149,18 @@ export async function checkHistoryChanges(
   )
 }
 
+/**
+ * Read Gmail history entries since a known id.
+ *
+ * Args:
+ *   payload: Gmail history read request.
+ *
+ * Returns:
+ *   Promise<ReadHistoryResponse>
+ */
 export async function readHistorySince(
   payload: GmailHistoryReadRequest
 ): Promise<ReadHistoryResponse> {
-  /**
-   * Read Gmail history entries since a known id.
-   *
-   * Args:
-   *   payload: Gmail history read request.
-   *
-   * Returns:
-   *   Promise<ReadHistoryResponse>
-   */
 
   const baseUrl = await getBackendBaseUrl()
 
@@ -178,16 +178,16 @@ export async function readHistorySince(
   return parseJsonOrThrow<ReadHistoryResponse>(response, 'No se pudo leer el historial de Gmail')
 }
 
+/**
+ * Determine whether a Gmail history check contains new changes.
+ *
+ * Args:
+ *   data: Gmail history check response.
+ *
+ * Returns:
+ *   boolean
+ */
 export function hasHistoryChanges(data: CheckHistoryChangesResponse): boolean {
-  /**
-   * Determine whether a Gmail history check contains new changes.
-   *
-   * Args:
-   *   data: Gmail history check response.
-   *
-   * Returns:
-   *   boolean
-   */
 
   if (data.has_changes === true) return true
   if (data.changed === true) return true
@@ -203,18 +203,18 @@ export function hasHistoryChanges(data: CheckHistoryChangesResponse): boolean {
   return false
 }
 
+/**
+ * Extract the newest usable Gmail history id from a response.
+ *
+ * Args:
+ *   data: Gmail history response.
+ *
+ * Returns:
+ *   string | null
+ */
 export function extractNewestHistoryId(
   data: Partial<CheckHistoryChangesResponse & ReadHistoryResponse> | null | undefined
 ): string | null {
-  /**
-   * Extract the newest usable Gmail history id from a response.
-   *
-   * Args:
-   *   data: Gmail history response.
-   *
-   * Returns:
-   *   string | null
-   */
 
   if (!data) return null
 
@@ -229,18 +229,18 @@ export function extractNewestHistoryId(
   return null
 }
 
+/**
+ * Collect Gmail message ids added in a history response.
+ *
+ * Args:
+ *   data: Gmail history read response.
+ *
+ * Returns:
+ *   string[]
+ */
 export function extractAddedMessageIds(
   data: ReadHistoryResponse | CheckHistoryChangesResponse
 ): string[] {
-  /**
-   * Collect Gmail message ids added in a history response.
-   *
-   * Args:
-   *   data: Gmail history read response.
-   *
-   * Returns:
-   *   string[]
-   */
 
   const ids = new Set<string>()
   const directMessageIds = Array.isArray(data.message_ids) ? data.message_ids : []

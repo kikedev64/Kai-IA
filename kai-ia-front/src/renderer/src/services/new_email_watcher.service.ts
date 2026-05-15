@@ -24,16 +24,16 @@ type NewEmailWatcherController = {
 const STORAGE_PROCESSED_IDS_KEY = 'kai_processed_email_ids'
 const MAX_PROCESSED_IDS = 300
 
+/**
+ * Load message ids that have already triggered notifications.
+ *
+ * Args:
+ *   None.
+ *
+ * Returns:
+ *   Set<string>
+ */
 function loadProcessedIds(): Set<string> {
-  /**
-   * Load message ids that have already triggered notifications.
-   *
-   * Args:
-   *   None.
-   *
-   * Returns:
-   *   Set<string>
-   */
 
   try {
     const raw = localStorage.getItem(STORAGE_PROCESSED_IDS_KEY)
@@ -48,16 +48,16 @@ function loadProcessedIds(): Set<string> {
   }
 }
 
+/**
+ * Persist the bounded set of processed message ids.
+ *
+ * Args:
+ *   ids: Message ids that should not trigger duplicate notifications.
+ *
+ * Returns:
+ *   void
+ */
 function saveProcessedIds(ids: Set<string>): void {
-  /**
-   * Persist the bounded set of processed message ids.
-   *
-   * Args:
-   *   ids: Message ids that should not trigger duplicate notifications.
-   *
-   * Returns:
-   *   void
-   */
 
   try {
     const trimmed = Array.from(ids).slice(-MAX_PROCESSED_IDS)
@@ -65,34 +65,34 @@ function saveProcessedIds(ids: Set<string>): void {
   } catch {}
 }
 
+/**
+ * Build the body text for a new email desktop notification.
+ *
+ * Args:
+ *   email: Gmail message used by the notification.
+ *
+ * Returns:
+ *   string
+ */
 function buildNotificationBody(email: GmailApiEmail): string {
-  /**
-   * Build the body text for a new email desktop notification.
-   *
-   * Args:
-   *   email: Gmail message used by the notification.
-   *
-   * Returns:
-   *   string
-   */
 
   const sender = email.sender?.trim() || 'Remitente desconocido'
   const subject = email.subject?.trim() || '(sin asunto)'
   return `${sender}\n${subject}`
 }
 
+/**
+ * Create a session-scoped Gmail watcher for newly arrived inbox messages.
+ *
+ * Args:
+ *   options: Watch interval and callbacks for new mail or errors.
+ *
+ * Returns:
+ *   NewEmailWatcherController
+ */
 export function createNewEmailWatcher(
   options: NewEmailWatcherOptions = {}
 ): NewEmailWatcherController {
-  /**
-   * Create a session-scoped Gmail watcher for newly arrived inbox messages.
-   *
-   * Args:
-   *   options: Watch interval and callbacks for new mail or errors.
-   *
-   * Returns:
-   *   NewEmailWatcherController
-   */
 
   const intervalMs = options.intervalMs ?? 20000
 
@@ -104,16 +104,16 @@ export function createNewEmailWatcher(
 
   const sessionNotifiedIds = new Set<string>()
 
+  /**
+   * Run the new-email callback and show the desktop notification.
+   *
+   * Args:
+   *   email: Gmail message that arrived during this app session.
+   *
+   * Returns:
+   *   Promise<void>
+   */
   const notifyNewEmail = async (email: GmailApiEmail): Promise<void> => {
-    /**
-     * Run the new-email callback and show the desktop notification.
-     *
-     * Args:
-     *   email: Gmail message that arrived during this app session.
-     *
-     * Returns:
-     *   Promise<void>
-     */
 
     if (options.onNewEmail) {
       await options.onNewEmail(email)
@@ -130,16 +130,16 @@ export function createNewEmailWatcher(
     })
   }
 
+  /**
+   * Check Gmail history once and notify for unseen session messages.
+   *
+   * Args:
+   *   None.
+   *
+   * Returns:
+   *   Promise<void>
+   */
   const poll = async (): Promise<void> => {
-    /**
-     * Check Gmail history once and notify for unseen session messages.
-     *
-     * Args:
-     *   None.
-     *
-     * Returns:
-     *   Promise<void>
-     */
 
     if (!running || polling) return
     polling = true
@@ -209,16 +209,16 @@ export function createNewEmailWatcher(
   }
 
   return {
+    /**
+     * Start the watcher and establish the current session baseline.
+     *
+     * Args:
+     *   None.
+     *
+     * Returns:
+     *   Promise<void>
+     */
     start: async () => {
-      /**
-       * Start the watcher and establish the current session baseline.
-       *
-       * Args:
-       *   None.
-       *
-       * Returns:
-       *   Promise<void>
-       */
 
       if (running) return
       running = true
@@ -230,16 +230,16 @@ export function createNewEmailWatcher(
       }, intervalMs)
     },
 
+    /**
+     * Stop polling and clear the active interval.
+     *
+     * Args:
+     *   None.
+     *
+     * Returns:
+     *   void
+     */
     stop: () => {
-      /**
-       * Stop polling and clear the active interval.
-       *
-       * Args:
-       *   None.
-       *
-       * Returns:
-       *   void
-       */
 
       running = false
 
@@ -249,16 +249,16 @@ export function createNewEmailWatcher(
       }
     },
 
+    /**
+     * Read whether the watcher is currently polling.
+     *
+     * Args:
+     *   None.
+     *
+     * Returns:
+     *   boolean
+     */
     isRunning: () => {
-      /**
-       * Read whether the watcher is currently polling.
-       *
-       * Args:
-       *   None.
-       *
-       * Returns:
-       *   boolean
-       */
 
       return running
     }
