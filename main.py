@@ -1,7 +1,4 @@
 from dotenv import load_dotenv
-
-load_dotenv()
-
 from contextlib import asynccontextmanager
 from typing import AsyncIterator
 import logging
@@ -21,6 +18,7 @@ from api.routers.settings import router as settings_router
 
 from core.database import init_db
 
+load_dotenv()
 logger = logging.getLogger("uvicorn")
 
 @asynccontextmanager

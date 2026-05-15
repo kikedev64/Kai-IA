@@ -1,7 +1,6 @@
 import json
 from api.routers.tasks import find_reminders_by_conditions
 from api.schemas.chat import AskRequest
-from core.config import DEFAULT_PROMPTS
 from core.google_auth_utils import is_google_token_expired_error
 from core.models.email import Email
 from llm.lmstudio_client import ask_without_context

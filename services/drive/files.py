@@ -1,5 +1,4 @@
 import mimetypes
-import os
 from googleapiclient.http import MediaIoBaseUpload
 from googleapiclient.errors import HttpError
 import io

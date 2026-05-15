@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import List, Optional, Any, Literal
+from typing import Optional, Any, Literal
 from pydantic import BaseModel, Field, EmailStr
 class CalendarEventTime(BaseModel):
     """Date or datetime block used by Google Calendar events.
