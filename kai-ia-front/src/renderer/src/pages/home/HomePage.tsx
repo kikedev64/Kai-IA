@@ -17,6 +17,16 @@ import {
 } from '@renderer/services/debug_lab.service'
 
 function normalizeLatex(content: string): string {
+  /**
+   * Normalize common LaTeX delimiters before rendering markdown content.
+   *
+   * Args:
+   *   content: Assistant message content.
+   *
+   * Returns:
+   *   string
+   */
+
   return content
     .replace(/\\\[/g, '$$')
     .replace(/\\\]/g, '$$')
@@ -24,61 +34,83 @@ function normalizeLatex(content: string): string {
     .replace(/\\\)/g, '$')
 }
 
-const MarkdownContent = ({ content }: { content: string }) => (
-  <ReactMarkdown
-    remarkPlugins={[remarkGfm, remarkMath]}
-    rehypePlugins={[rehypeKatex]}
-    components={{
-      p: ({ children }) => (
-        <p className="mb-2 last:mb-0 text-sm leading-7 text-slate-100 break-words">{children}</p>
-      ),
-      strong: ({ children }) => <strong className="font-semibold text-white">{children}</strong>,
-      em: ({ children }) => <em className="italic text-slate-200">{children}</em>,
-      code: ({ inline, children }: { inline?: boolean; children?: React.ReactNode }) =>
-        inline ? (
-          <code className="rounded bg-white/10 px-1.5 py-0.5 text-xs font-mono text-cyan-200 break-all">
-            {children}
-          </code>
-        ) : (
-          <pre className="my-2 overflow-x-auto rounded-xl bg-black/40 p-3 text-xs font-mono text-slate-200 border border-white/10">
-            <code className="whitespace-pre-wrap">{children}</code>
-          </pre>
+const MarkdownContent = ({ content }: { content: string }) => {
+  /**
+   * Render assistant markdown with math, GitHub-flavored markdown and syntax highlighting.
+   *
+   * Args:
+   *   content: Markdown text produced by the assistant.
+   *
+   * Returns:
+   *   React.JSX.Element
+   */
+
+  return (
+    <ReactMarkdown
+      remarkPlugins={[remarkGfm, remarkMath]}
+      rehypePlugins={[rehypeKatex]}
+      components={{
+        p: ({ children }) => (
+          <p className="mb-2 last:mb-0 text-sm leading-7 text-slate-100 break-words">{children}</p>
         ),
-      ul: ({ children }) => (
-        <ul className="mb-2 ml-4 list-disc space-y-1 text-sm text-slate-100">{children}</ul>
-      ),
-      ol: ({ children }) => (
-        <ol className="mb-2 ml-4 list-decimal space-y-1 text-sm text-slate-100">{children}</ol>
-      ),
-      li: ({ children }) => <li className="leading-6 break-words">{children}</li>,
-      a: ({ href, children }) => (
-        <a
-          href={href}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-cyan-300 underline break-all hover:text-cyan-200"
-        >
-          {children}
-        </a>
-      ),
-      blockquote: ({ children }) => (
-        <blockquote className="my-2 border-l-2 border-cyan-400/50 pl-3 text-slate-300 italic">
-          {children}
-        </blockquote>
-      ),
-      h1: ({ children }) => <h1 className="mb-2 text-base font-semibold text-white">{children}</h1>,
-      h2: ({ children }) => <h2 className="mb-2 text-sm font-semibold text-white">{children}</h2>,
-      h3: ({ children }) => <h3 className="mb-1 text-sm font-medium text-white">{children}</h3>
-    }}
-  >
-    {content}
-  </ReactMarkdown>
-)
+        strong: ({ children }) => <strong className="font-semibold text-white">{children}</strong>,
+        em: ({ children }) => <em className="italic text-slate-200">{children}</em>,
+        code: ({ inline, children }: { inline?: boolean; children?: React.ReactNode }) =>
+          inline ? (
+            <code className="rounded bg-white/10 px-1.5 py-0.5 text-xs font-mono text-cyan-200 break-all">
+              {children}
+            </code>
+          ) : (
+            <pre className="my-2 overflow-x-auto rounded-xl bg-black/40 p-3 text-xs font-mono text-slate-200 border border-white/10">
+              <code className="whitespace-pre-wrap">{children}</code>
+            </pre>
+          ),
+        ul: ({ children }) => (
+          <ul className="mb-2 ml-4 list-disc space-y-1 text-sm text-slate-100">{children}</ul>
+        ),
+        ol: ({ children }) => (
+          <ol className="mb-2 ml-4 list-decimal space-y-1 text-sm text-slate-100">{children}</ol>
+        ),
+        li: ({ children }) => <li className="leading-6 break-words">{children}</li>,
+        a: ({ href, children }) => (
+          <a
+            href={href}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-cyan-300 underline break-all hover:text-cyan-200"
+          >
+            {children}
+          </a>
+        ),
+        blockquote: ({ children }) => (
+          <blockquote className="my-2 border-l-2 border-cyan-400/50 pl-3 text-slate-300 italic">
+            {children}
+          </blockquote>
+        ),
+        h1: ({ children }) => <h1 className="mb-2 text-base font-semibold text-white">{children}</h1>,
+        h2: ({ children }) => <h2 className="mb-2 text-sm font-semibold text-white">{children}</h2>,
+        h3: ({ children }) => <h3 className="mb-1 text-sm font-medium text-white">{children}</h3>
+      }}
+    >
+      {content}
+    </ReactMarkdown>
+  )
+}
 
 const STREAM_LIMIT_HISTORY = 6
 type UserProfileJson = Record<string, unknown>
 
 function isNonEmptyPlainObject(value: unknown): value is UserProfileJson {
+  /**
+   * Check that a value is a plain object with at least one key.
+   *
+   * Args:
+   *   value: Unknown value loaded from configuration.
+   *
+   * Returns:
+   *   value is Record<string, unknown>
+   */
+
   return (
     typeof value === 'object' &&
     value !== null &&
@@ -88,6 +120,16 @@ function isNonEmptyPlainObject(value: unknown): value is UserProfileJson {
 }
 
 function cleanProfileValue(value: unknown): unknown {
+  /**
+   * Convert stored profile values into compact text suitable for prompt context.
+   *
+   * Args:
+   *   value: Profile value read from the saved profile JSON.
+   *
+   * Returns:
+   *   string | null
+   */
+
   if (value === null || value === undefined) return undefined
 
   if (typeof value === 'string') {
@@ -116,6 +158,16 @@ function cleanProfileValue(value: unknown): unknown {
 }
 
 function buildCompactProfileContext(userProfile: UserProfileJson | null): string | null {
+  /**
+   * Create a short profile context string for chat requests.
+   *
+   * Args:
+   *   userProfile: Saved structured profile object.
+   *
+   * Returns:
+   *   string
+   */
+
   if (!isNonEmptyPlainObject(userProfile)) return null
 
   const cleanedProfile = cleanProfileValue(userProfile)
@@ -130,6 +182,16 @@ function buildCompactProfileContext(userProfile: UserProfileJson | null): string
 }
 
 const HomePage = (): React.JSX.Element => {
+  /**
+   * Render the chat workspace and coordinate chat, email and debug actions.
+   *
+   * Args:
+   *   None.
+   *
+   * Returns:
+   *   React.JSX.Element
+   */
+
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [input, setInput] = useState('')
   const [search, setSearch] = useState('')
@@ -160,12 +222,32 @@ const HomePage = (): React.JSX.Element => {
   const [localChats, setLocalChats] = useState<ChatItem[]>(chats)
 
   const openEmailActionModal = (email: GmailApiEmail) => {
+    /**
+     * Open the email action modal with the selected message payload.
+     *
+     * Args:
+     *   email: Email payload to inspect and answer.
+     *
+     * Returns:
+     *   void
+     */
+
     setIsEmailActionLoading(false)
     setSelectedEmailForAction(email)
     setEmailActionOpen(true)
   }
 
   const openEmailNotificationPayload = (payload: { messageId: string }) => {
+    /**
+     * Resolve a notification payload and open the matching email action modal.
+     *
+     * Args:
+     *   payload: Notification payload received from the desktop shell.
+     *
+     * Returns:
+     *   Promise<void>
+     */
+
     if (!payload || !payload.messageId) return
 
     const email = pendingEmailsRef.current.get(payload.messageId)
@@ -195,6 +277,17 @@ const HomePage = (): React.JSX.Element => {
     chatId: string,
     promptText: string
   ): Promise<string> => {
+    /**
+     * Send a prompt to the backend and stream tokens, debug events and completion state.
+     *
+     * Args:
+     *   chatId: Target chat identifier.
+     *   promptText: User prompt sent to the backend.
+     *
+     * Returns:
+     *   Promise<string>
+     */
+
     const baseUrl = await window.configApi.getServerUrl()
     const port = await window.configApi.getServerPort()
     const url = `${baseUrl || 'http://localhost'}:${port || 8000}`
@@ -228,6 +321,16 @@ const HomePage = (): React.JSX.Element => {
     let streamFinished = false
 
     const processStreamEvent = (event: string): boolean => {
+      /**
+       * Apply one parsed stream event to chat state and debug publishing.
+       *
+       * Args:
+       *   event: Parsed server-sent event from the backend stream.
+       *
+       * Returns:
+       *   void
+       */
+
       const lines = event
         .split('\n')
         .map((line) => line.trim())
@@ -309,6 +412,17 @@ const HomePage = (): React.JSX.Element => {
   }
 
   const sendPromptToChatStream = async (chatId: string, promptText: string) => {
+    /**
+     * Append a user prompt, run the streaming request and store the assistant answer.
+     *
+     * Args:
+     *   chatId: Target chat identifier.
+     *   promptText: User prompt sent to the backend.
+     *
+     * Returns:
+     *   Promise<void>
+     */
+
     const currentMessages = messagesByChatId[chatId] ?? []
 
     const optimisticUserMessage: Message = {
@@ -361,6 +475,16 @@ const HomePage = (): React.JSX.Element => {
     let cancelled = false
 
     const loadUserProfile = async () => {
+      /**
+       * Load the structured profile that will be sent with chat prompts.
+       *
+       * Args:
+       *   None.
+       *
+       * Returns:
+       *   Promise<void>
+       */
+
       try {
         const profile = await window.configApi.getUserProfileJson()
 
@@ -444,6 +568,16 @@ const HomePage = (): React.JSX.Element => {
 
   useEffect(() => {
     const loadMessagesForSelectedChat = async () => {
+      /**
+       * Load persisted messages for the selected chat into the conversation view.
+       *
+       * Args:
+       *   None.
+       *
+       * Returns:
+       *   Promise<void>
+       */
+
       if (!selectedChatId) return
       if (messagesByChatId[selectedChatId]) return
 
@@ -483,6 +617,16 @@ const HomePage = (): React.JSX.Element => {
     selectedChatId && selectedChatId === streamingChatId ? streamingContent : ''
 
   const handleEmailActionSubmit = async (userPrompt: string) => {
+    /**
+     * Send the chosen email action through the active chat stream.
+     *
+     * Args:
+     *   userPrompt: Prompt describing what should be done with the email.
+     *
+     * Returns:
+     *   Promise<void>
+     */
+
     if (!selectedEmailForAction?.id || isSubmittingEmailAction || isSending) return
 
     let streamStarted = false
@@ -532,6 +676,16 @@ const HomePage = (): React.JSX.Element => {
   }
 
   const handleCreateChat = async () => {
+    /**
+     * Create a new local chat and make it the active conversation.
+     *
+     * Args:
+     *   None.
+     *
+     * Returns:
+     *   Promise<void>
+     */
+
     try {
       setIsCreatingChat(true)
       const newChatId = await createChat()
@@ -554,10 +708,30 @@ const HomePage = (): React.JSX.Element => {
   }
 
   const handleSelectChat = (chatId: string) => {
+    /**
+     * Switch the workspace to another saved chat.
+     *
+     * Args:
+     *   chatId: Chat identifier selected by the user.
+     *
+     * Returns:
+     *   void
+     */
+
     setSelectedChatId(chatId)
   }
 
   const handleSend = async () => {
+    /**
+     * Send the text currently written in the chat composer.
+     *
+     * Args:
+     *   None.
+     *
+     * Returns:
+     *   Promise<void>
+     */
+
     const trimmedInput = input.trim()
     if (!trimmedInput || !selectedChatId || isSending) return
 
@@ -621,8 +795,18 @@ const HomePage = (): React.JSX.Element => {
     }
   }
 
-  // Enviar con Enter (Shift+Enter para salto de línea)
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    /**
+     * Submit the composer with Enter while preserving multiline input with Shift+Enter.
+     *
+     * Args:
+     *   e: Keyboard event from the chat composer.
+     *
+     * Returns:
+     *   void
+     */
+
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
       void handleSend()
@@ -820,7 +1004,6 @@ const HomePage = (): React.JSX.Element => {
                       </div>
                     )}
 
-                    {/* Indicador de espera antes de que llegue el primer token */}
                     {selectedChatIsStreaming && !selectedChatStreamingContent && (
                       <div className="flex justify-start">
                         <div className="rounded-[24px] border border-white/10 bg-white/[0.06] px-4 py-3 backdrop-blur-xl">

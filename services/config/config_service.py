@@ -2,6 +2,11 @@ from __future__ import annotations
 from core.database import get_connection
 
 def get_all_config() -> list[dict]:
+    """Return all config rows.
+
+    Returns:
+        list[dict]
+    """
     conn = get_connection()
     cur = conn.cursor()
 
@@ -17,6 +22,14 @@ def get_all_config() -> list[dict]:
 
 
 def get_config_value(key: str) -> dict | None:
+    """Return the config value.
+
+    Args:
+        key: Configuration key to read or write.
+
+    Returns:
+        dict | None
+    """
     conn = get_connection()
     cur = conn.cursor()
 
@@ -32,6 +45,15 @@ def get_config_value(key: str) -> dict | None:
 
 
 def set_config_value(key: str, value: str) -> dict:
+    """Store the config value.
+
+    Args:
+        key: Configuration key to read or write.
+        value: Value being processed.
+
+    Returns:
+        dict
+    """
     conn = get_connection()
     cur = conn.cursor()
 

@@ -7,7 +7,15 @@ import io
 from services.drive.utils import GOOGLE_EXPORT_MAP, _get_service
 
 
-def list_drive_files(max_results: int = 20):
+def list_drive_files(max_results: int = 20) -> dict:
+    """Return the drive files list.
+
+    Args:
+        max_results: Maximum number of items to return.
+
+    Returns:
+        dict
+    """
     service = _get_service()
 
     res = service.files().list(
@@ -34,6 +42,15 @@ def list_drive_files(max_results: int = 20):
 
 
 def get_public_download_link(file_id: str, export_fmt: str | None = None) -> dict:
+    """Return the public download link.
+
+    Args:
+        file_id: Identifier of the Drive file.
+        export_fmt: Google export format used for the download link.
+
+    Returns:
+        dict
+    """
     service = _get_service()
 
     perms = service.permissions().list(
@@ -96,6 +113,14 @@ def get_public_download_link(file_id: str, export_fmt: str | None = None) -> dic
 
 
 def delete_drive_file(file_id: str) -> dict:
+    """Delete the drive file.
+
+    Args:
+        file_id: Identifier of the Drive file.
+
+    Returns:
+        dict
+    """
     service = _get_service()
 
     try:
@@ -120,10 +145,21 @@ def delete_drive_file(file_id: str) -> dict:
 
 def upload_drive_file(
     filename: str,
-    file_data,
+    file_data: bytes,
     folder_id: str | None = None,
     mime_type: str | None = None,
-):
+) -> dict:
+    """Upload a file to Google Drive.
+
+    Args:
+        filename: Name of the uploaded Drive file.
+        file_data: Binary content of the uploaded Drive file.
+        folder_id: Identifier of the folder.
+        mime_type: MIME type assigned to the uploaded file.
+
+    Returns:
+        dict
+    """
     service = _get_service()
 
     if not mime_type:
@@ -153,7 +189,16 @@ def upload_drive_file(
     return uploaded
 
 
-def search_drive_files_by_name(name_query: str, max_results: int = 20):
+def search_drive_files_by_name(name_query: str, max_results: int = 20) -> dict:
+    """Search Google Drive files by name.
+
+    Args:
+        name_query: Drive filename search query.
+        max_results: Maximum number of items to return.
+
+    Returns:
+        dict
+    """
 
     service = _get_service()
 
@@ -179,7 +224,6 @@ def search_drive_files_by_name(name_query: str, max_results: int = 20):
         f["canTrash"] = bool(caps.get("canTrash"))
         f["ownedByMe"] = bool(f.get("ownedByMe"))
 
-        # comprobar permisos actuales
         perms = service.permissions().list(
             fileId=file_id,
             fields="permissions(id,type,role)",
@@ -191,7 +235,6 @@ def search_drive_files_by_name(name_query: str, max_results: int = 20):
             for p in perms
         )
 
-        # hacerlo público si no lo es
         if not already_public:
             service.permissions().create(
                 fileId=file_id,
@@ -203,7 +246,6 @@ def search_drive_files_by_name(name_query: str, max_results: int = 20):
                 supportsAllDrives=True,
             ).execute()
 
-        # generar link público
         f["publicLink"] = f"https://drive.google.com/file/d/{file_id}/view?usp=sharing"
         f["downloadUrl"] = f"https://drive.google.com/uc?id={file_id}&export=download"
 

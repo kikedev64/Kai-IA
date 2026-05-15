@@ -2,6 +2,8 @@ import json
 import time
 import uuid
 from datetime import datetime, timezone, timedelta
+from typing import Iterator
+
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
@@ -12,7 +14,7 @@ from tools.tools_definition import TOOLS
 try:
     from zoneinfo import ZoneInfo
 except Exception:
-    ZoneInfo = None  # fallback
+    ZoneInfo = None
 
 from api.schemas.chat import AskRequest
 from core.config import get_system_prompt_default
@@ -40,7 +42,7 @@ class ChatStreamRequest(BaseModel):
     limit_history: int = Field(default=6, ge=1, le=20)
     profile_context: str | None = None
     debug: bool = False
-    
+
 DEBUG_TOOLS = True
 
 GMAIL_CONTEXT_TOOLS = {
@@ -51,6 +53,14 @@ GMAIL_CONTEXT_TOOLS = {
 }
 
 def should_enable_tools(prompt: str) -> bool:
+    """Decide whether to enable tools.
+
+    Args:
+        prompt: Prompt text sent to the model.
+
+    Returns:
+        bool
+    """
     text = (prompt or "").lower()
     keywords = get_tool_activation_keywords()
 
@@ -60,6 +70,14 @@ def should_enable_tools(prompt: str) -> bool:
     return any(keyword in text for keyword in keywords)
 
 def is_legacy_tool_json(text: str) -> bool:
+    """Check whether the value is legacy tool json.
+
+    Args:
+        text: Text to inspect or transform.
+
+    Returns:
+        bool
+    """
     if not text:
         return False
     s = text.strip()
@@ -71,6 +89,14 @@ def is_legacy_tool_json(text: str) -> bool:
 
 
 def extract_legacy_tool_call(text: str) -> dict | None:
+    """Extract the legacy tool call.
+
+    Args:
+        text: Text to inspect or transform.
+
+    Returns:
+        dict | None
+    """
     if not text:
         return None
     s = text.strip()
@@ -89,6 +115,11 @@ def extract_legacy_tool_call(text: str) -> dict | None:
 
 
 def now_context_system_message() -> dict:
+    """Build the system message with the current Madrid time context.
+
+    Returns:
+        dict
+    """
     if ZoneInfo is not None:
         try:
             tz = ZoneInfo("Europe/Madrid")
@@ -122,6 +153,14 @@ def now_context_system_message() -> dict:
     }
 
 def clean_model_output(text: str) -> str:
+    """Clean the model output.
+
+    Args:
+        text: Text to inspect or transform.
+
+    Returns:
+        str
+    """
     if not text:
         return ""
 
@@ -142,6 +181,14 @@ def clean_model_output(text: str) -> str:
     return cleaned.strip()
 
 def should_store_assistant_message(text: str) -> bool:
+    """Decide whether to store assistant message.
+
+    Args:
+        text: Text to inspect or transform.
+
+    Returns:
+        bool
+    """
     if not text:
         return False
 
@@ -158,6 +205,14 @@ def should_store_assistant_message(text: str) -> bool:
     return True
 
 def post_tool_instruction_message(user_input: str) -> dict:
+    """Build the instruction message used after a tool call.
+
+    Args:
+        user_input: User message sent to the assistant.
+
+    Returns:
+        dict
+    """
     compact = " ".join((user_input or "").strip().split())
     if len(compact) > 220:
         compact = compact[:220].rstrip() + "..."
@@ -174,6 +229,15 @@ def post_tool_instruction_message(user_input: str) -> dict:
     }
 
 def build_gmail_context_message(tool_name: str, result: dict) -> dict | None:
+    """Build the Gmail context message.
+
+    Args:
+        tool_name: Name of the tool that produced the result.
+        result: Tool or service result processed by the function.
+
+    Returns:
+        dict | None
+    """
     if tool_name not in GMAIL_CONTEXT_TOOLS:
         return None
     if not isinstance(result, dict):
@@ -205,6 +269,14 @@ def build_gmail_context_message(tool_name: str, result: dict) -> dict | None:
 
 
 def _fallback_title_from_user_input(user_input: str) -> str:
+    """Create a short chat title from the first user message.
+
+    Args:
+        user_input: User message sent to the assistant.
+
+    Returns:
+        str
+    """
     text = " ".join(user_input.strip().split())
     if not text:
         return "Nuevo chat"
@@ -221,6 +293,17 @@ def _fallback_title_from_user_input(user_input: str) -> str:
 def _ensure_chat_title(
     chat_id: str, user_input: str, is_first_user_message: bool, request_id: str
 ) -> None:
+    """Ensure the chat title exists.
+
+    Args:
+        chat_id: Identifier of the chat session.
+        user_input: User message sent to the assistant.
+        is_first_user_message: Whether this message is the first user message in the chat.
+        request_id: Identifier of the request.
+
+    Returns:
+        None
+    """
     if not is_first_user_message:
         return
 
@@ -258,7 +341,12 @@ def _ensure_chat_title(
 
 
 @router.post("/start")
-def start():
+def start() -> dict[str, str]:
+    """Create a new assistant chat session.
+
+    Returns:
+        dict[str, str]
+    """
     chat_id = str(uuid.uuid4())
     ensure_session(chat_id, get_system_prompt_default())
     return {"chat_id": chat_id}
@@ -269,7 +357,17 @@ def chat_endpoint(
     user_input: str,
     chat_id: str = Query(..., min_length=1),
     limit_history: int = Query(50, ge=1, le=200),
-):
+) -> dict[str, str]:
+    """Handle a non-streaming assistant chat request.
+
+    Args:
+        user_input: User message sent to the assistant.
+        chat_id: Identifier of the chat session.
+        limit_history: Maximum number of previous chat messages to include.
+
+    Returns:
+        dict[str, str]
+    """
     request_id = str(uuid.uuid4())[:8]
 
     try:
@@ -331,12 +429,30 @@ def chat_endpoint(
                     args = legacy_tc.get("arguments") or {}
 
                     class _Fn:
-                        def __init__(self, n: str, a: dict):
+                        def __init__(self, n: str, a: dict) -> None:
+                            """Store a legacy tool-call function payload.
+
+                            Args:
+                                n: Tool name used by the test double.
+                                a: Tool arguments used by the test double.
+
+                            Returns:
+                                None
+                            """
                             self.name = n
                             self.arguments = json.dumps(a, ensure_ascii=False)
 
                     class _TC:
-                        def __init__(self, n: str, a: dict):
+                        def __init__(self, n: str, a: dict) -> None:
+                            """Store a legacy tool-call wrapper payload.
+
+                            Args:
+                                n: Tool name used by the test double.
+                                a: Tool arguments used by the test double.
+
+                            Returns:
+                                None
+                            """
                             self.id = "legacy"
                             self.function = _Fn(n, a)
 
@@ -469,7 +585,15 @@ def chat_endpoint(
 
 
 @router.post("/ask")
-def ask_llm(req: AskRequest):
+def ask_llm(req: AskRequest) -> dict[str, str]:
+    """Send a prompt to the LLM.
+
+    Args:
+        req: Request payload received by the endpoint.
+
+    Returns:
+        dict[str, str]
+    """
     try:
         response = ask_without_context(req)
         return response
@@ -485,7 +609,12 @@ def ask_llm(req: AskRequest):
 
 
 @router.get("/chats")
-def get_chats():
+def get_chats() -> dict[str, list[dict]]:
+    """Return the chats.
+
+    Returns:
+        dict[str, list[dict]]
+    """
     try:
         chats = list_chat_sessions()
         return {"chats": chats}
@@ -494,7 +623,15 @@ def get_chats():
 
 
 @router.get("/chats/{chat_id}")
-def get_chat_by_id(chat_id: str):
+def get_chat_by_id(chat_id: str) -> dict:
+    """Return the chat by id.
+
+    Args:
+        chat_id: Identifier of the chat session.
+
+    Returns:
+        dict
+    """
     try:
         chat = get_full_chat_by_id(chat_id)
 
@@ -508,9 +645,16 @@ def get_chat_by_id(chat_id: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-def split_text_for_stream(text: str):
-    # Puedes hacerlo por caracteres, por palabras o por bloques.
-    # Por palabras queda bastante natural.
+def split_text_for_stream(text: str) -> Iterator[str]:
+    """Yield text chunks suitable for streaming.
+
+    Args:
+        text: Text to inspect or transform.
+
+    Returns:
+        Iterator[str]
+    """
+    
     words = text.split(" ")
     for i, word in enumerate(words):
         if i == 0:
@@ -520,7 +664,15 @@ def split_text_for_stream(text: str):
 
 
 @router.post("/chat/stream")
-def assistant_chat_stream(req: ChatStreamRequest):
+def assistant_chat_stream(req: ChatStreamRequest) -> StreamingResponse:
+    """Handle a streaming assistant chat request with debug events.
+
+    Args:
+        req: Request payload received by the endpoint.
+
+    Returns:
+        StreamingResponse
+    """
     request_id = str(uuid.uuid4())[:8]
 
     prompt = req.prompt.strip()
@@ -530,7 +682,15 @@ def assistant_chat_stream(req: ChatStreamRequest):
     debug_enabled = req.debug
     stream_started_at = time.perf_counter()
 
-    def stream_text(text: str):
+    def stream_text(text: str) -> Iterator[str]:
+        """Yield one text response as server-sent events.
+
+        Args:
+            text: Text to inspect or transform.
+
+        Returns:
+            Iterator[str]
+        """
         output_started_at = time.perf_counter()
         for token_index, chunk in enumerate(split_text_for_stream(text), start=1):
             payload = {
@@ -546,7 +706,12 @@ def assistant_chat_stream(req: ChatStreamRequest):
             yield f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
             time.sleep(0.02)
 
-    def done_event():
+    def done_event() -> str:
+        """Build the terminal server-sent event.
+
+        Returns:
+            str
+        """
         payload = {
             "type": "done",
             "chat_id": chat_id,
@@ -556,7 +721,15 @@ def assistant_chat_stream(req: ChatStreamRequest):
         }
         return f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
 
-    def error_event(message: str):
+    def error_event(message: str) -> str:
+        """Build an error server-sent event.
+
+        Args:
+            message: Message object handled by the function.
+
+        Returns:
+            str
+        """
         payload = {
             "type": "error",
             "chat_id": chat_id,
@@ -567,7 +740,16 @@ def assistant_chat_stream(req: ChatStreamRequest):
         }
         return f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
 
-    def safe_debug_value(value, max_chars: int = 12000):
+    def safe_debug_value(value: object, max_chars: int = 12000) -> object:
+        """Normalize a debug value before sending it to the frontend.
+
+        Args:
+            value: Value being processed.
+            max_chars: Maximum number of characters kept in the output.
+
+        Returns:
+            object
+        """
         try:
             json.dumps(value, ensure_ascii=False)
             serializable = value
@@ -584,7 +766,15 @@ def assistant_chat_stream(req: ChatStreamRequest):
             "preview": text[:max_chars],
         }
 
-    def parse_tool_arguments(arguments):
+    def parse_tool_arguments(arguments: object) -> object:
+        """Parse the tool arguments.
+
+        Args:
+            arguments: Raw tool arguments returned by the model.
+
+        Returns:
+            object
+        """
         if not isinstance(arguments, str):
             return arguments
         try:
@@ -595,7 +785,17 @@ def assistant_chat_stream(req: ChatStreamRequest):
                 "parse_error": True,
             }
 
-    def debug_event(stage: str, message: str, **data):
+    def debug_event(stage: str, message: str, **data: object) -> str | None:
+        """Build one debug server-sent event.
+
+        Args:
+            stage: Debug stage attached to the event.
+            message: Message object handled by the function.
+            data: Source data processed by the function.
+
+        Returns:
+            str | None
+        """
         if not debug_enabled:
             return None
 
@@ -611,6 +811,14 @@ def assistant_chat_stream(req: ChatStreamRequest):
         return f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
 
     def is_garbage_text(text: str) -> bool:
+        """Check whether the value is garbage text.
+
+        Args:
+            text: Text to inspect or transform.
+
+        Returns:
+            bool
+        """
         if not text:
             return False
 
@@ -627,6 +835,14 @@ def assistant_chat_stream(req: ChatStreamRequest):
         return False
 
     def fallback_text_from_tool_results(tool_results: list[tuple[str, dict]]) -> str:
+        """Build fallback text from tool results.
+
+        Args:
+            tool_results: Tool results collected during the assistant flow.
+
+        Returns:
+            str
+        """
         if not tool_results:
             return "He completado la operación."
 
@@ -691,7 +907,12 @@ def assistant_chat_stream(req: ChatStreamRequest):
         "freebusy_query",
     }
 
-    def event_generator():
+    def event_generator() -> Iterator[str]:
+        """Generate the streaming response events.
+
+        Returns:
+            Iterator[str]
+        """
         try:
             event = debug_event(
                 "backend_receive",
@@ -856,7 +1077,6 @@ def assistant_chat_stream(req: ChatStreamRequest):
                     print(f"[{request_id}] content: {repr(content)}")
                     print(f"[{request_id}] tool_calls: {len(tool_calls)}")
 
-                # Caso 1: respuesta final normal.
                 if not tool_calls and content and not is_garbage_text(content):
                     if should_store_assistant_message(content):
                         add_message(chat_id, "assistant", content)
@@ -872,7 +1092,6 @@ def assistant_chat_stream(req: ChatStreamRequest):
                     yield done_event()
                     return
 
-                # Caso 2: no hay tools y el texto es basura / vacío.
                 if not tool_calls:
                     if executed_tool_results:
                         forced_final = call_lm_studio(messages, use_tools=False)
@@ -1017,7 +1236,6 @@ def assistant_chat_stream(req: ChatStreamRequest):
 
                 messages.append(post_tool_instruction_message(prompt))
 
-                # Después de usar una tool, mantenemos las tools activas por si necesita otra.
                 use_tools = True
 
             yield error_event("Se alcanzó el máximo de tool steps")

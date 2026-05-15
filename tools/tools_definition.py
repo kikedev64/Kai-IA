@@ -100,7 +100,7 @@ TOOLS = [
             }
         }
     },
-    
+
     {
     "type": "function",
         "function": {
@@ -119,7 +119,7 @@ TOOLS = [
             }
         }
     },
-    
+
     {
     "type": "function",
         "function": {
@@ -141,7 +141,7 @@ TOOLS = [
             }
         }
     },
-    
+
     {
     "type": "function",
         "function": {
@@ -164,7 +164,7 @@ TOOLS = [
             }
         }
     },
-    
+
     {
         "type": "function",
         "function": {
@@ -307,7 +307,7 @@ TOOLS = [
             }
         }
     },
-    
+
     {
         "type": "function",
         "function": {

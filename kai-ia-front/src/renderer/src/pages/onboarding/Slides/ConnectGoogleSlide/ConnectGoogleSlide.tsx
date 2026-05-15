@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { LogIn } from 'lucide-react'
 
 type Props = {
@@ -23,6 +23,17 @@ const DEFAULT_HOST = 'http://localhost'
 const DEFAULT_PORT = '8000'
 
 const ConnectGoogleSlide = ({ onNext, onPrev }: Props) => {
+  /**
+   * Render the Google connection step and verify Gmail access.
+   *
+   * Args:
+   *   onNext: Moves the user to the next onboarding step.
+   *   onPrev: Moves the user back to the previous onboarding step.
+   *
+   * Returns:
+   *   React.JSX.Element
+   */
+
   const [host, setHost] = useState(DEFAULT_HOST)
   const [port, setPort] = useState(DEFAULT_PORT)
   const [loadingConfig, setLoadingConfig] = useState(true)
@@ -40,6 +51,16 @@ const ConnectGoogleSlide = ({ onNext, onPrev }: Props) => {
 
   useEffect(() => {
     const loadSavedConfig = async () => {
+      /**
+       * Load saved connection settings into the current onboarding form.
+       *
+       * Args:
+       *   None.
+       *
+       * Returns:
+       *   Promise<void>
+       */
+
       try {
         const savedHost = await window.configApi.getServerUrl()
         const savedPort = await window.configApi.getServerPort()
@@ -62,6 +83,16 @@ const ConnectGoogleSlide = ({ onNext, onPrev }: Props) => {
   }, [])
 
   const checkGoogleConnection = async () => {
+    /**
+     * Check whether the configured backend can access the Google account.
+     *
+     * Args:
+     *   None.
+     *
+     * Returns:
+     *   Promise<boolean>
+     */
+
     try {
       const res = await fetch(`${backendUrl}/auth/google/test`, {
         method: 'GET'
@@ -93,6 +124,16 @@ const ConnectGoogleSlide = ({ onNext, onPrev }: Props) => {
   }
 
   const handleGoogleLogin = async () => {
+    /**
+     * Open the Google login flow through the configured backend.
+     *
+     * Args:
+     *   None.
+     *
+     * Returns:
+     *   Promise<void>
+     */
+
     try {
       setStatus('loading')
       setMessage('Preparando autenticación con Google...')
@@ -138,6 +179,16 @@ const ConnectGoogleSlide = ({ onNext, onPrev }: Props) => {
   }
 
   const handleContinue = async () => {
+    /**
+     * Validate the current step and continue when its required data is ready.
+     *
+     * Args:
+     *   None.
+     *
+     * Returns:
+     *   Promise<void>
+     */
+
     if (!connected) return
 
     try {

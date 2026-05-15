@@ -24,6 +24,16 @@ type ChatBootstrapContextType = ChatBootstrapState & {
 const ChatBootstrapContext = createContext<ChatBootstrapContextType | null>(null)
 
 function loadFromStorage(): Partial<ChatBootstrapState> {
+  /**
+   * Load the from storage data required by the view.
+   *
+   * Args:
+   *   None.
+   *
+   * Returns:
+   *   The Partial<ChatBootstrapState> value produced by loadFromStorage.
+   */
+
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (!raw) return {}
@@ -38,6 +48,16 @@ export function ChatBootstrapProvider({
 }: {
   children: React.ReactNode
 }): React.JSX.Element {
+  /**
+   * Load the initial chat list and expose it to the renderer tree.
+   *
+   * Args:
+   *   children: React nodes rendered after the bootstrap data is available.
+   *
+   * Returns:
+   *   React.JSX.Element
+   */
+
   const stored = loadFromStorage()
   const [chats, setChats] = useState<ChatItem[]>(stored.chats ?? [])
   const [selectedChatId, setSelectedChatId] = useState<string | null>(stored.selectedChatId ?? null)
@@ -46,9 +66,19 @@ export function ChatBootstrapProvider({
   )
   const [isReady, setIsReady] = useState(false)
 
-  // NUEVO: Cargar datos del backend al montar
+
   useEffect(() => {
     async function loadBootstrapData() {
+      /**
+       * Read the saved chats and publish them through the bootstrap context.
+       *
+       * Args:
+       *   None.
+       *
+       * Returns:
+       *   Promise<void>
+       */
+
       try {
         console.log('[Bootstrap] Cargando chats del backend...')
         const fetchedChats = await getChats()
@@ -60,19 +90,19 @@ export function ChatBootstrapProvider({
           return
         }
 
-        // Seleccionar el primer chat
+
         const firstChatId = fetchedChats[0].id
         console.log('[Bootstrap] Cargando mensajes del primer chat:', firstChatId)
-        
+
         const messages = await getChatMessages(firstChatId)
         console.log('[Bootstrap] Mensajes obtenidos:', messages.length)
 
-        // Actualizar estado
+
         setChats(fetchedChats)
         setSelectedChatId(firstChatId)
         setMessagesByChatId({ [firstChatId]: messages })
 
-        // Guardar en localStorage
+
         try {
           localStorage.setItem(
             STORAGE_KEY,
@@ -89,7 +119,7 @@ export function ChatBootstrapProvider({
         setIsReady(true)
       } catch (error) {
         console.error('[Bootstrap] Error cargando datos:', error)
-        // Marcar como ready incluso si hay error, para no quedar en "Cargando..."
+
         setIsReady(true)
       }
     }
@@ -131,6 +161,16 @@ export function ChatBootstrapProvider({
 }
 
 export function useChatBootstrap(): ChatBootstrapContextType {
+  /**
+   * Read the chat bootstrap context from a mounted provider.
+   *
+   * Args:
+   *   None.
+   *
+   * Returns:
+   *   ChatBootstrapContextValue
+   */
+
   const context = useContext(ChatBootstrapContext)
   if (!context) {
     throw new Error('useChatBootstrap debe usarse dentro de ChatBootstrapProvider')

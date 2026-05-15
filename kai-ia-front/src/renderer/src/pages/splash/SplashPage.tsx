@@ -18,6 +18,16 @@ const STEP_LABELS: Record<string, string> = {
 }
 
 export default function SplashPage(): React.JSX.Element {
+  /**
+   * Render the startup screen while configuration and chat data are checked.
+   *
+   * Args:
+   *   None.
+   *
+   * Returns:
+   *   React.JSX.Element
+   */
+
   const [status, setStatus] = useState<StartupStatus>({
     step: 'starting',
     message: 'Iniciando Kai IA...'
@@ -39,6 +49,16 @@ export default function SplashPage(): React.JSX.Element {
 
   useEffect(() => {
     const bootstrapChats = async () => {
+      /**
+       * Prepare the first chat if the local chat list is empty.
+       *
+       * Args:
+       *   None.
+       *
+       * Returns:
+       *   Promise<void>
+       */
+
       if (status.step !== 'bootstrap-ok') return
       if (hasBootstrappedChatsRef.current) return
 
@@ -97,6 +117,16 @@ export default function SplashPage(): React.JSX.Element {
       : STEP_LABELS[status.step] ?? 'Procesando'
 
   const handleResetConfiguration = async () => {
+    /**
+     * Clear saved configuration so onboarding can run again from scratch.
+     *
+     * Args:
+     *   None.
+     *
+     * Returns:
+     *   Promise<void>
+     */
+
     const confirmed = window.confirm(
       '¿Deseas reiniciar la configuración inicial de Kai IA?'
     )
@@ -104,7 +134,7 @@ export default function SplashPage(): React.JSX.Element {
     if (!confirmed) return
 
     try {
-      localStorage.removeItem('kai_bootstrap') // ← línea nueva
+      localStorage.removeItem('kai_bootstrap')
       await window.startupApi.resetAndOpenOnboarding()
     } catch (error) {
       console.error('Error reiniciando configuración:', error)
@@ -113,6 +143,16 @@ export default function SplashPage(): React.JSX.Element {
   }
 
   const handleCloseApp = async () => {
+    /**
+     * Request the desktop shell to close the application window.
+     *
+     * Args:
+     *   None.
+     *
+     * Returns:
+     *   Promise<void>
+     */
+
     try {
       await window.electronAPI.closeApp()
     } catch (error) {

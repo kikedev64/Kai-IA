@@ -5,6 +5,11 @@ from core.database import get_connection
 from services.gmail.utils import _get_service
 
 def get_latest_history_id() -> str | None:
+    """Return the latest history id.
+
+    Returns:
+        str | None
+    """
     service = _get_service()
 
     profile = service.users().getProfile(userId="me").execute()
@@ -35,8 +40,17 @@ def get_latest_history_id() -> str | None:
 def read_history_since(
     start_history_id: str,
     label_id: str = "INBOX",
-) -> dict[str, Any]:
-    
+) -> dict:
+    """Read the history since.
+
+    Args:
+        start_history_id: Identifier of the start history.
+        label_id: Identifier of the label.
+
+    Returns:
+        dict
+    """
+
     service = _get_service()
 
     page_token = None
@@ -99,7 +113,16 @@ def read_history_since(
 def check_history_changes(
     start_history_id: str,
     label_id: str = "INBOX",
-) -> dict[str, Any]:
+) -> dict:
+    """Check the history changes.
+
+    Args:
+        start_history_id: Identifier of the start history.
+        label_id: Identifier of the label.
+
+    Returns:
+        dict
+    """
 
     result = read_history_since(
         start_history_id=start_history_id,
@@ -113,7 +136,15 @@ def check_history_changes(
         "needs_rebootstrap": result["needs_rebootstrap"],
     }
 
-def get_history_ids(only_latest: bool = False) -> list[dict[str, Any]]:
+def get_history_ids(only_latest: bool = False) -> list[dict]:
+    """Return the history ids.
+
+    Args:
+        only_latest: Whether only the latest history id should be returned.
+
+    Returns:
+        list[dict]
+    """
     conn = get_connection()
     cur = conn.cursor()
 

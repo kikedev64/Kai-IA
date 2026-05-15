@@ -7,6 +7,15 @@ from services.gmail.utils import _get_service, _gmail_msg_to_email
 
 
 def read_last_emails_full(max_results: int = 5, clean_body: bool = False) -> List[Email]:
+    """Read the last emails full.
+
+    Args:
+        max_results: Maximum number of items to return.
+        clean_body: Whether the email body should be normalized before returning it.
+
+    Returns:
+        List[Email]
+    """
     service = _get_service()
 
     res = service.users().messages().list(userId="me", maxResults=max_results).execute()
@@ -28,6 +37,16 @@ def read_last_emails_full(max_results: int = 5, clean_body: bool = False) -> Lis
 
 
 def read_last_emails_from_sender(sender: str, max_results: int = 5, clean_body: bool = False) -> List[Email]:
+    """Read the last emails from sender.
+
+    Args:
+        sender: Sender address used to filter email messages.
+        max_results: Maximum number of items to return.
+        clean_body: Whether the email body should be normalized before returning it.
+
+    Returns:
+        List[Email]
+    """
     service = _get_service()
 
     res = service.users().messages().list(
@@ -54,6 +73,16 @@ def read_last_emails_from_sender(sender: str, max_results: int = 5, clean_body: 
 
 
 def read_last_emails_by_subject(subject_text: str, max_results: int = 5, clean_body: bool = False) -> List[Email]:
+    """Read the last emails by subject.
+
+    Args:
+        subject_text: Subject text used to filter email messages.
+        max_results: Maximum number of items to return.
+        clean_body: Whether the email body should be normalized before returning it.
+
+    Returns:
+        List[Email]
+    """
     service = _get_service()
 
     query = f"subject:{subject_text}"
@@ -82,6 +111,15 @@ def read_last_emails_by_subject(subject_text: str, max_results: int = 5, clean_b
 
 
 def read_thread_from_message_id(message_id: str, clean_body: bool = False) -> EmailThread | None:
+    """Read the thread from message id.
+
+    Args:
+        message_id: Identifier of the Gmail message.
+        clean_body: Whether the email body should be normalized before returning it.
+
+    Returns:
+        EmailThread | None
+    """
     service = _get_service()
 
     meta = service.users().messages().get(userId="me", id=message_id, format="metadata").execute()
@@ -109,6 +147,15 @@ def read_thread_from_message_id(message_id: str, clean_body: bool = False) -> Em
     return EmailThread(thread_id, emails)
 
 def read_email_by_id(message_id: str, clean_body: bool = False) -> Email | None:
+    """Read the email by id.
+
+    Args:
+        message_id: Identifier of the Gmail message.
+        clean_body: Whether the email body should be normalized before returning it.
+
+    Returns:
+        Email | None
+    """
     service = _get_service()
 
     try:

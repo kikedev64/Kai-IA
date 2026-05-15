@@ -15,6 +15,16 @@ def google_oauth_callback(
     state: str | None = None,
     error: str | None = None
 ):
+    """Execute the google oauth callback behavior.
+
+    Args:
+        code: OAuth authorization code returned by Google.
+        state: OAuth state value used for callback validation.
+        error: Error value passed to the function.
+
+    Returns:
+        HTMLResponse
+    """
     if error:
         return HTMLResponse(f"""
         <html>
@@ -65,9 +75,17 @@ def google_oauth_callback(
             </body>
         </html>
         """)
-        
+
 @router.get("/url")
 def google_oauth_url():
+    """Execute the google oauth url behavior.
+
+    Args:
+        None.
+
+    Returns:
+        dict[str, str]
+    """
     try:
         auth_url = get_google_auth_url()
         return {"auth_url": auth_url}
@@ -79,4 +97,12 @@ def google_oauth_url():
 
 @router.get("/test")
 def google_oauth_test():
+    """Execute the google oauth test behavior.
+
+    Args:
+        None.
+
+    Returns:
+        dict
+    """
     return test_google_auth_connection()

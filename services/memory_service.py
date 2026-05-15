@@ -2,6 +2,11 @@ from typing import List
 from core.database import get_connection
 
 def get_user_profile() -> dict:
+    """Return the user profile.
+
+    Returns:
+        dict
+    """
     conn = get_connection()
     cur = conn.cursor()
 
@@ -17,6 +22,14 @@ def get_user_profile() -> dict:
 
 
 def update_user_name(name: str) -> None:
+    """Update the user name.
+
+    Args:
+        name: Name value processed by the function.
+
+    Returns:
+        None
+    """
     conn = get_connection()
     cur = conn.cursor()
 
@@ -32,6 +45,14 @@ def update_user_name(name: str) -> None:
     conn.close()
 
 def add_memory(content: str) -> None:
+    """Add a memory entry.
+
+    Args:
+        content: Message content stored in the database.
+
+    Returns:
+        None
+    """
     conn = get_connection()
     cur = conn.cursor()
 
@@ -45,6 +66,11 @@ def add_memory(content: str) -> None:
 
 
 def list_memories() -> List[str]:
+    """Return the memories list.
+
+    Returns:
+        List[str]
+    """
     conn = get_connection()
     cur = conn.cursor()
 

@@ -8,15 +8,25 @@ from services.calendar.calendar_service import list_calendar_events
 router = APIRouter(prefix="/health", tags=["Health"])
 
 @router.get("")
-def health_check():
+def health_check() -> dict[str, str]:
+    """Return the API health status.
+
+    Returns:
+        dict
+    """
     return {
         "status": "ok",
         "message": "Backend conectado correctamente"
     }
-    
 
 
-def test_google_auth_connection() -> dict[str, Any]:
+
+def test_google_auth_connection() -> dict:
+    """Test the Google authentication connection.
+
+    Returns:
+        dict
+    """
     creds_data = get_creds()
 
     if "error" in creds_data:

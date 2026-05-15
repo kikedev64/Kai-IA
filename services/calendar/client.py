@@ -3,7 +3,12 @@ from fastapi import HTTPException, status
 from core.auth import get_creds
 
 
-def _calendar_service():
+def _calendar_service() -> object:
+    """Create an authenticated Google Calendar service client.
+
+    Returns:
+        object
+    """
     res = get_creds()
 
     if isinstance(res, dict) and "creds" in res:
@@ -20,4 +25,3 @@ def _calendar_service():
 
     raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=res["error"])
 
-    

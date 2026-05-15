@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 
 type Props = {
   onNext?: () => void
@@ -11,6 +11,17 @@ const DEFAULT_HOST = "http://localhost"
 const DEFAULT_PORT = "8000"
 
 const BasicConfigSlide = ({ onNext, onPrev }: Props) => {
+  /**
+   * Render the backend connection step and save the local server settings.
+   *
+   * Args:
+   *   onNext: Moves the user to the next onboarding step.
+   *   onPrev: Moves the user back to the previous onboarding step.
+   *
+   * Returns:
+   *   React.JSX.Element
+   */
+
   const [host, setHost] = useState(DEFAULT_HOST)
   const [port, setPort] = useState(DEFAULT_PORT)
   const [status, setStatus] = useState<ConnectionStatus>("idle")
@@ -19,6 +30,16 @@ const BasicConfigSlide = ({ onNext, onPrev }: Props) => {
 
   useEffect(() => {
     const loadSavedConfig = async () => {
+      /**
+       * Load saved connection settings into the current onboarding form.
+       *
+       * Args:
+       *   None.
+       *
+       * Returns:
+       *   Promise<void>
+       */
+
       try {
         const savedHost = await window.configApi.getServerUrl()
         const savedPort = await window.configApi.getServerPort()
@@ -47,6 +68,16 @@ const BasicConfigSlide = ({ onNext, onPrev }: Props) => {
   }, [host, port])
 
   const saveConfig = async () => {
+    /**
+     * Persist the server connection settings before continuing onboarding.
+     *
+     * Args:
+     *   None.
+     *
+     * Returns:
+     *   Promise<void>
+     */
+
     try {
       setStatus("checking")
       setMessage("Comprobando conexión con el backend...")

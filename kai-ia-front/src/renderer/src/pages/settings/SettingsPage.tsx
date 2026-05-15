@@ -105,6 +105,17 @@ const EMPTY_FORM: SettingsForm = {
 }
 
 function FieldLabel({ title, subtitle }: { title: string; subtitle?: string }): React.JSX.Element {
+  /**
+   * Render a compact label block for a settings field.
+   *
+   * Args:
+   *   title: Main label text.
+   *   subtitle: Optional helper text shown below the label.
+   *
+   * Returns:
+   *   React.JSX.Element
+   */
+
   return (
     <div className="mb-2">
       <label className="text-sm font-medium text-white">{title}</label>
@@ -122,6 +133,18 @@ function TextInput({
   onChange: (value: string) => void
   placeholder?: string
 }): React.JSX.Element {
+  /**
+   * Render a styled single-line settings input.
+   *
+   * Args:
+   *   value: Current input value.
+   *   onChange: Receives the next text value.
+   *   placeholder: Empty-state text for the field.
+   *
+   * Returns:
+   *   React.JSX.Element
+   */
+
   return (
     <input
       value={value}
@@ -143,6 +166,19 @@ function TextArea({
   placeholder?: string
   rows?: number
 }): React.JSX.Element {
+  /**
+   * Render a styled multi-line settings input.
+   *
+   * Args:
+   *   value: Current text area value.
+   *   onChange: Receives the next text value.
+   *   placeholder: Empty-state text for the field.
+   *   rows: Visible row count for the text area.
+   *
+   * Returns:
+   *   React.JSX.Element
+   */
+
   return (
     <textarea
       value={value}
@@ -163,6 +199,18 @@ function SectionCard({
   description: string
   children: React.ReactNode
 }): React.JSX.Element {
+  /**
+   * Render one settings section with its title, description and controls.
+   *
+   * Args:
+   *   title: Section heading.
+   *   description: Short explanation for the section.
+   *   children: Section controls and content.
+   *
+   * Returns:
+   *   React.JSX.Element
+   */
+
   return (
     <section className="rounded-[28px] border border-white/10 bg-white/[0.05] p-5 shadow-[0_20px_80px_rgba(0,0,0,0.28)] backdrop-blur-2xl">
       <div className="mb-5">
@@ -175,6 +223,16 @@ function SectionCard({
 }
 
 const SettingsPage = (): React.JSX.Element => {
+  /**
+   * Render the configuration page and coordinate loading, editing and saving settings.
+   *
+   * Args:
+   *   None.
+   *
+   * Returns:
+   *   React.JSX.Element
+   */
+
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [activeSection, setActiveSection] = useState<SettingsSectionId>('general')
   const [search, setSearch] = useState('')
@@ -202,6 +260,17 @@ const SettingsPage = (): React.JSX.Element => {
   }, [search])
 
   const updateField = <K extends keyof SettingsForm>(key: K, value: SettingsForm[K]) => {
+    /**
+     * Update one field in the editable settings draft.
+     *
+     * Args:
+     *   key: Settings key to update.
+     *   value: New value stored for the key.
+     *
+     * Returns:
+     *   void
+     */
+
     setForm((prev) => ({
       ...prev,
       [key]: value
@@ -209,6 +278,16 @@ const SettingsPage = (): React.JSX.Element => {
   }
 
   const loadAllSettings = async () => {
+    /**
+     * Load every persisted setting required by the settings page.
+     *
+     * Args:
+     *   None.
+     *
+     * Returns:
+     *   Promise<void>
+     */
+
     setLoading(true)
     setErrorMessage('')
     setSaveMessage('')
@@ -239,16 +318,46 @@ const SettingsPage = (): React.JSX.Element => {
   }, [])
 
   const handleReset = () => {
+    /**
+     * Reset persisted settings and refresh the editable draft.
+     *
+     * Args:
+     *   None.
+     *
+     * Returns:
+     *   Promise<void>
+     */
+
     setForm(initialForm)
     setSaveMessage('Cambios visuales descartados.')
     setErrorMessage('')
   }
 
   const handleReload = async () => {
+    /**
+     * Reload settings from disk without saving current edits.
+     *
+     * Args:
+     *   None.
+     *
+     * Returns:
+     *   Promise<void>
+     */
+
     await loadAllSettings()
   }
 
   const handleRegenerateProfile = async () => {
+    /**
+     * Ask the backend to rebuild the structured profile from the raw profile text.
+     *
+     * Args:
+     *   None.
+     *
+     * Returns:
+     *   Promise<void>
+     */
+
     setErrorMessage('')
     setSaveMessage('')
 
@@ -277,6 +386,16 @@ const SettingsPage = (): React.JSX.Element => {
   }
 
   const handleSave = async () => {
+    /**
+     * Persist the edited settings and refresh the profile context when needed.
+     *
+     * Args:
+     *   None.
+     *
+     * Returns:
+     *   Promise<void>
+     */
+
     setErrorMessage('')
     setSaveMessage('')
 
@@ -375,6 +494,16 @@ const SettingsPage = (): React.JSX.Element => {
   }
 
   const renderSectionContent = () => {
+    /**
+     * Render the controls for the currently selected settings section.
+     *
+     * Args:
+     *   None.
+     *
+     * Returns:
+     *   React.ReactNode
+     */
+
     switch (activeSection) {
       case 'general':
         return (

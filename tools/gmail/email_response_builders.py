@@ -1,6 +1,14 @@
 from markdown import markdown
 
 def build_emails_context_block(data: dict) -> str:
+    """Build the emails context block.
+
+    Args:
+        data: Source data processed by the function.
+
+    Returns:
+        str
+    """
     emails = data.get("emails", [])
     count = data.get("count", 0)
 
@@ -10,11 +18,11 @@ def build_emails_context_block(data: dict) -> str:
     ]
 
     if data.get("subject_text"):
-        lines.append(f"tipo_busqueda: asunto")
+        lines.append("tipo_busqueda: asunto")
         lines.append(f"criterio: {data['subject_text']}")
 
     if data.get("sender"):
-        lines.append(f"tipo_busqueda: remitente")
+        lines.append("tipo_busqueda: remitente")
         lines.append(f"criterio: {data['sender']}")
 
     top_senders = []
@@ -38,15 +46,23 @@ def build_emails_context_block(data: dict) -> str:
 
 
 def markdown_to_html(md_text: str) -> str:
+    """Convert a small markdown subset into email-safe HTML.
+
+    Args:
+        md_text: Markdown text converted to HTML.
+
+    Returns:
+        str
+    """
     if not md_text:
         return ""
 
     html = markdown(
         md_text,
         extensions=[
-            "extra",        # tablas, listas avanzadas
+            "extra",
             "sane_lists",
-            "nl2br",        # saltos de línea -> <br>
+            "nl2br",
         ],
     )
 

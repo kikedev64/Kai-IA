@@ -1,10 +1,18 @@
 from __future__ import annotations
 
 from typing import Any, Optional, Literal
-from services.task.utils import _tasks_service, now_utc_rfc3339
+from services.task.utils import _tasks_service
 
 
-def ensure_tasklist(tasklist_title: str = "Kai IA") -> dict[str, Any]:
+def ensure_tasklist(tasklist_title: str = "Kai IA") -> dict:
+    """Ensure the tasklist exists.
+
+    Args:
+        tasklist_title: Google Tasks list title.
+
+    Returns:
+        dict
+    """
     service = _tasks_service()
 
     lists = service.tasklists().list(maxResults=100).execute().get("items", []) or []
@@ -15,7 +23,16 @@ def ensure_tasklist(tasklist_title: str = "Kai IA") -> dict[str, Any]:
     created = service.tasklists().insert(body={"title": tasklist_title}).execute()
     return created
 
-def get_reminder(tasklist_id: str, task_id: str) -> dict[str, Any]:
+def get_reminder(tasklist_id: str, task_id: str) -> dict:
+    """Return the reminder.
+
+    Args:
+        tasklist_id: Identifier of the task list.
+        task_id: Identifier of the task.
+
+    Returns:
+        dict
+    """
     service = _tasks_service()
     return service.tasks().get(tasklist=tasklist_id, task=task_id).execute()
 
@@ -25,7 +42,19 @@ def list_reminders(
     show_completed: bool = False,
     show_deleted: bool = False,
     show_hidden: bool = False,
-) -> list[dict[str, Any]]:
+) -> list[dict]:
+    """Return the reminders list.
+
+    Args:
+        tasklist_id: Identifier of the task list.
+        max_results: Maximum number of items to return.
+        show_completed: Whether completed tasks should be included.
+        show_deleted: Whether deleted tasks should be included.
+        show_hidden: Whether hidden tasks should be included.
+
+    Returns:
+        list[dict]
+    """
 
     service = _tasks_service()
 
@@ -40,7 +69,19 @@ def list_reminders(
     return res.get("items", []) or []
 
 
-def create_reminder( tasklist_id: str, title: str, due_rfc3339: Optional[str] = None, notes: Optional[str] = None, status: Literal["needsAction", "completed"] = "needsAction", ) -> dict[str, Any]:
+def create_reminder( tasklist_id: str, title: str, due_rfc3339: Optional[str] = None, notes: Optional[str] = None, status: Literal["needsAction", "completed"] = "needsAction", ) -> dict:
+    """Create the reminder.
+
+    Args:
+        tasklist_id: Identifier of the task list.
+        title: Task or chat title processed by the function.
+        due_rfc3339: Task due date in RFC3339 format.
+        notes: Task notes processed by the function.
+        status: Task status processed by the function.
+
+    Returns:
+        dict
+    """
 
     service = _tasks_service()
 
@@ -54,7 +95,20 @@ def create_reminder( tasklist_id: str, title: str, due_rfc3339: Optional[str] = 
     return created
 
 
-def update_reminder( tasklist_id: str, task_id: str, title: Optional[str] = None, due_rfc3339: Optional[str] = None, notes: Optional[str] = None, status: Optional[Literal["needsAction", "completed"]] = None,) -> dict[str, Any]:
+def update_reminder( tasklist_id: str, task_id: str, title: Optional[str] = None, due_rfc3339: Optional[str] = None, notes: Optional[str] = None, status: Optional[Literal["needsAction", "completed"]] = None,) -> dict:
+    """Update the reminder.
+
+    Args:
+        tasklist_id: Identifier of the task list.
+        task_id: Identifier of the task.
+        title: Task or chat title processed by the function.
+        due_rfc3339: Task due date in RFC3339 format.
+        notes: Task notes processed by the function.
+        status: Task status processed by the function.
+
+    Returns:
+        dict
+    """
 
     service = _tasks_service()
 
@@ -78,6 +132,15 @@ def update_reminder( tasklist_id: str, task_id: str, title: Optional[str] = None
 
 
 def delete_reminder(tasklist_id: str, task_id: str) -> None:
+    """Delete the reminder.
+
+    Args:
+        tasklist_id: Identifier of the task list.
+        task_id: Identifier of the task.
+
+    Returns:
+        None
+    """
     service = _tasks_service()
     service.tasks().delete(tasklist=tasklist_id, task=task_id).execute()
 

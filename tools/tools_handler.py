@@ -25,6 +25,11 @@ from tools.gmail.email_response_builders import markdown_to_html
 from tools.tasks.tasks_tools import _compact_task, _resolve_tasklist
 
 def build_google_reauth_message() -> str:
+    """Build the Google reauthentication message.
+
+    Returns:
+        str
+    """
     try:
         auth_url = get_google_auth_url()
     except Exception:
@@ -36,7 +41,15 @@ def build_google_reauth_message() -> str:
         "Cuando lo hayas hecho, vuelve a pedírmelo."
     )
 
-def handle_tool_call(tool_call):
+def handle_tool_call(tool_call: object) -> dict:
+    """Handle the tool call.
+
+    Args:
+        tool_call: Tool call returned by the model.
+
+    Returns:
+        dict
+    """
 
     fn = tool_call.function
     name = fn.name
@@ -149,7 +162,7 @@ def handle_tool_call(tool_call):
                 "status": "success",
                 "data": compact_delete_calendar_events_by_conditions_result(result),
             }
-        
+
         if name == "create_meet_invitation":
             result = create_meet_invitation(
                 summary=args.get("summary"),
@@ -184,12 +197,12 @@ def handle_tool_call(tool_call):
                     "meet_link": meet_link,
                 },
             }
-        
+
         if name == "read_last_emails_full":
             emails = read_last_emails_full(
                 max_results=args.get("max_results", 5), clean_body=True
             )
-        
+
             return {
                 "status": "success",
                 "data": {
@@ -250,7 +263,7 @@ def handle_tool_call(tool_call):
                     "thread": _thread_to_dict(thread),
                 },
             }
-        
+
         if name == "get_full_email":
             email = read_email_by_id(args.get("id"), clean_body=True)
 
@@ -289,7 +302,7 @@ def handle_tool_call(tool_call):
                     "summary": summary if summary is not None else ""
                 }
             }
-            
+
         if name == "send_email":
             to_value = args.get("to", [])
             subject = (args.get("subject") or "").strip()
@@ -353,7 +366,7 @@ def handle_tool_call(tool_call):
                     "gmail_result": result,
                 },
             }
-            
+
         if name == "reply_email":
             message_id = args.get("message_id")
             body = args.get("body") or ""
@@ -427,7 +440,7 @@ def handle_tool_call(tool_call):
                     "gmail_result": result,
                 },
             }
-        
+
         if name == "find_reminders_by_conditions":
             tasklist_title = args.get("tasklist_title", "Kai IA")
 
@@ -638,7 +651,7 @@ def handle_tool_call(tool_call):
                 },
             }
 
-            
+
         if name == "get_public_download_link":
             file_id = args.get("file_id")
             export_fmt = args.get("export_fmt")
@@ -661,7 +674,7 @@ def handle_tool_call(tool_call):
                 },
             }
 
-                
+
         return {"status": "warning", "message": f"Tool no encontrada: {name}"}
     except Exception as e:
         print(f"[TOOLS] Exception in tool '{name}': {repr(e)}")

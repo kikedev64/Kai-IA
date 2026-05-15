@@ -3,37 +3,76 @@ import html
 from html.parser import HTMLParser
 
 class _HTMLTextExtractor(HTMLParser):
-    def __init__(self):
+    def __init__(self) -> None:
+        """Store the values needed by this object.
+
+        Returns:
+            None
+        """
         super().__init__()
         self.parts = []
         self._skip = False
         self._skip_tags = {"script", "style", "head", "title", "meta", "link"}
 
-    def handle_starttag(self, tag, attrs):
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        """Handle an opening HTML tag while extracting text.
+
+        Args:
+            tag: HTML tag name handled by the parser.
+            attrs: HTML attributes attached to the tag.
+
+        Returns:
+            object
+        """
         if tag.lower() in self._skip_tags:
             self._skip = True
         if not self._skip and tag.lower() in {"br", "p", "div", "li", "tr", "table"}:
             self.parts.append("\n")
 
-    def handle_endtag(self, tag):
+    def handle_endtag(self, tag: str) -> None:
+        """Handle a closing HTML tag while extracting text.
+
+        Args:
+            tag: HTML tag name handled by the parser.
+
+        Returns:
+            object
+        """
         if tag.lower() in self._skip_tags:
             self._skip = False
 
         if not self._skip and tag.lower() in {"p", "div", "li", "tr"}:
             self.parts.append("\n")
 
-    def handle_data(self, data):
+    def handle_data(self, data: str) -> None:
+        """Handle a text node while extracting text.
+
+        Args:
+            data: Source data processed by the function.
+
+        Returns:
+            object
+        """
         if not self._skip and data.strip():
             self.parts.append(data)
 
     def get_text(self) -> str:
+        """Return the accumulated text collected by the HTML parser.
+
+        Returns:
+            str
+        """
         return "".join(self.parts)
 
 
 def clean_email_body(raw_body: str) -> str:
-    """
-    Limpia un cuerpo de email HTML/plain text y deja solo texto útil.
-    Elimina HTML, disclaimers y caracteres unicode invisibles típicos de correos.
+    """Convert an email body into readable plain text.
+
+    Args:
+        raw_body: Raw email body before text cleanup.
+
+    Returns:
+        str
     """
     if not raw_body:
         return ""

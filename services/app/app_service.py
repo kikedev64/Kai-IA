@@ -6,9 +6,19 @@ from llm.lmstudio_client import check_llm_service
 
 
 def check_backend() -> bool:
+    """Check whether the backend process is alive.
+
+    Returns:
+        bool
+    """
     return True
 
 def check_database() -> bool:
+    """Check whether the local database can be reached.
+
+    Returns:
+        bool
+    """
     required_tables = {
         "chat_sessions",
         "chat_messages",
@@ -42,6 +52,11 @@ def check_database() -> bool:
             conn.close()
 
 def check_config() -> bool:
+    """Check whether required configuration is available.
+
+    Returns:
+        bool
+    """
     REQUIRED_CONFIG_KEYS = {
         "google_credentials_file",
         "google_token_file",
@@ -66,7 +81,7 @@ def check_config() -> bool:
         credentials_path = Path(config["google_credentials_file"])
         if not credentials_path.exists():
             return False
-        
+
         if not config["model_name"].strip():
             return False
 
@@ -83,7 +98,12 @@ def check_config() -> bool:
             conn.close()
 
 
-def get_bootstrap_status() -> Dict[str, Any]:
+def get_bootstrap_status() -> dict:
+    """Collect the startup checks required by the frontend.
+
+    Returns:
+        dict
+    """
     checks = {
         "backend": check_backend(),
         "database": check_database(),

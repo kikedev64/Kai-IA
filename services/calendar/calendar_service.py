@@ -1,13 +1,26 @@
 from __future__ import annotations
 import uuid
 from googleapiclient.errors import HttpError
-from datetime import datetime,timezone
+from datetime import datetime,timezone, timedelta
 from typing import Any, Optional, Literal
 from services.calendar.client import _calendar_service
 
-
 def list_calendar_events( calendar_id: str = "primary", max_results: int = 10, time_min: Optional[str] = None, time_max: Optional[str] = None, q: Optional[str] = None, single_events: bool = True, order_by: Literal["startTime", "updated"] = "startTime",
-) -> list[dict[str, Any]]:
+) -> list[dict]:
+    """Return the calendar events list.
+
+    Args:
+        calendar_id: Identifier of the calendar.
+        max_results: Maximum number of items to return.
+        time_min: Lower RFC3339 time bound.
+        time_max: Upper RFC3339 time bound.
+        q: Search query passed to the Google API.
+        single_events: Whether recurring events should be expanded.
+        order_by: Sort mode requested from Google Calendar.
+
+    Returns:
+        list[dict]
+    """
 
     service = _calendar_service()
 
@@ -36,15 +49,31 @@ def list_calendar_events( calendar_id: str = "primary", max_results: int = 10, t
 
 
 def create_calendar_event( summary: str,
-                          start_rfc3339: str, 
-                          end_rfc3339: str, 
-                          calendar_id: str = "primary", 
-                          description: Optional[str] = None, 
-                          location: Optional[str] = None, 
-                          attendees: Optional[list[str]] = None, 
-                          timezone: Optional[str] = None, 
-                          reminders: Optional[dict[str, Any]] = None, 
-                        ) -> dict[str, Any]:
+                          start_rfc3339: str,
+                          end_rfc3339: str,
+                          calendar_id: str = "primary",
+                          description: Optional[str] = None,
+                          location: Optional[str] = None,
+                          attendees: Optional[list[str]] = None,
+                          timezone: Optional[str] = None,
+                          reminders: Optional[dict[str, Any]] = None,
+                        ) -> dict:
+    """Create the calendar event.
+
+    Args:
+        summary: Event title or summary.
+        start_rfc3339: Event start time in RFC3339 format.
+        end_rfc3339: Event end time in RFC3339 format.
+        calendar_id: Identifier of the calendar.
+        description: Description text used to filter or create events.
+        location: Location text used to filter or create events.
+        attendees: Attendee email addresses included in the event.
+        timezone: Timezone used for calendar dates.
+        reminders: Reminder configuration passed to Google Calendar.
+
+    Returns:
+        dict
+    """
 
     service = _calendar_service()
 
@@ -70,7 +99,24 @@ def create_calendar_event( summary: str,
     return created
 
 
-def update_calendar_event( event_id: str, calendar_id: str = "primary", summary: Optional[str] = None, start_rfc3339: Optional[str] = None, end_rfc3339: Optional[str] = None, description: Optional[str] = None, location: Optional[str] = None,attendees: Optional[list[str]] = None, timezone: Optional[str] = None, reminders: Optional[dict[str, Any]] = None, ) -> dict[str, Any]:
+def update_calendar_event( event_id: str, calendar_id: str = "primary", summary: Optional[str] = None, start_rfc3339: Optional[str] = None, end_rfc3339: Optional[str] = None, description: Optional[str] = None, location: Optional[str] = None,attendees: Optional[list[str]] = None, timezone: Optional[str] = None, reminders: Optional[dict[str, Any]] = None, ) -> dict:
+    """Update the calendar event.
+
+    Args:
+        event_id: Identifier of the calendar event.
+        calendar_id: Identifier of the calendar.
+        summary: Event title or summary.
+        start_rfc3339: Event start time in RFC3339 format.
+        end_rfc3339: Event end time in RFC3339 format.
+        description: Description text used to filter or create events.
+        location: Location text used to filter or create events.
+        attendees: Attendee email addresses included in the event.
+        timezone: Timezone used for calendar dates.
+        reminders: Reminder configuration passed to Google Calendar.
+
+    Returns:
+        dict
+    """
 
     service = _calendar_service()
 
@@ -106,11 +152,29 @@ def update_calendar_event( event_id: str, calendar_id: str = "primary", summary:
     return updated
 
 
-def get_calendar_event(event_id: str,calendar_id: str =  "primary", ) -> dict[str, Any]:
+def get_calendar_event(event_id: str,calendar_id: str =  "primary", ) -> dict:
+    """Return the calendar event.
+
+    Args:
+        event_id: Identifier of the calendar event.
+        calendar_id: Identifier of the calendar.
+
+    Returns:
+        dict
+    """
     service = _calendar_service()
     return service.events().get(calendarId=calendar_id, eventId=event_id).execute()
 
-def delete_calendar_event( event_id: str, calendar_id: str = "primary" ) -> dict[str, Any]:
+def delete_calendar_event( event_id: str, calendar_id: str = "primary" ) -> dict:
+    """Delete the calendar event.
+
+    Args:
+        event_id: Identifier of the calendar event.
+        calendar_id: Identifier of the calendar.
+
+    Returns:
+        dict
+    """
 
     service = _calendar_service()
 
@@ -148,7 +212,18 @@ def freebusy_query(
     time_min: str,
     time_max: str,
     time_zone: str = "Europe/Madrid",
-) -> dict[str, Any]:
+) -> dict:
+    """Query calendar free/busy data.
+
+    Args:
+        calendar_ids: Calendar ids included in the freebusy query.
+        time_min: Lower RFC3339 time bound.
+        time_max: Upper RFC3339 time bound.
+        time_zone: Timezone used for freebusy results.
+
+    Returns:
+        dict
+    """
     svc = _calendar_service()
 
     body = {
@@ -170,7 +245,23 @@ def delete_calendar_events_by_conditions(
     time_max: Optional[str] = None,
     delete_all: bool = False,
     max_results: int = 250,
-) -> dict[str, Any]:
+) -> dict:
+    """Delete the calendar events by conditions.
+
+    Args:
+        calendar_id: Identifier of the calendar.
+        query: Search query processed by the function.
+        location: Location text used to filter or create events.
+        summary: Event title or summary.
+        description: Description text used to filter or create events.
+        time_min: Lower RFC3339 time bound.
+        time_max: Upper RFC3339 time bound.
+        delete_all: Whether every matching event should be deleted.
+        max_results: Maximum number of items to return.
+
+    Returns:
+        dict
+    """
 
     found = find_calendar_events(
         calendar_id=calendar_id,
@@ -204,16 +295,34 @@ def delete_calendar_events_by_conditions(
         "time_max": found["time_max"],
     }
 
-from datetime import datetime, timedelta, timezone
-from typing import Any, Optional
-
 def _utc_now_rfc3339() -> str:
+    """Return the current UTC time in RFC3339 format.
+
+    Returns:
+        str
+    """
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 def _utc_in_days_rfc3339(days: int) -> str:
+    """Return a future UTC timestamp in RFC3339 format.
+
+    Args:
+        days: Number of days added to the current UTC time.
+
+    Returns:
+        str
+    """
     return (datetime.now(timezone.utc) + timedelta(days=days)).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 def _norm(s: Optional[str]) -> str:
+    """Normalize optional text for case-insensitive comparisons.
+
+    Args:
+        s: Text to normalize.
+
+    Returns:
+        str
+    """
     return (s or "").strip().lower()
 
 def find_calendar_events(
@@ -226,7 +335,23 @@ def find_calendar_events(
     time_max: Optional[str] = None,
     upcoming_days_default: int = 365,
     max_results: int = 250,
-) -> dict[str, Any]:
+) -> dict:
+    """Find the calendar events.
+
+    Args:
+        calendar_id: Identifier of the calendar.
+        query: Search query processed by the function.
+        location: Location text used to filter or create events.
+        summary: Event title or summary.
+        description: Description text used to filter or create events.
+        time_min: Lower RFC3339 time bound.
+        time_max: Upper RFC3339 time bound.
+        upcoming_days_default: Default future window used when no date filter is supplied.
+        max_results: Maximum number of items to return.
+
+    Returns:
+        dict
+    """
 
 
     if time_min is None:
@@ -292,7 +417,24 @@ def create_meet_invitation(
     timezone: Optional[str] = None,
     reminders: Optional[dict[str, Any]] = None,
     send_updates: Literal["all", "externalOnly", "none"] = "all",
-) -> dict[str, Any]:
+) -> dict:
+    """Create the meet invitation.
+
+    Args:
+        summary: Event title or summary.
+        start_rfc3339: Event start time in RFC3339 format.
+        end_rfc3339: Event end time in RFC3339 format.
+        calendar_id: Identifier of the calendar.
+        description: Description text used to filter or create events.
+        location: Location text used to filter or create events.
+        attendees: Attendee email addresses included in the event.
+        timezone: Timezone used for calendar dates.
+        reminders: Reminder configuration passed to Google Calendar.
+        send_updates: Notification mode used when creating the Meet invitation.
+
+    Returns:
+        dict
+    """
 
     service = _calendar_service()
 

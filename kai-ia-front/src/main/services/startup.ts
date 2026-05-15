@@ -1,4 +1,4 @@
-import { getBackendBaseUrl, getOnboardingCompleted } from "../db/database"
+import { getBackendBaseUrl, getOnboardingCompleted } from '../db/database'
 
 export type BootstrapResponse = {
   ok: boolean
@@ -17,6 +17,16 @@ export type StartupResult =
   | { route: 'error'; error: string; bootstrap?: BootstrapResponse }
 
 export async function checkBootstrap(): Promise<BootstrapResponse> {
+  /**
+   * Ask the backend whether the application can start normally.
+   *
+   * Args:
+   *   None.
+   *
+   * Returns:
+   *   Promise<BootstrapResponse>
+   */
+
   const baseUrl = getBackendBaseUrl()
 
   const controller = new AbortController()
@@ -39,6 +49,16 @@ export async function checkBootstrap(): Promise<BootstrapResponse> {
 }
 
 export async function resolveStartup(): Promise<StartupResult> {
+  /**
+   * Decide which window should open after the splash screen.
+   *
+   * Args:
+   *   None.
+   *
+   * Returns:
+   *   Promise<StartupResult>
+   */
+
   const onboardingCompleted = getOnboardingCompleted()
 
   if (!onboardingCompleted) {

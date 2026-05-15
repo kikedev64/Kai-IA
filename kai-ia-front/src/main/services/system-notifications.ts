@@ -11,6 +11,17 @@ export function showSystemNotification(
   mainWindow: BrowserWindow | null,
   params: ShowSystemNotificationParams
 ): void {
+  /**
+   * Display a native desktop notification and wire its click callback.
+   *
+   * Args:
+   *   payload: Notification title, body and data.
+   *   onClick: Callback executed when the notification is clicked.
+   *
+   * Returns:
+   *   void
+   */
+
   if (!Notification.isSupported()) {
     return
   }

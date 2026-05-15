@@ -6,7 +6,16 @@ from typing import Any
 from core.database import get_connection
 
 
-def get_runtime_config_value(key: str, default: Any = None) -> Any:
+def get_runtime_config_value(key: str, default: Any = None) -> object:
+    """Return the runtime config value.
+
+    Args:
+        key: Configuration key to read or write.
+        default: Fallback value returned when no configured value exists.
+
+    Returns:
+        object
+    """
     conn = get_connection()
     try:
         row = conn.execute(
@@ -23,6 +32,14 @@ def get_runtime_config_value(key: str, default: Any = None) -> Any:
 
 
 def _normalize_runtime_value(value: Any) -> str | None:
+    """Convert a runtime configuration value into a storable string.
+
+    Args:
+        value: Value being processed.
+
+    Returns:
+        str | None
+    """
     if value is None:
         return None
 
@@ -36,6 +53,15 @@ def _normalize_runtime_value(value: Any) -> str | None:
 
 
 def set_runtime_config_value(key: str, value: Any) -> None:
+    """Store the runtime config value.
+
+    Args:
+        key: Configuration key to read or write.
+        value: Value being processed.
+
+    Returns:
+        None
+    """
     normalized = _normalize_runtime_value(value)
 
     conn = get_connection()
@@ -56,6 +82,14 @@ def set_runtime_config_value(key: str, value: Any) -> None:
 
 
 def set_runtime_config_values(values: dict[str, Any]) -> None:
+    """Store the runtime config values.
+
+    Args:
+        values: Values to read, validate, or transform.
+
+    Returns:
+        None
+    """
     conn = get_connection()
     try:
         conn.executemany(

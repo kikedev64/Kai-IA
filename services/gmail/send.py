@@ -5,7 +5,16 @@ from core.models.email import Email
 from services.gmail.utils import _get_service,_apply_thread_headers
 from core.config import get_email_max_total_size_attachment
 
-def send_email(email: Email, as_html: bool = False):
+def send_email(email: Email, as_html: bool = False) -> dict:
+    """Send the email.
+
+    Args:
+        email: Email model processed by the function.
+        as_html: Whether the email body should be sent as HTML.
+
+    Returns:
+        dict
+    """
     service = _get_service()
 
     message = EmailMessage()
@@ -13,7 +22,6 @@ def send_email(email: Email, as_html: bool = False):
     message["From"] = "me"
     message["Subject"] = email.subject
 
-    # Respuesta a hilo
     if getattr(email, "thread_id", None):
         _apply_thread_headers(message, email)
 
@@ -37,7 +45,17 @@ def send_email_with_attachments(
     email: Email,
     attachments: list[tuple[str, bytes]],
     as_html: bool = False,
-):
+) -> dict:
+    """Send the email with attachments.
+
+    Args:
+        email: Email model processed by the function.
+        attachments: Attachment payloads included in the email.
+        as_html: Whether the email body should be sent as HTML.
+
+    Returns:
+        dict
+    """
     service = _get_service()
 
     message = EmailMessage()
@@ -45,18 +63,15 @@ def send_email_with_attachments(
     message["From"] = "me"
     message["Subject"] = email.subject
 
-    # Hilo
     if getattr(email, "thread_id", None):
         _apply_thread_headers(message, email)
 
-    # Body
     if as_html:
         message.set_content("Este correo contiene HTML.")
         message.add_alternative(email.body or "", subtype="html")
     else:
         message.set_content(email.body or "")
 
-    # Adjuntos
     total_size = 0
 
     for filename, file_bytes in attachments:

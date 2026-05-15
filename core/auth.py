@@ -20,6 +20,15 @@ GOOGLE_OAUTH_TEMP_FILE = BASE_DIR / "oauth_temp.json"
 
 
 def _save_oauth_temp_data(state: str, code_verifier: str) -> None:
+    """Persist temporary OAuth state data during the login flow.
+
+    Args:
+        state: OAuth state value used for callback validation.
+        code_verifier: OAuth PKCE verifier saved for the login flow.
+
+    Returns:
+        None
+    """
     data = {
         "state": state,
         "code_verifier": code_verifier,
@@ -29,6 +38,11 @@ def _save_oauth_temp_data(state: str, code_verifier: str) -> None:
 
 
 def _load_oauth_temp_data() -> dict | None:
+    """Load temporary OAuth state data for callback validation.
+
+    Returns:
+        dict | None
+    """
     if not GOOGLE_OAUTH_TEMP_FILE.exists():
         return None
 
@@ -37,11 +51,21 @@ def _load_oauth_temp_data() -> dict | None:
 
 
 def _clear_oauth_temp_data() -> None:
+    """Remove temporary OAuth state data after callback handling.
+
+    Returns:
+        None
+    """
     if GOOGLE_OAUTH_TEMP_FILE.exists():
         GOOGLE_OAUTH_TEMP_FILE.unlink()
 
 
-def get_creds():
+def get_creds() -> dict:
+    """Return Google credentials or a reauthentication URL.
+
+    Returns:
+        dict
+    """
     if os.path.exists(str(get_google_token_file())):
         creds = Credentials.from_authorized_user_file(str(get_google_token_file()), get_google_scopes())
 
@@ -64,10 +88,14 @@ def get_creds():
 
 
 def get_google_auth_url() -> str:
+    """Return the Google OAuth URL.
+
+    Returns:
+        str
+    """
     if not os.path.exists(str(get_google_credentials_file())):
         raise FileNotFoundError(f"Missing {get_google_credentials_file()}")
 
-    # Generamos code_verifier explícitamente
     code_verifier = secrets.token_urlsafe(64)
 
     flow = Flow.from_client_secrets_file(
@@ -89,6 +117,15 @@ def get_google_auth_url() -> str:
 
 
 def exchange_code_for_token(code: str, state: str) -> Credentials:
+    """Exchange an OAuth code for credentials.
+
+    Args:
+        code: OAuth authorization code returned by Google.
+        state: OAuth state value used for callback validation.
+
+    Returns:
+        Credentials
+    """
     if not os.path.exists(str(get_google_credentials_file())):
         raise FileNotFoundError(f"Missing {get_google_credentials_file()}")
 

@@ -6,6 +6,15 @@ from core.database import get_connection
 
 
 def ensure_session(chat_id: str, system_prompt: str) -> None:
+    """Ensure the session exists.
+
+    Args:
+        chat_id: Identifier of the chat session.
+        system_prompt: System prompt stored for the chat session.
+
+    Returns:
+        None
+    """
     conn = get_connection()
     cur = conn.cursor()
 
@@ -23,6 +32,16 @@ def ensure_session(chat_id: str, system_prompt: str) -> None:
 
 
 def add_message(chat_id: str, role: str, content: str) -> None:
+    """Add a message to a chat session.
+
+    Args:
+        chat_id: Identifier of the chat session.
+        role: Message role stored in the chat history.
+        content: Message content stored in the database.
+
+    Returns:
+        None
+    """
     if role not in {"user", "assistant"}:
         return
 
@@ -49,7 +68,16 @@ def add_message(chat_id: str, role: str, content: str) -> None:
     conn.commit()
     conn.close()
 
-def get_messages(chat_id: str, limit: int = 50) -> list[dict[str, Any]]:
+def get_messages(chat_id: str, limit: int = 50) -> list[dict]:
+    """Return the messages.
+
+    Args:
+        chat_id: Identifier of the chat session.
+        limit: Maximum number of records to return.
+
+    Returns:
+        list[dict]
+    """
     conn = get_connection()
     cur = conn.cursor()
 
@@ -73,6 +101,14 @@ def get_messages(chat_id: str, limit: int = 50) -> list[dict[str, Any]]:
 
 
 def get_system_prompt(chat_id: str) -> Optional[str]:
+    """Return the system prompt.
+
+    Args:
+        chat_id: Identifier of the chat session.
+
+    Returns:
+        Optional[str]
+    """
     conn = get_connection()
     cur = conn.cursor()
 
@@ -92,6 +128,14 @@ def get_system_prompt(chat_id: str) -> Optional[str]:
 
 
 def get_chat_title(chat_id: str) -> Optional[str]:
+    """Return the chat title.
+
+    Args:
+        chat_id: Identifier of the chat session.
+
+    Returns:
+        Optional[str]
+    """
     conn = get_connection()
     cur = conn.cursor()
 
@@ -111,6 +155,15 @@ def get_chat_title(chat_id: str) -> Optional[str]:
 
 
 def update_chat_title(chat_id: str, title: str) -> None:
+    """Update the chat title.
+
+    Args:
+        chat_id: Identifier of the chat session.
+        title: Task or chat title processed by the function.
+
+    Returns:
+        None
+    """
     conn = get_connection()
     cur = conn.cursor()
 
@@ -128,6 +181,14 @@ def update_chat_title(chat_id: str, title: str) -> None:
 
 
 def count_user_messages(chat_id: str) -> int:
+    """Count user messages in a chat session.
+
+    Args:
+        chat_id: Identifier of the chat session.
+
+    Returns:
+        int
+    """
     conn = get_connection()
     cur = conn.cursor()
 
@@ -145,7 +206,12 @@ def count_user_messages(chat_id: str) -> int:
 
     return int(row["total"] if row else 0)
 
-def list_chat_sessions() -> list[dict[str, Any]]:
+def list_chat_sessions() -> list[dict]:
+    """Return the chat sessions list.
+
+    Returns:
+        list[dict]
+    """
     conn = get_connection()
     cur = conn.cursor()
 
@@ -166,7 +232,15 @@ def list_chat_sessions() -> list[dict[str, Any]]:
 
     return [dict(row) for row in rows]
 
-def get_full_chat_by_id(chat_id: str) -> dict[str, Any] | None:
+def get_full_chat_by_id(chat_id: str) -> dict | None:
+    """Return the full chat by id.
+
+    Args:
+        chat_id: Identifier of the chat session.
+
+    Returns:
+        dict | None
+    """
     conn = get_connection()
     cur = conn.cursor()
 

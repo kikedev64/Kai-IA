@@ -1,4 +1,3 @@
-import React from 'react'
 import { Mail, CalendarDays, FolderOpen, CheckSquare } from 'lucide-react'
 
 type Props = {
@@ -7,6 +6,17 @@ type Props = {
 }
 
 const ConnectServicesSlide = ({ onNext, onPrev }: Props) => {
+  /**
+   * Render the service connection overview step.
+   *
+   * Args:
+   *   onNext: Moves the user to the next onboarding step.
+   *   onPrev: Moves the user back to the previous onboarding step.
+   *
+   * Returns:
+   *   React.JSX.Element
+   */
+
   return (
     <section className="relative flex min-h-screen w-full items-center justify-center bg-slate-950 px-6 text-white">
       <div className="mx-auto max-w-6xl text-center">

@@ -9,7 +9,12 @@ GOOGLE_EXPORT_MAP = {
     "application/vnd.google-apps.drawing": ("png", "https://docs.google.com/drawings/d/{id}/export/{fmt}"),
 }
 
-def _get_service():
+def _get_service() -> object:
+    """Create an authenticated Google API service client.
+
+    Returns:
+        object
+    """
     res = get_creds()
 
     if isinstance(res, dict) and "creds" in res:

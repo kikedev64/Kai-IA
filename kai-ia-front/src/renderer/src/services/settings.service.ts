@@ -1,4 +1,3 @@
-// src/renderer/services/settings.service.ts
 export type BackendSettings = {
   google_redirect_uri: string
   google_scopes: string
@@ -31,10 +30,30 @@ type BackendTarget = {
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
+  /**
+   * Check whether a value is a non-array object.
+   *
+   * Args:
+   *   value: Unknown value to validate.
+   *
+   * Returns:
+   *   value is Record<string, unknown>
+   */
+
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
 async function resolveBaseUrl(target?: BackendTarget): Promise<string> {
+  /**
+   * Resolve the backend base URL from explicit values or saved settings.
+   *
+   * Args:
+   *   target: Optional backend host and port override.
+   *
+   * Returns:
+   *   Promise<string>
+   */
+
   const fallbackUrl = await window.configApi.getServerUrl()
   const fallbackPort = await window.configApi.getServerPort()
 
@@ -54,6 +73,16 @@ async function resolveBaseUrl(target?: BackendTarget): Promise<string> {
 }
 
 export async function getLocalSettings(): Promise<LocalSettings> {
+  /**
+   * Load local settings exposed through the preload bridge.
+   *
+   * Args:
+   *   None.
+   *
+   * Returns:
+   *   Promise<LocalSettings>
+   */
+
   const [serverUrl, serverPort, userProfileRaw, userProfileJson] = await Promise.all([
     window.configApi.getServerUrl(),
     window.configApi.getServerPort(),
@@ -65,9 +94,7 @@ export async function getLocalSettings(): Promise<LocalSettings> {
     server_url: serverUrl ?? 'http://localhost',
     server_port: String(serverPort ?? 8000),
     user_profile_raw: userProfileRaw ?? '',
-    user_profile_json: userProfileJson
-      ? JSON.stringify(userProfileJson, null, 2)
-      : '{}'
+    user_profile_json: userProfileJson ? JSON.stringify(userProfileJson, null, 2) : '{}'
   }
 }
 
@@ -77,6 +104,16 @@ export async function saveLocalSettings(payload: {
   user_profile_raw: string
   user_profile_json: Record<string, unknown>
 }): Promise<void> {
+  /**
+   * Persist local settings through the preload bridge.
+   *
+   * Args:
+   *   payload: Local settings values from the settings form.
+   *
+   * Returns:
+   *   Promise<void>
+   */
+
   const parsedPort = Number(payload.server_port)
 
   if (!payload.server_url.trim()) {
@@ -94,6 +131,16 @@ export async function saveLocalSettings(payload: {
 }
 
 export async function getBackendSettings(target?: BackendTarget): Promise<BackendSettings> {
+  /**
+   * Load editable backend settings from the configured server.
+   *
+   * Args:
+   *   target: Optional backend host and port override.
+   *
+   * Returns:
+   *   Promise<BackendSettings>
+   */
+
   const baseUrl = await resolveBaseUrl(target)
 
   const response = await fetch(`${baseUrl}/settings`, {
@@ -113,6 +160,17 @@ export async function saveBackendSettings(
   settings: BackendSettings,
   target?: BackendTarget
 ): Promise<BackendSettings> {
+  /**
+   * Persist editable backend settings on the configured server.
+   *
+   * Args:
+   *   settings: Backend settings draft to save.
+   *   target: Optional backend host and port override.
+   *
+   * Returns:
+   *   Promise<BackendSettings>
+   */
+
   const baseUrl = await resolveBaseUrl(target)
 
   const response = await fetch(`${baseUrl}/settings`, {
@@ -130,9 +188,7 @@ export async function saveBackendSettings(
   if (!response.ok) {
     console.error('Error guardando settings:', data)
     throw new Error(
-      typeof data?.detail === 'string'
-        ? data.detail
-        : JSON.stringify(data?.detail ?? data)
+      typeof data?.detail === 'string' ? data.detail : JSON.stringify(data?.detail ?? data)
     )
   }
 
@@ -143,6 +199,17 @@ export async function regenerateUserProfile(
   rawText: string,
   target?: BackendTarget
 ): Promise<Record<string, unknown>> {
+  /**
+   * Regenerate the structured profile from raw profile text.
+   *
+   * Args:
+   *   rawText: Free-text profile used as model input.
+   *   target: Optional backend host and port override.
+   *
+   * Returns:
+   *   Promise<Record<string, unknown>>
+   */
+
   const baseUrl = await resolveBaseUrl(target)
 
   const response = await fetch(`${baseUrl}/assistant/ask`, {
@@ -160,7 +227,9 @@ export async function regenerateUserProfile(
 
   if (!response.ok) {
     throw new Error(
-      'detail' in data ? data.detail || 'No se pudo regenerar el perfil' : 'No se pudo regenerar el perfil'
+      'detail' in data
+        ? data.detail || 'No se pudo regenerar el perfil'
+        : 'No se pudo regenerar el perfil'
     )
   }
 

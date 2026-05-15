@@ -9,18 +9,50 @@ from fastapi import HTTPException, status
 
 
 def _b64url_decode(data: str) -> str:
+    """Decode a Gmail base64url payload into text.
+
+    Args:
+        data: Source data processed by the function.
+
+    Returns:
+        str
+    """
     return base64.urlsafe_b64decode(data.encode("utf-8")).decode("utf-8", errors="replace")
 
 
 def _headers_to_dict(payload: Dict[str, Any]) -> Dict[str, str]:
+    """Convert Gmail headers into a case-preserving dictionary.
+
+    Args:
+        payload: Payload received by the function.
+
+    Returns:
+        Dict[str, str]
+    """
     return {h.get("name", ""): h.get("value", "") for h in payload.get("headers", [])}
 
 
 def _extract_bodies(payload: Dict[str, Any]) -> Dict[str, Optional[str]]:
+    """Extract plain text and HTML bodies from a Gmail payload.
+
+    Args:
+        payload: Payload received by the function.
+
+    Returns:
+        Dict[str, Optional[str]]
+    """
     text_plain: Optional[str] = None
     text_html: Optional[str] = None
 
-    def walk(part: Dict[str, Any]):
+    def walk(part: Dict[str, Any]) -> None:
+        """Visit a Gmail MIME part while searching for message bodies.
+
+        Args:
+            part: Gmail MIME part currently being inspected.
+
+        Returns:
+            object
+        """
         nonlocal text_plain, text_html
 
         mime_type = part.get("mimeType")
@@ -43,6 +75,14 @@ def _extract_bodies(payload: Dict[str, Any]) -> Dict[str, Optional[str]]:
 
 
 def _gmail_msg_to_email(msg: dict) -> Email:
+    """Convert a Gmail API message into the local Email model.
+
+    Args:
+        msg: Raw Gmail API message.
+
+    Returns:
+        Email
+    """
     payload = msg.get("payload", {}) or {}
     headers = _headers_to_dict(payload)
     bodies = _extract_bodies(payload)
@@ -66,7 +106,12 @@ def _gmail_msg_to_email(msg: dict) -> Email:
     )
 
 
-def _get_service():
+def _get_service() -> object:
+    """Create an authenticated Google API service client.
+
+    Returns:
+        object
+    """
     creds = get_creds()
 
     if "creds" in creds:
@@ -85,6 +130,15 @@ def _get_service():
 
 
 def _apply_thread_headers(message: EmailMessage, email: Email) -> None:
+    """Copy reply threading headers into an outgoing email.
+
+    Args:
+        message: Message object handled by the function.
+        email: Email model processed by the function.
+
+    Returns:
+        None
+    """
     if getattr(email, "in_reply_to", None):
         message["In-Reply-To"] = email.in_reply_to
     if getattr(email, "references", None):

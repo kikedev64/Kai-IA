@@ -1,6 +1,14 @@
 from core.auth import get_google_auth_url
 
 def is_google_token_expired_error(error: Exception | str) -> bool:
+    """Check whether an error means the Google token expired.
+
+    Args:
+        error: Error to inspect.
+
+    Returns:
+        bool
+    """
     text = str(error).lower()
 
     return (
@@ -13,6 +21,11 @@ def is_google_token_expired_error(error: Exception | str) -> bool:
 
 
 def build_google_reauth_message() -> str:
+    """Build the Google reauthentication message.
+
+    Returns:
+        str
+    """
     try:
         auth_url = get_google_auth_url()
     except Exception:

@@ -24,6 +24,17 @@ let currentStartupStatus = {
 }
 
 function sendStartupStatus(step: string, message: string): void {
+  /**
+   * Send a startup progress update to the splash window.
+   *
+   * Args:
+   *   step: Machine-readable startup step.
+   *   message: User-facing startup message.
+   *
+   * Returns:
+   *   void
+   */
+
   currentStartupStatus = { step, message }
 
   if (splashWindow && !splashWindow.isDestroyed()) {
@@ -31,9 +42,17 @@ function sendStartupStatus(step: string, message: string): void {
   }
 }
 
-function createBaseWindow(
-  options?: Electron.BrowserWindowConstructorOptions
-): BrowserWindow {
+function createBaseWindow(options?: Electron.BrowserWindowConstructorOptions): BrowserWindow {
+  /**
+   * Create a BrowserWindow with the shared app defaults.
+   *
+   * Args:
+   *   options: Optional Electron window options merged into the defaults.
+   *
+   * Returns:
+   *   BrowserWindow
+   */
+
   const win = new BrowserWindow({
     width: 1200,
     height: 900,
@@ -56,6 +75,17 @@ function createBaseWindow(
 }
 
 function loadRendererRoute(win: BrowserWindow, route: string): void {
+  /**
+   * Load a renderer route in development or packaged mode.
+   *
+   * Args:
+   *   win: Window that should load the route.
+   *   route: Hash route opened in the renderer.
+   *
+   * Returns:
+   *   void
+   */
+
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
     void win.loadURL(`${process.env['ELECTRON_RENDERER_URL']}#${route}`)
   } else {
@@ -66,6 +96,16 @@ function loadRendererRoute(win: BrowserWindow, route: string): void {
 }
 
 function destroySplashWindow(): void {
+  /**
+   * Close and clear the splash window when startup finishes.
+   *
+   * Args:
+   *   None.
+   *
+   * Returns:
+   *   void
+   */
+
   if (splashWindow && !splashWindow.isDestroyed()) {
     splashWindow.close()
   }
@@ -73,6 +113,16 @@ function destroySplashWindow(): void {
 }
 
 function createSplashWindow(): void {
+  /**
+   * Create the splash window shown during startup checks.
+   *
+   * Args:
+   *   None.
+   *
+   * Returns:
+   *   void
+   */
+
   splashWindow = createBaseWindow({
     width: 720,
     height: 220,
@@ -99,6 +149,16 @@ function createSplashWindow(): void {
 }
 
 function createSettingsWindow(): void {
+  /**
+   * Open or focus the settings window.
+   *
+   * Args:
+   *   None.
+   *
+   * Returns:
+   *   void
+   */
+
   if (settingsWindow && !settingsWindow.isDestroyed()) {
     settingsWindow.focus()
     return
@@ -123,6 +183,16 @@ function createSettingsWindow(): void {
 }
 
 function getDebugParentWindow(): BrowserWindow | null {
+  /**
+   * Find the current window that should own the debug panel.
+   *
+   * Args:
+   *   None.
+   *
+   * Returns:
+   *   BrowserWindow | null
+   */
+
   if (mainWindow && !mainWindow.isDestroyed()) return mainWindow
   if (settingsWindow && !settingsWindow.isDestroyed()) return settingsWindow
   if (onboardingWindow && !onboardingWindow.isDestroyed()) return onboardingWindow
@@ -130,6 +200,16 @@ function getDebugParentWindow(): BrowserWindow | null {
 }
 
 function getDockedDebugBounds(): Electron.Rectangle | null {
+  /**
+   * Calculate the bounds used to dock Debug Lab next to its parent window.
+   *
+   * Args:
+   *   None.
+   *
+   * Returns:
+   *   Electron.Rectangle | null
+   */
+
   const parentWindow = getDebugParentWindow()
 
   if (!parentWindow) return null
@@ -151,6 +231,16 @@ function getDockedDebugBounds(): Electron.Rectangle | null {
 }
 
 function syncDebugWindowBounds(): void {
+  /**
+   * Move the debug window back to its docked position.
+   *
+   * Args:
+   *   None.
+   *
+   * Returns:
+   *   void
+   */
+
   if (!debugWindow || debugWindow.isDestroyed()) return
 
   const bounds = getDockedDebugBounds()
@@ -161,6 +251,16 @@ function syncDebugWindowBounds(): void {
 }
 
 function createDebugWindow(chatId?: string): void {
+  /**
+   * Open or refresh the docked Debug Lab window for a chat.
+   *
+   * Args:
+   *   chatId: Optional chat identifier passed to the debug route.
+   *
+   * Returns:
+   *   void
+   */
+
   const route = chatId ? `/debug-lab?chatId=${encodeURIComponent(chatId)}` : '/debug-lab'
 
   if (debugWindow && !debugWindow.isDestroyed()) {
@@ -214,6 +314,16 @@ function createDebugWindow(chatId?: string): void {
 }
 
 function createMainWindow(): void {
+  /**
+   * Create the main chat window.
+   *
+   * Args:
+   *   None.
+   *
+   * Returns:
+   *   void
+   */
+
   mainWindow = createBaseWindow({
     width: 1200,
     height: 900,
@@ -233,6 +343,16 @@ function createMainWindow(): void {
 }
 
 function createOnboardingWindow(): void {
+  /**
+   * Create the onboarding window.
+   *
+   * Args:
+   *   None.
+   *
+   * Returns:
+   *   void
+   */
+
   onboardingWindow = createBaseWindow({
     width: 1200,
     height: 900,
@@ -252,6 +372,16 @@ function createOnboardingWindow(): void {
 }
 
 async function runStartupFlow(): Promise<void> {
+  /**
+   * Run the splash startup flow and open the correct next window.
+   *
+   * Args:
+   *   None.
+   *
+   * Returns:
+   *   Promise<void>
+   */
+
   createSplashWindow()
 
   if (!splashWindow) return
@@ -263,10 +393,7 @@ async function runStartupFlow(): Promise<void> {
       const result = await resolveStartup()
 
       if (result.route === 'onboarding') {
-        sendStartupStatus(
-          'onboarding',
-          'Configuración inicial requerida. Abriendo onboarding...'
-        )
+        sendStartupStatus('onboarding', 'Configuración inicial requerida. Abriendo onboarding...')
 
         setTimeout(() => {
           createOnboardingWindow()
@@ -276,10 +403,7 @@ async function runStartupFlow(): Promise<void> {
       }
 
       if (result.route === 'main') {
-        sendStartupStatus(
-          'bootstrap-ok',
-          'Servicios comprobados correctamente. Abriendo Kai IA...'
-        )
+        sendStartupStatus('bootstrap-ok', 'Servicios comprobados correctamente. Abriendo Kai IA...')
 
         setTimeout(() => {
           createMainWindow()
@@ -343,9 +467,7 @@ app.whenReady().then(() => {
         }
       })
 
-      await reportWindow.loadURL(
-        `data:text/html;charset=utf-8,${encodeURIComponent(html)}`
-      )
+      await reportWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`)
       const pdf = await reportWindow.webContents.printToPDF({
         printBackground: true,
         pageSize: 'A4',
@@ -372,40 +494,40 @@ app.whenReady().then(() => {
   })
 
   ipcMain.handle('startup:reset-and-open-onboarding', async () => {
-  try {
-    configRepository.setOnboardingCompleted(false)
+    try {
+      configRepository.setOnboardingCompleted(false)
 
-    if (onboardingWindow && !onboardingWindow.isDestroyed()) {
-      onboardingWindow.focus()
+      if (onboardingWindow && !onboardingWindow.isDestroyed()) {
+        onboardingWindow.focus()
+        return true
+      }
+
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.hide()
+      }
+
+      if (splashWindow && !splashWindow.isDestroyed()) {
+        splashWindow.hide()
+      }
+
+      createOnboardingWindow()
+
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.close()
+        mainWindow = null
+      }
+
+      if (splashWindow && !splashWindow.isDestroyed()) {
+        splashWindow.close()
+        splashWindow = null
+      }
+
       return true
+    } catch (error) {
+      console.error('Error reseteando onboarding:', error)
+      return false
     }
-
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.hide()
-    }
-
-    if (splashWindow && !splashWindow.isDestroyed()) {
-      splashWindow.hide()
-    }
-
-    createOnboardingWindow()
-
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.close()
-      mainWindow = null
-    }
-
-    if (splashWindow && !splashWindow.isDestroyed()) {
-      splashWindow.close()
-      splashWindow = null
-    }
-
-    return true
-  } catch (error) {
-    console.error('Error reseteando onboarding:', error)
-    return false
-  }
-})
+  })
 
   ipcMain.handle('oauth:open-google-popup', async (_event, authUrl: string) => {
     return await new Promise<{ closed: true }>((resolve, reject) => {

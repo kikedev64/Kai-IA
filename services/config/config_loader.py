@@ -1,4 +1,3 @@
-# services/config_loader.py
 from __future__ import annotations
 
 import json
@@ -9,12 +8,26 @@ DB_PATH = Path("data/kai.db")
 
 
 def get_connection() -> sqlite3.Connection:
+    """Return the connection.
+
+    Returns:
+        sqlite3.Connection
+    """
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     return conn
 
 
-def get_config_value(key: str, default=None):
+def get_config_value(key: str, default=None) -> str | None:
+    """Return the config value.
+
+    Args:
+        key: Configuration key to read or write.
+        default: Fallback value returned when no configured value exists.
+
+    Returns:
+        object
+    """
     conn = get_connection()
     cur = conn.cursor()
     cur.execute(
@@ -30,27 +43,59 @@ def get_config_value(key: str, default=None):
     return row["value"]
 
 
-def get_config_json(key: str, default=None):
+def get_config_json(key: str, default=None) -> object:
+    """Return the config json.
+
+    Args:
+        key: Configuration key to read or write.
+        default: Fallback value returned when no configured value exists.
+
+    Returns:
+        object
+    """
     raw = get_config_value(key)
     if raw is None:
         return default
     return json.loads(raw)
 
 
-def get_config_int(key: str, default: int | None = None):
+def get_config_int(key: str, default: int | None = None) -> int | None:
+    """Return the config int.
+
+    Args:
+        key: Configuration key to read or write.
+        default: Fallback value returned when no configured value exists.
+
+    Returns:
+        object
+    """
     raw = get_config_value(key)
     if raw is None:
         return default
     return int(raw)
 
 
-def get_config_float(key: str, default: float | None = None):
+def get_config_float(key: str, default: float | None = None) -> float | None:
+    """Return the config float.
+
+    Args:
+        key: Configuration key to read or write.
+        default: Fallback value returned when no configured value exists.
+
+    Returns:
+        object
+    """
     raw = get_config_value(key)
     if raw is None:
         return default
     return float(raw)
 
 def count_chats() -> int:
+    """Count stored chats.
+
+    Returns:
+        int
+    """
     conn = get_connection()
     cur = conn.cursor()
 
@@ -62,6 +107,15 @@ def count_chats() -> int:
 
 
 def create_initial_chat_summary(chat_id: str, short_summary: str) -> None:
+    """Create the initial chat summary.
+
+    Args:
+        chat_id: Identifier of the chat session.
+        short_summary: Short Event title or summary.
+
+    Returns:
+        None
+    """
     conn = get_connection()
     cur = conn.cursor()
 
@@ -75,6 +129,15 @@ def create_initial_chat_summary(chat_id: str, short_summary: str) -> None:
 
 
 def update_chat_summary(chat_id: str, short_summary: str) -> None:
+    """Update the chat summary.
+
+    Args:
+        chat_id: Identifier of the chat session.
+        short_summary: Short Event title or summary.
+
+    Returns:
+        None
+    """
     conn = get_connection()
     cur = conn.cursor()
 
@@ -91,6 +154,14 @@ def update_chat_summary(chat_id: str, short_summary: str) -> None:
 
 
 def get_chat_summary(chat_id: str) -> str | None:
+    """Return the chat summary.
+
+    Args:
+        chat_id: Identifier of the chat session.
+
+    Returns:
+        str | None
+    """
     conn = get_connection()
     cur = conn.cursor()
 
@@ -107,6 +178,14 @@ def get_chat_summary(chat_id: str) -> str | None:
 
 
 def count_user_messages(chat_id: str) -> int:
+    """Count user messages in a chat session.
+
+    Args:
+        chat_id: Identifier of the chat session.
+
+    Returns:
+        int
+    """
     conn = get_connection()
     cur = conn.cursor()
 
@@ -122,6 +201,11 @@ def count_user_messages(chat_id: str) -> int:
     return int(row["total"] if row else 0)
 
 def get_all_config_as_dict() -> dict[str, str]:
+    """Return all config values as a dictionary.
+
+    Returns:
+        dict[str, str]
+    """
     conn = get_connection()
     cur = conn.cursor()
 
@@ -133,7 +217,16 @@ def get_all_config_as_dict() -> dict[str, str]:
     return {row["key"]: row["value"] for row in rows}
 
 
-def get_config_value_from_db(key: str, default=None):
+def get_config_value_from_db(key: str, default=None) -> str | None:
+    """Return a config value from the database.
+
+    Args:
+        key: Configuration key to read or write.
+        default: Fallback value returned when no configured value exists.
+
+    Returns:
+        object
+    """
     conn = get_connection()
     cur = conn.cursor()
 
@@ -144,7 +237,16 @@ def get_config_value_from_db(key: str, default=None):
     return row["value"] if row else default
 
 
-def get_config_json_from_db(key: str, default=None):
+def get_config_json_from_db(key: str, default=None) -> object:
+    """Return a JSON config value from the database.
+
+    Args:
+        key: Configuration key to read or write.
+        default: Fallback value returned when no configured value exists.
+
+    Returns:
+        object
+    """
     raw = get_config_value_from_db(key)
     if raw is None:
         return default

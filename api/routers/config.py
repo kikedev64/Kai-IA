@@ -18,10 +18,14 @@ class ConfigSetRequest(BaseModel):
 
 
 @router.get("")
-def read_config(key: str | None = Query(default=None)):
-    """
-    Si se pasa key, devuelve solo esa config.
-    Si no, devuelve toda la configuración.
+def read_config(key: str | None = Query(default=None)) -> dict:
+    """Read the config.
+
+    Args:
+        key: Configuration key to read or write.
+
+    Returns:
+        dict
     """
     if key:
         item = get_config_value(key)
@@ -41,7 +45,15 @@ def read_config(key: str | None = Query(default=None)):
 
 
 @router.post("")
-def write_config(req: ConfigSetRequest):
+def write_config(req: ConfigSetRequest) -> dict:
+    """Write a configuration value.
+
+    Args:
+        req: Request payload received by the endpoint.
+
+    Returns:
+        dict
+    """
     item = set_config_value(req.key, req.value)
     return {
         "ok": True,

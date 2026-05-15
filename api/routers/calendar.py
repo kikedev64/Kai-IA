@@ -28,6 +28,14 @@ router = APIRouter(prefix="/calendar", tags=["Calendar"])
 
 
 def _event_to_api(e: dict) -> dict:
+    """Map a Calendar event into the public API response shape.
+
+    Args:
+        e: Model object mapped into an API response.
+
+    Returns:
+        dict
+    """
     attendees = e.get("attendees") or []
     return {
         "id": e.get("id", ""),
@@ -58,10 +66,24 @@ def api_list_events(
     q: str | None = None,
     single_events: bool = True,
     order_by: str = Query("startTime", pattern="^(startTime|updated)$"),
-):
+) -> dict:
+    """Serve the list events endpoint.
+
+    Args:
+        calendar_id: Identifier of the calendar.
+        max_results: Maximum number of items to return.
+        time_min: Lower RFC3339 time bound.
+        time_max: Upper RFC3339 time bound.
+        q: Search query passed to the Google API.
+        single_events: Whether recurring events should be expanded.
+        order_by: Sort mode requested from Google Calendar.
+
+    Returns:
+        dict
+    """
     try:
         items = list_calendar_events(
-            calendar_id=calendar_id, 
+            calendar_id=calendar_id,
             max_results=max_results,
             time_min=time_min,
             time_max=time_max,
@@ -75,7 +97,15 @@ def api_list_events(
 
 
 @router.post("/events", response_model=CalendarEventOut)
-def api_create_event(req: CalendarCreateRequest):
+def api_create_event(req: CalendarCreateRequest) -> dict:
+    """Serve the create event endpoint.
+
+    Args:
+        req: Request payload received by the endpoint.
+
+    Returns:
+        dict
+    """
     try:
         created = create_calendar_event(
             summary=req.summary,
@@ -94,7 +124,16 @@ def api_create_event(req: CalendarCreateRequest):
 
 
 @router.get("/events/{event_id}", response_model=CalendarEventOut)
-def api_get_event(event_id: str, calendar_id: str = "primary"):
+def api_get_event(event_id: str, calendar_id: str = "primary") -> dict:
+    """Serve the get event endpoint.
+
+    Args:
+        event_id: Identifier of the calendar event.
+        calendar_id: Identifier of the calendar.
+
+    Returns:
+        dict
+    """
     try:
         e = get_calendar_event(event_id=event_id, calendar_id=calendar_id)
         return _event_to_api(e)
@@ -103,7 +142,16 @@ def api_get_event(event_id: str, calendar_id: str = "primary"):
 
 
 @router.patch("/events/{event_id}", response_model=CalendarEventOut)
-def api_update_event(event_id: str, req: CalendarUpdateRequest):
+def api_update_event(event_id: str, req: CalendarUpdateRequest) -> dict:
+    """Serve the update event endpoint.
+
+    Args:
+        event_id: Identifier of the calendar event.
+        req: Request payload received by the endpoint.
+
+    Returns:
+        dict
+    """
     try:
         updated = update_calendar_event(
             event_id=event_id,
@@ -123,7 +171,16 @@ def api_update_event(event_id: str, req: CalendarUpdateRequest):
 
 
 @router.delete("/events/{event_id}", response_model=CalendarDeleteResponse)
-def api_delete_event(event_id: str, calendar_id: str = "primary"):
+def api_delete_event(event_id: str, calendar_id: str = "primary") -> dict:
+    """Serve the delete event endpoint.
+
+    Args:
+        event_id: Identifier of the calendar event.
+        calendar_id: Identifier of the calendar.
+
+    Returns:
+        dict
+    """
     try:
         res = delete_calendar_event(event_id=event_id, calendar_id=calendar_id)
         return {
@@ -138,7 +195,15 @@ def api_delete_event(event_id: str, calendar_id: str = "primary"):
         raise HTTPException(status_code=e.resp.status, detail=str(e))
 
 @router.post("/freebusy", response_model=CalendarFreeBusyResponse)
-def api_freebusy(req: CalendarFreeBusyRequest):
+def api_freebusy(req: CalendarFreeBusyRequest) -> dict:
+    """Serve the freebusy endpoint.
+
+    Args:
+        req: Request payload received by the endpoint.
+
+    Returns:
+        dict
+    """
     try:
         raw = freebusy_query(
             calendar_ids=req.calendar_ids,
@@ -165,7 +230,15 @@ def api_freebusy(req: CalendarFreeBusyRequest):
         raise HTTPException(status_code=e.resp.status, detail=str(e))
 
 @router.post("/events/meet", response_model=CalendarMeetEventOut)
-def api_create_meet_event(req: CalendarMeetCreateRequest):
+def api_create_meet_event(req: CalendarMeetCreateRequest) -> dict:
+    """Serve the create meet event endpoint.
+
+    Args:
+        req: Request payload received by the endpoint.
+
+    Returns:
+        dict
+    """
     try:
         created = create_meet_invitation(
             summary=req.summary,

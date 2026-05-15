@@ -25,7 +25,6 @@ class GmailSendRequest(BaseModel):
 
     reply_to: EmailStr | None = None
 
-    # hilo opcional
     thread_id: Optional[str] = None
     in_reply_to: Optional[str] = None
     references: Optional[str] = None
@@ -34,7 +33,15 @@ class GmailSendRequest(BaseModel):
 
     @field_validator("reply_to", mode="before")
     @classmethod
-    def empty_reply_to_to_none(cls, v):
+    def empty_reply_to_to_none(cls, v: object) -> object:
+        """Normalize an empty reply-to value to None.
+
+        Args:
+            v: Validator input value.
+
+        Returns:
+        object
+        """
         return None if v == "" else v
 
 

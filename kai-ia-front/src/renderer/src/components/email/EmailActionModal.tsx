@@ -18,11 +18,36 @@ export default function EmailActionModal({
   onClose,
   onSubmit
 }: Props): React.JSX.Element | null {
+  /**
+   * Show the actionable email popup used to answer a newly received message.
+   *
+   * Args:
+   *   email: Email payload displayed in the modal.
+   *   open: Controls whether the modal is visible.
+   *   loading: Shows the initial loading state while the email is resolved.
+   *   submitting: Disables actions while the answer is being sent.
+   *   onClose: Closes the modal without sending a response.
+   *   onSubmit: Sends the selected action prompt to the current chat.
+   *
+   * Returns:
+   *   React.JSX.Element | null
+   */
+
   const [prompt, setPrompt] = useState('')
 
   if (!open) return null
 
   const handleSubmit = async () => {
+    /**
+     * Send the selected email action when the user confirms the modal.
+     *
+     * Args:
+     *   None.
+     *
+     * Returns:
+     *   void
+     */
+
     if (!prompt.trim()) return
     await onSubmit(prompt.trim())
     setPrompt('')

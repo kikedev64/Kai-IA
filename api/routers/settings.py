@@ -1,4 +1,3 @@
-# api/routers/settings.py
 import json
 from typing import Any
 
@@ -44,6 +43,11 @@ class SettingsUpdatePayload(BaseModel):
 
 
 def _build_settings_response() -> dict[str, str]:
+    """Build the settings response.
+
+    Returns:
+        dict[str, str]
+    """
     return {
         "google_redirect_uri": get_google_redirect_uri() or "",
         "google_scopes": json.dumps(get_google_scopes(), ensure_ascii=False, indent=2),
@@ -66,6 +70,14 @@ def _build_settings_response() -> dict[str, str]:
 
 
 def _normalize_and_validate(values: dict[str, Any]) -> dict[str, str]:
+    """Normalize and validate settings values.
+
+    Args:
+        values: Values to read, validate, or transform.
+
+    Returns:
+        dict[str, str]
+    """
     unknown_keys = sorted(set(values.keys()) - ALLOWED_KEYS)
     if unknown_keys:
         raise HTTPException(
@@ -117,7 +129,7 @@ def _normalize_and_validate(values: dict[str, Any]) -> dict[str, str]:
                 )
             normalized[key] = str(value)
             continue
-        
+
         if key == "llm_context_length":
             try:
                 context_length = int(value)
@@ -171,12 +183,25 @@ def _normalize_and_validate(values: dict[str, Any]) -> dict[str, str]:
 
 
 @router.get("")
-def get_settings():
+def get_settings() -> dict[str, dict[str, str]]:
+    """Return the settings.
+
+    Returns:
+        dict
+    """
     return {"settings": _build_settings_response()}
 
 
 @router.put("")
-def update_settings(payload: SettingsUpdatePayload):
+def update_settings(payload: SettingsUpdatePayload) -> dict[str, dict[str, str]]:
+    """Update the settings.
+
+    Args:
+        payload: Payload received by the function.
+
+    Returns:
+        dict
+    """
     normalized = _normalize_and_validate(payload.values)
     set_runtime_config_values(normalized)
     return {"settings": _build_settings_response()}

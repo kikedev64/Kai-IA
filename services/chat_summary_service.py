@@ -5,6 +5,14 @@ from llm.lmstudio_client import ask_without_context
 
 
 def clean_summary_title(text: str) -> str:
+    """Clean the summary title.
+
+    Args:
+        text: Text to inspect or transform.
+
+    Returns:
+        str
+    """
     if not text:
         return ""
 
@@ -29,6 +37,14 @@ def clean_summary_title(text: str) -> str:
 
 
 def generate_chat_summary_from_text(user_text: str) -> str:
+    """Generate a chat summary from text.
+
+    Args:
+        user_text: User text used as model input.
+
+    Returns:
+        str
+    """
     req = AskRequest(
         prompt=user_text,
         system_prompt="chat_summary"

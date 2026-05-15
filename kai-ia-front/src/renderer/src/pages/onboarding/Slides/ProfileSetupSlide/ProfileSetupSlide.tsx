@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 
 type Props = {
   onNext?: () => void
@@ -10,6 +10,17 @@ type AskResponse = {
 }
 
 const ProfileSetupSlide = ({ onNext, onPrev }: Props) => {
+  /**
+   * Render the profile setup step and save the generated structured profile.
+   *
+   * Args:
+   *   onNext: Moves the user to the next onboarding step after saving.
+   *   onPrev: Moves the user back to the previous onboarding step.
+   *
+   * Returns:
+   *   React.JSX.Element
+   */
+
   const [inputText, setInputText] = useState('')
   const [previewJson, setPreviewJson] = useState<Record<string, unknown> | null>(null)
   const [loadingPreview, setLoadingPreview] = useState(false)
@@ -17,16 +28,37 @@ const ProfileSetupSlide = ({ onNext, onPrev }: Props) => {
   const [error, setError] = useState('')
 
   const isValidPlainObject = (value: unknown): value is Record<string, unknown> => {
+    /**
+     * Check that a parsed model response is a plain JSON object.
+     *
+     * Args:
+     *   value: Value returned by JSON parsing.
+     *
+     * Returns:
+     *   value is Record<string, unknown>
+     */
+
     return typeof value === 'object' && value !== null && !Array.isArray(value)
   }
 
   const handlePreview = async () => {
+    /**
+     * Generate and validate the JSON profile preview from the free-text profile.
+     *
+     * Args:
+     *   None.
+     *
+     * Returns:
+     *   Promise<void>
+     */
+
     setError('')
     setLoadingPreview(true)
     setPreviewJson(null)
 
     try {
-      const res = await fetch(`${getBackendBaseURL()}/assistant/ask`, {
+      const backendBaseUrl = await getBackendBaseURL()
+      const res = await fetch(`${backendBaseUrl}/assistant/ask`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -73,6 +105,16 @@ const ProfileSetupSlide = ({ onNext, onPrev }: Props) => {
   }
 
   const handleContinue = async () => {
+    /**
+     * Validate the current step and continue when its required data is ready.
+     *
+     * Args:
+     *   None.
+     *
+     * Returns:
+     *   Promise<void>
+     */
+
     setError('')
 
     try {
@@ -155,13 +197,13 @@ const ProfileSetupSlide = ({ onNext, onPrev }: Props) => {
                 {previewJson
                   ? JSON.stringify(previewJson, null, 2)
                   : `{
-  "name": "",
-  "age": null,
-  "study": "",
-  "location": "",
-  "interests": [],
-  "goals": []
-}`}
+                    "name": "",
+                    "age": null,
+                    "study": "",
+                    "location": "",
+                    "interests": [],
+                    "goals": []
+                  }`}
               </pre>
             </div>
 
@@ -197,6 +239,21 @@ const ProfileSetupSlide = ({ onNext, onPrev }: Props) => {
 
 export default ProfileSetupSlide
 
-function getBackendBaseURL() {
-  throw new Error('Function not implemented.')
+async function getBackendBaseURL(): Promise<string> {
+  /**
+   * Build the backend origin from the persisted host and port configuration.
+   *
+   * Args:
+   *   None.
+   *
+   * Returns:
+   *   Promise<string>
+   */
+
+  const savedHost = await window.configApi.getServerUrl()
+  const savedPort = await window.configApi.getServerPort()
+  const cleanHost = (savedHost || 'http://localhost').trim().replace(/\/+$/, '')
+  const cleanPort = savedPort ?? 8000
+
+  return `${cleanHost}:${cleanPort}`
 }

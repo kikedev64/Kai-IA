@@ -62,14 +62,14 @@ class CalendarDeleteResponse(BaseModel):
 
 class CalendarFreeBusyRequest(BaseModel):
     calendar_ids: list[str] = Field(default_factory=lambda: ["primary"])
-    time_min: str  # RFC3339
-    time_max: str  # RFC3339
+    time_min: str
+    time_max: str
     time_zone: str = "Europe/Madrid"
 
 
 class CalendarBusyPeriod(BaseModel):
-    start: str  # RFC3339
-    end: str    # RFC3339
+    start: str
+    end: str  
 
 
 class CalendarFreeBusyCalendarOut(BaseModel):
@@ -82,7 +82,7 @@ class CalendarFreeBusyResponse(BaseModel):
     time_max: Optional[str] = None
     time_zone: Optional[str] = None
     calendars: dict[str, CalendarFreeBusyCalendarOut] = Field(default_factory=dict)
-    
+
 class CalendarMeetCreateRequest(BaseModel):
     summary: str
     start_rfc3339: str

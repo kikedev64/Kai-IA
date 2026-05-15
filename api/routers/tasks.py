@@ -28,6 +28,14 @@ router = APIRouter(prefix="/tasks", tags=["Tasks"])
 
 
 def _tasklist_to_api(tl: dict) -> dict:
+    """Map a task list into the public API response shape.
+
+    Args:
+        tl: Task list returned by Google Tasks.
+
+    Returns:
+        dict
+    """
     return {
         "id": tl.get("id", ""),
         "title": tl.get("title", ""),
@@ -35,6 +43,14 @@ def _tasklist_to_api(tl: dict) -> dict:
 
 
 def _task_to_api(t: dict) -> dict:
+    """Map a task into the public API response shape.
+
+    Args:
+        t: Task returned by Google Tasks.
+
+    Returns:
+        dict
+    """
     return {
         "id": t.get("id", ""),
         "title": t.get("title", ""),
@@ -45,6 +61,14 @@ def _task_to_api(t: dict) -> dict:
     }
 
 def _norm(s: Optional[str]) -> str:
+    """Normalize optional text for case-insensitive comparisons.
+
+    Args:
+        s: Text to normalize.
+
+    Returns:
+        str
+    """
     return (s or "").strip().lower()
 
 
@@ -60,7 +84,25 @@ def find_reminders_by_conditions(
     show_completed: bool = True,
     show_deleted: bool = False,
     show_hidden: bool = True,
-) -> dict[str, Any]:
+) -> dict:
+    """Find the reminders by conditions.
+
+    Args:
+        tasklist_id: Identifier of the task list.
+        query: Search query processed by the function.
+        title: Task or chat title processed by the function.
+        notes: Task notes processed by the function.
+        status: Task status processed by the function.
+        due_from: Lower due-date bound used for filtering.
+        due_to: Upper due-date bound used for filtering.
+        max_results: Maximum number of items to return.
+        show_completed: Whether completed tasks should be included.
+        show_deleted: Whether deleted tasks should be included.
+        show_hidden: Whether hidden tasks should be included.
+
+    Returns:
+        dict
+    """
 
     tasks = list_reminders(
         tasklist_id=tasklist_id,
@@ -119,7 +161,15 @@ def find_reminders_by_conditions(
 
 
 @router.get("/tasklists", response_model=list[TaskListOut])
-def api_list_tasklists(max_results: int = Query(100, ge=1, le=200)):
+def api_list_tasklists(max_results: int = Query(100, ge=1, le=200)) -> list[dict]:
+    """Serve the list tasklists endpoint.
+
+    Args:
+        max_results: Maximum number of items to return.
+
+    Returns:
+        dict
+    """
     try:
         service = _tasks_service()
         res = service.tasklists().list(maxResults=max_results).execute()
@@ -130,7 +180,15 @@ def api_list_tasklists(max_results: int = Query(100, ge=1, le=200)):
 
 
 @router.post("/tasklists/ensure", response_model=EnsureTaskListResponse)
-def api_ensure_tasklist(req: EnsureTaskListRequest):
+def api_ensure_tasklist(req: EnsureTaskListRequest) -> dict:
+    """Serve the ensure tasklist endpoint.
+
+    Args:
+        req: Request payload received by the endpoint.
+
+    Returns:
+        dict
+    """
     try:
         tl = ensure_tasklist(tasklist_title=req.title)
         return _tasklist_to_api(tl)
@@ -145,7 +203,19 @@ def api_list_tasks(
     show_completed: bool = False,
     show_deleted: bool = False,
     show_hidden: bool = False,
-):
+) -> dict:
+    """Serve the list tasks endpoint.
+
+    Args:
+        tasklist_id: Identifier of the task list.
+        max_results: Maximum number of items to return.
+        show_completed: Whether completed tasks should be included.
+        show_deleted: Whether deleted tasks should be included.
+        show_hidden: Whether hidden tasks should be included.
+
+    Returns:
+        dict
+    """
     try:
         items = list_reminders(
             tasklist_id=tasklist_id,
@@ -160,7 +230,16 @@ def api_list_tasks(
 
 
 @router.post("/tasklists/{tasklist_id}/tasks", response_model=TaskOut)
-def api_create_task(tasklist_id: str, req: CreateTaskRequest):
+def api_create_task(tasklist_id: str, req: CreateTaskRequest) -> dict:
+    """Serve the create task endpoint.
+
+    Args:
+        tasklist_id: Identifier of the task list.
+        req: Request payload received by the endpoint.
+
+    Returns:
+        dict
+    """
     try:
         t = create_reminder(
             tasklist_id=tasklist_id,
@@ -175,7 +254,17 @@ def api_create_task(tasklist_id: str, req: CreateTaskRequest):
 
 
 @router.patch("/tasklists/{tasklist_id}/tasks/{task_id}", response_model=TaskOut)
-def api_update_task(tasklist_id: str, task_id: str, req: UpdateTaskRequest):
+def api_update_task(tasklist_id: str, task_id: str, req: UpdateTaskRequest) -> dict:
+    """Serve the update task endpoint.
+
+    Args:
+        tasklist_id: Identifier of the task list.
+        task_id: Identifier of the task.
+        req: Request payload received by the endpoint.
+
+    Returns:
+        dict
+    """
     try:
         t = update_reminder(
             tasklist_id=tasklist_id,
@@ -191,7 +280,16 @@ def api_update_task(tasklist_id: str, task_id: str, req: UpdateTaskRequest):
 
 
 @router.delete("/tasklists/{tasklist_id}/tasks/{task_id}")
-def api_delete_task(tasklist_id: str, task_id: str):
+def api_delete_task(tasklist_id: str, task_id: str) -> dict[str, object]:
+    """Serve the delete task endpoint.
+
+    Args:
+        tasklist_id: Identifier of the task list.
+        task_id: Identifier of the task.
+
+    Returns:
+        dict
+    """
     try:
         delete_reminder(tasklist_id=tasklist_id, task_id=task_id)
         return {"deleted": True, "task_id": task_id}
@@ -200,7 +298,16 @@ def api_delete_task(tasklist_id: str, task_id: str):
 
 
 @router.get("/tasklists/{tasklist_id}/tasks/{task_id}", response_model=TaskOut)
-def api_get_task(tasklist_id: str, task_id: str):
+def api_get_task(tasklist_id: str, task_id: str) -> dict:
+    """Serve the get task endpoint.
+
+    Args:
+        tasklist_id: Identifier of the task list.
+        task_id: Identifier of the task.
+
+    Returns:
+        dict
+    """
     try:
         t = get_reminder(tasklist_id=tasklist_id, task_id=task_id)
         return _task_to_api(t)

@@ -5,5 +5,10 @@ router = APIRouter(prefix="/app", tags=["App"])
 
 
 @router.get("/bootstrap")
-def bootstrap():
+def bootstrap() -> dict:
+    """Return the backend bootstrap status.
+
+    Returns:
+        dict
+    """
     return get_bootstrap_status()

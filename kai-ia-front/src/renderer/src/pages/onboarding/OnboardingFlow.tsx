@@ -19,6 +19,16 @@ type OnboardingFlowProps = {
 }
 
 const OnboardingFlow = ({ onFinish }: OnboardingFlowProps) => {
+  /**
+   * Render the onboarding slide controller and move through the setup steps.
+   *
+   * Args:
+   *   onFinish: Called when the last onboarding step is complete.
+   *
+   * Returns:
+   *   React.JSX.Element
+   */
+
   const [step, setStep] = useState(0)
   const [direction, setDirection] = useState(1)
 
@@ -33,6 +43,16 @@ const OnboardingFlow = ({ onFinish }: OnboardingFlowProps) => {
   ]
 
   const nextSlide = () => {
+    /**
+     * Advance to the next onboarding slide or finish the flow at the end.
+     *
+     * Args:
+     *   None.
+     *
+     * Returns:
+     *   void
+     */
+
     if (step < slides.length - 1) {
       setDirection(1)
       setStep((s) => s + 1)
@@ -43,6 +63,16 @@ const OnboardingFlow = ({ onFinish }: OnboardingFlowProps) => {
   }
 
   const prevSlide = () => {
+    /**
+     * Move back to the previous onboarding slide when one exists.
+     *
+     * Args:
+     *   None.
+     *
+     * Returns:
+     *   void
+     */
+
     if (step > 0) {
       setDirection(-1)
       setStep((s) => s - 1)

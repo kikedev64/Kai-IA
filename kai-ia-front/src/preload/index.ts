@@ -22,13 +22,11 @@ if (process.contextIsolated) {
       setFirstRun: (value: boolean): Promise<boolean> =>
         ipcRenderer.invoke('config:set-first-run', value),
 
-      getServerUrl: (): Promise<string | null> =>
-        ipcRenderer.invoke('config:get-server-url'),
+      getServerUrl: (): Promise<string | null> => ipcRenderer.invoke('config:get-server-url'),
       setServerUrl: (url: string): Promise<boolean> =>
         ipcRenderer.invoke('config:set-server-url', url),
 
-      getServerPort: (): Promise<number | null> =>
-        ipcRenderer.invoke('config:get-server-port'),
+      getServerPort: (): Promise<number | null> => ipcRenderer.invoke('config:get-server-port'),
       setServerPort: (port: number): Promise<boolean> =>
         ipcRenderer.invoke('config:set-server-port', port),
 
@@ -43,8 +41,7 @@ if (process.contextIsolated) {
       setUserProfileJson: (profile: Record<string, unknown>): Promise<boolean> =>
         ipcRenderer.invoke('config:set-user-profile-json', profile),
 
-      completeOnboarding: (): Promise<boolean> =>
-        ipcRenderer.invoke('config:complete-onboarding'),
+      completeOnboarding: (): Promise<boolean> => ipcRenderer.invoke('config:complete-onboarding'),
 
       getOnboardingCompleted: (): Promise<boolean> =>
         ipcRenderer.invoke('config:get-onboarding-completed'),
@@ -100,13 +97,8 @@ if (process.contextIsolated) {
       clearPendingEmailNotificationClick: (messageId?: string): Promise<boolean> =>
         ipcRenderer.invoke('system-notifications:clear-pending-email-click', messageId),
 
-      onEmailNotificationClick: (
-        callback: (payload: { messageId: string }) => void
-      ) => {
-        const listener = (
-          _event: Electron.IpcRendererEvent,
-          payload: { messageId: string }
-        ) => {
+      onEmailNotificationClick: (callback: (payload: { messageId: string }) => void) => {
+        const listener = (_event: Electron.IpcRendererEvent, payload: { messageId: string }) => {
           callback(payload)
           void ipcRenderer.invoke(
             'system-notifications:clear-pending-email-click',

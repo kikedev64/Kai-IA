@@ -2,13 +2,14 @@ from __future__ import annotations
 from typing import Any
 
 
-def _compact_datetime(value: Any) -> Any:
-    """
-    Soporta:
-    - {"dateTime": "..."}
-    - {"date": "..."}
-    - "2026-03-10T15:00:00+01:00"
-    - None
+def _compact_datetime(value: Any) -> object:
+    """Reduce a Google date object to the most useful date value.
+
+    Args:
+        value: Value being processed.
+
+    Returns:
+        object
     """
     if value is None:
         return None
@@ -19,7 +20,15 @@ def _compact_datetime(value: Any) -> Any:
     return value
 
 
-def compact_calendar_event(event: dict[str, Any]) -> dict[str, Any]:
+def compact_calendar_event(event: dict[str, Any]) -> dict:
+    """Build a compact representation of the calendar event.
+
+    Args:
+        event: Calendar or debug event processed by the function.
+
+    Returns:
+        dict
+    """
     if not event:
         return {}
 
@@ -51,13 +60,29 @@ def compact_calendar_event(event: dict[str, Any]) -> dict[str, Any]:
     return out
 
 
-def compact_calendar_events(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def compact_calendar_events(events: list[dict[str, Any]]) -> list[dict]:
+    """Build a compact representation of the calendar events.
+
+    Args:
+        events: Events processed by the function.
+
+    Returns:
+        list[dict]
+    """
     if not events:
         return []
     return [compact_calendar_event(event) for event in events]
 
 
-def compact_find_calendar_events_result(data: dict[str, Any]) -> dict[str, Any]:
+def compact_find_calendar_events_result(data: dict[str, Any]) -> dict:
+    """Build a compact representation of the find calendar events result.
+
+    Args:
+        data: Source data processed by the function.
+
+    Returns:
+        dict
+    """
     return {
         "calendar_id": data.get("calendar_id"),
         "time_min": data.get("time_min"),
@@ -67,7 +92,15 @@ def compact_find_calendar_events_result(data: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def compact_delete_calendar_event_result(data: dict[str, Any]) -> dict[str, Any]:
+def compact_delete_calendar_event_result(data: dict[str, Any]) -> dict:
+    """Build a compact representation of the delete calendar event result.
+
+    Args:
+        data: Source data processed by the function.
+
+    Returns:
+        dict
+    """
     if not data:
         return {}
 
@@ -87,7 +120,15 @@ def compact_delete_calendar_event_result(data: dict[str, Any]) -> dict[str, Any]
     }
 
 
-def compact_delete_calendar_events_by_conditions_result(data: dict[str, Any]) -> dict[str, Any]:
+def compact_delete_calendar_events_by_conditions_result(data: dict[str, Any]) -> dict:
+    """Build a compact representation of the delete calendar events by conditions result.
+
+    Args:
+        data: Source data processed by the function.
+
+    Returns:
+        dict
+    """
     out = {
         "status": data.get("status"),
         "time_min": data.get("time_min"),
@@ -121,7 +162,15 @@ def compact_delete_calendar_events_by_conditions_result(data: dict[str, Any]) ->
     return out
 
 
-def compact_freebusy_result(data: dict[str, Any]) -> dict[str, Any]:
+def compact_freebusy_result(data: dict[str, Any]) -> dict:
+    """Build a compact representation of the freebusy result.
+
+    Args:
+        data: Source data processed by the function.
+
+    Returns:
+        dict
+    """
     calendars = data.get("calendars", {})
     compacted = {}
 
@@ -137,7 +186,15 @@ def compact_freebusy_result(data: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _email_to_dict(email):
+def _email_to_dict(email) -> dict:
+    """Convert an email model into a compact dictionary.
+
+    Args:
+        email: Email model processed by the function.
+
+    Returns:
+        dict
+    """
     return {
         "id": email.id,
         "thread_id": email.thread_id,
@@ -148,7 +205,15 @@ def _email_to_dict(email):
     }
 
 
-def _thread_to_dict(thread):
+def _thread_to_dict(thread) -> dict:
+    """Convert an email thread into a compact dictionary.
+
+    Args:
+        thread: Email thread processed by the function.
+
+    Returns:
+        dict
+    """
     return {
         "thread_id": thread.thread_id,
         "emails": [_email_to_dict(email) for email in thread.emails],

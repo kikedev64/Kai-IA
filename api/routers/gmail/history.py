@@ -16,7 +16,12 @@ class GmailHistoryReadRequest(BaseModel):
 
 
 @router.get("/latest-history-id")
-def latest_history_id():
+def latest_history_id() -> dict[str, object]:
+    """Return the latest Gmail history id.
+
+    Returns:
+        dict[str, object]
+    """
     history_id = get_latest_history_id()
 
     return {
@@ -26,7 +31,15 @@ def latest_history_id():
 
 
 @router.post("/check")
-def check_changes(req: GmailHistoryCheckRequest):
+def check_changes(req: GmailHistoryCheckRequest) -> dict:
+    """Check the changes.
+
+    Args:
+        req: Request payload received by the endpoint.
+
+    Returns:
+        dict
+    """
 
     try:
         result = check_history_changes(
@@ -42,7 +55,15 @@ def check_changes(req: GmailHistoryCheckRequest):
 
 
 @router.post("/read")
-def read_history(req: GmailHistoryReadRequest):
+def read_history(req: GmailHistoryReadRequest) -> dict:
+    """Read the history.
+
+    Args:
+        req: Request payload received by the endpoint.
+
+    Returns:
+        dict
+    """
 
     try:
         result = read_history_since(
@@ -59,7 +80,15 @@ def read_history(req: GmailHistoryReadRequest):
 @router.get("/")
 def list_history_ids(
     only_latest: bool = Query(default=False)
-):
+) -> dict:
+    """Return the history ids list.
+
+    Args:
+        only_latest: Whether only the latest history id should be returned.
+
+    Returns:
+        dict
+    """
     rows = get_history_ids(only_latest=only_latest)
 
     return {

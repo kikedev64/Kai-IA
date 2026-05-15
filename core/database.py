@@ -7,6 +7,11 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 
 def get_connection() -> sqlite3.Connection:
+    """Return the connection.
+
+    Returns:
+        sqlite3.Connection
+    """
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
@@ -15,6 +20,11 @@ def get_connection() -> sqlite3.Connection:
 
 
 def _build_initial_config() -> dict[str, str]:
+    """Build the default configuration written on first database initialization.
+
+    Returns:
+        dict[str, str]
+    """
     google_scopes = [
         "https://www.googleapis.com/auth/gmail.modify",
         "https://www.googleapis.com/auth/gmail.send",
@@ -133,10 +143,10 @@ def _build_initial_config() -> dict[str, str]:
     - Fórmulas en bloque: $$\int_0^1 f(x)\,dx$$
     - NUNCA uses corchetes [f(x)] ni paréntesis \(f(x)\) para matemáticas.
     - NUNCA uses \displaystyle fuera de un bloque $$.
-    
+
     """.strip()
 
-    
+
     model_name = "qwen/qwen3-14b"
     temperature = 0.0
 
@@ -154,6 +164,14 @@ def _build_initial_config() -> dict[str, str]:
 
 
 def _seed_initial_config(cur: sqlite3.Cursor) -> None:
+    """Insert missing default configuration values into the database.
+
+    Args:
+        cur: Database cursor used for inserts and schema setup.
+
+    Returns:
+        None
+    """
     initial_config = _build_initial_config()
 
     for key, value in initial_config.items():
@@ -165,6 +183,11 @@ def _seed_initial_config(cur: sqlite3.Cursor) -> None:
 
 
 def init_db() -> None:
+    """Create the local database schema and seed default values.
+
+    Returns:
+        None
+    """
     conn = get_connection()
     cur = conn.cursor()
 

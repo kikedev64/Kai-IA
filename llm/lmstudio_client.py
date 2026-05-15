@@ -21,7 +21,17 @@ def call_lm_studio(
     messages: list,
     use_tools: bool = True,
     context_length: int | None = None,
-):
+) -> object:
+    """Call LM Studio chat completions.
+
+    Args:
+        messages: Messages included in the operation.
+        use_tools: Whether tool calling is enabled.
+        context_length: Optional model context length.
+
+    Returns:
+        object
+    """
     kwargs = {
         "model": get_model_name(),
         "messages": messages,
@@ -41,6 +51,15 @@ def call_lm_studio_stream(
     messages: list,
     context_length: int | None = None,
 ) -> Iterator[str]:
+    """Stream text chunks from LM Studio.
+
+    Args:
+        messages: Messages included in the operation.
+        context_length: Optional model context length.
+
+    Returns:
+        Iterator[str]
+    """
     stream = client.chat.completions.create(
         model=get_model_name(),
         messages=messages,
@@ -62,7 +81,15 @@ def call_lm_studio_stream(
 
 def ask_without_context(
     req: AskRequest
-):
+) -> dict[str, str]:
+    """Ask the model without chat history.
+
+    Args:
+        req: Request payload received by the endpoint.
+
+    Returns:
+        dict[str, str]
+    """
     try:
         messages = []
 
@@ -94,6 +121,11 @@ def ask_without_context(
 
 
 def check_llm_service() -> bool:
+    """Check whether the LLM service is reachable.
+
+    Returns:
+        bool
+    """
     try:
         models = client.models.list()
         return bool(models.data)

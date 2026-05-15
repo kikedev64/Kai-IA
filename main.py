@@ -3,6 +3,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from contextlib import asynccontextmanager
+from typing import AsyncIterator
+import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -19,17 +21,19 @@ from api.routers.settings import router as settings_router
 
 from core.database import init_db
 
+logger = logging.getLogger("uvicorn")
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    """Initialise resources used by the FastAPI app."""
     init_db()
-    print("Base de datos inicializada")
+    logger.info("Database initialised")
     yield
 
 
 app = FastAPI(
     title="Kai IA API",
-    version="0.1.0",
+    version="1.0.0",
     lifespan=lifespan
 )
 

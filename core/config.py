@@ -7,11 +7,29 @@ import os
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
-def get_config_value(key: str, default=None):
+def get_config_value(key: str, default=None) -> object:
+    """Return the config value.
+
+    Args:
+        key: Configuration key to read or write.
+        default: Fallback value returned when no configured value exists.
+
+    Returns:
+        object
+    """
     return get_runtime_config_value(key, default)
 
 
 def get_config_int(key: str, default: int = 0) -> int:
+    """Return the config int.
+
+    Args:
+        key: Configuration key to read or write.
+        default: Fallback value returned when no configured value exists.
+
+    Returns:
+        int
+    """
     value = get_runtime_config_value(key, default)
     try:
         return int(value)
@@ -20,6 +38,15 @@ def get_config_int(key: str, default: int = 0) -> int:
 
 
 def get_config_float(key: str, default: float = 0.0) -> float:
+    """Return the config float.
+
+    Args:
+        key: Configuration key to read or write.
+        default: Fallback value returned when no configured value exists.
+
+    Returns:
+        float
+    """
     value = get_runtime_config_value(key, default)
     try:
         return float(value)
@@ -27,7 +54,16 @@ def get_config_float(key: str, default: float = 0.0) -> float:
         return default
 
 
-def get_config_json(key: str, default=None):
+def get_config_json(key: str, default=None) -> object:
+    """Return the config json.
+
+    Args:
+        key: Configuration key to read or write.
+        default: Fallback value returned when no configured value exists.
+
+    Returns:
+        object
+    """
     raw = get_runtime_config_value(key, None)
     if raw is None:
         return default
@@ -41,15 +77,30 @@ def get_config_json(key: str, default=None):
         return default
 
 
-def get_google_scopes():
+def get_google_scopes() -> list[str]:
+    """Return configured Google OAuth scopes.
+
+    Returns:
+        object
+    """
     return get_config_json("google_scopes", [])
 
 
-def get_google_redirect_uri():
+def get_google_redirect_uri() -> str | None:
+    """Return the configured Google redirect URI.
+
+    Returns:
+        object
+    """
     return os.getenv("GOOGLE_REDIRECT_URI")
 
 
 def get_google_credentials_file() -> Path:
+    """Return the Google credentials file path.
+
+    Returns:
+        Path
+    """
     return Path(
         get_config_value(
             "google_credentials_file",
@@ -59,6 +110,11 @@ def get_google_credentials_file() -> Path:
 
 
 def get_google_token_file() -> Path:
+    """Return the Google token file path.
+
+    Returns:
+        Path
+    """
     return Path(
         get_config_value(
             "google_token_file",
@@ -68,6 +124,11 @@ def get_google_token_file() -> Path:
 
 
 def get_email_max_total_size_attachment() -> int:
+    """Return the maximum total attachment size.
+
+    Returns:
+        int
+    """
     return get_config_int(
         "email_max_total_size_attachment",
         18 * 1024 * 1024
@@ -75,21 +136,46 @@ def get_email_max_total_size_attachment() -> int:
 
 
 def get_system_prompt_default() -> str:
+    """Return the system prompt default.
+
+    Returns:
+        str
+    """
     return get_config_value("system_prompt_default", "")
 
 
 def get_model_name() -> str:
+    """Return the model name.
+
+    Returns:
+        str
+    """
     return get_config_value("model_name", "openai/gpt-oss-20b")
 
 
 def get_temperature() -> float:
+    """Return the temperature.
+
+    Returns:
+        float
+    """
     return get_config_float("temperature", 0.0)
 
 def get_llm_context_length() -> int:
+    """Return the configured LLM context length.
+
+    Returns:
+        int
+    """
     return get_config_int("llm_context_length", 8192)
 
 
 def get_tool_activation_keywords() -> list[str]:
+    """Return the keywords that enable tools.
+
+    Returns:
+        list[str]
+    """
     keywords = get_config_json("tool_activation_keywords", [])
 
     if not isinstance(keywords, list):
@@ -104,6 +190,11 @@ def get_tool_activation_keywords() -> list[str]:
 class DEFAULT_PROMPTS:
     @staticmethod
     def resume_mail() -> str:
+        """Return the default prompt used to summarize email messages.
+
+        Returns:
+            str
+        """
         return get_config_value(
             "default_prompts.resume_mail",
             (
@@ -115,6 +206,11 @@ class DEFAULT_PROMPTS:
 
     @staticmethod
     def basic_user_information() -> str:
+        """Return the default prompt used to extract user profile JSON.
+
+        Returns:
+            str
+        """
         return get_config_value(
             "default_prompts.basic_user_information_json",
             (
@@ -150,6 +246,11 @@ class DEFAULT_PROMPTS:
 
     @staticmethod
     def chat_summary() -> str:
+        """Return the default prompt used to generate chat titles.
+
+        Returns:
+            str
+        """
         return get_config_value(
             "default_prompts.chat_summary",
             (
@@ -173,6 +274,11 @@ class DEFAULT_PROMPTS:
 
 
 def get_prompt_map() -> dict[str, str]:
+    """Return default prompts by key.
+
+    Returns:
+        dict[str, str]
+    """
     return {
         "basic_user_information": DEFAULT_PROMPTS.basic_user_information(),
         "resume_mail": DEFAULT_PROMPTS.resume_mail(),

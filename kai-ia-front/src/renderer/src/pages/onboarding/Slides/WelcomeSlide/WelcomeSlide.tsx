@@ -1,4 +1,3 @@
-import React from 'react'
 import logo from '../../../../assets/LOGO.png'
 
 type Props  = {
@@ -6,6 +5,16 @@ type Props  = {
 }
 
 const WelcomeSlide = ({onNext}:Props) => {
+  /**
+   * Render the welcome step that starts onboarding.
+   *
+   * Args:
+   *   onNext: Moves the user to the next onboarding step.
+   *
+   * Returns:
+   *   React.JSX.Element
+   */
+
   return (
     <section className="flex min-h-screen w-full items-center justify-center bg-slate-950 px-6 text-white">
       <div className="mx-auto flex max-w-3xl flex-col items-center text-center">

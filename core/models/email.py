@@ -18,7 +18,28 @@ class Email:
         message_id: Optional[str] = None,
         references: Optional[str] = None,
         in_reply_to: Optional[str] = None,
-    ):
+    ) -> None:
+        """Store the values needed by this object.
+
+        Args:
+            id: Email identifier.
+            sender: Sender address used to filter email messages.
+            to: Recipient address.
+            subject: Subject text used by the message or filter.
+            body: Body text used by the message.
+            date: Message date.
+            thread_id: Identifier of the email thread.
+            snippet: Short message preview.
+            cc: Carbon-copy recipients.
+            bcc: Blind carbon-copy recipients.
+            reply_to: Reply-To address.
+            message_id: Identifier of the Gmail message.
+            references: Thread reference header.
+            in_reply_to: In Reply-To address.
+
+        Returns:
+            None
+        """
         self.id = id
         self.thread_id = thread_id
         self.sender = sender
@@ -37,6 +58,11 @@ class Email:
         self.in_reply_to = in_reply_to
 
     def to_reply_payload(self) -> dict:
+        """Build the payload needed to reply to this email.
+
+        Returns:
+            dict
+        """
         return {
             "thread_id": self.thread_id,
             "in_reply_to": self.in_reply_to,
@@ -45,6 +71,14 @@ class Email:
 
     @classmethod
     def from_send_request(cls, req) -> "Email":
+        """Create an Email model from a Gmail send request.
+
+        Args:
+            req: Request payload received by the endpoint.
+
+        Returns:
+            "Email"
+        """
 
         return cls(
             id="",
