@@ -53,6 +53,26 @@ type ToolTrace = {
   status?: string
 }
 
+type DebugLabHardwareInfo = {
+  hostname: string
+  platform: string
+  arch: string
+  cpuModel: string
+  cpuCores: number
+  totalMemoryBytes: number
+  gpuDevices: string[]
+}
+
+type ResourceUsageSample = {
+  capturedAt: number
+  elapsedMs: number
+  cpuPercent: number
+  memoryUsedBytes: number
+  memoryFreeBytes: number
+  memoryTotalBytes: number
+  memoryUsedPercent: number
+}
+
 type GraphNodeData = {
   label: string
   short: string
@@ -210,6 +230,44 @@ function formatMs(value?: number): string {
 function formatNumber(value?: number): string {
   if (typeof value !== 'number') return '-'
   return new Intl.NumberFormat('es-ES').format(value)
+}
+
+/**
+ * Format a byte count into a compact storage value.
+ *
+ * Args:
+ *   value: Number of bytes to format.
+ *
+ * Returns:
+ *   string
+ */
+function formatBytes(value?: number): string {
+  if (typeof value !== 'number') return '-'
+
+  const units = ['B', 'KB', 'MB', 'GB', 'TB']
+  let size = value
+  let unitIndex = 0
+
+  while (size >= 1024 && unitIndex < units.length - 1) {
+    size /= 1024
+    unitIndex += 1
+  }
+
+  return `${size.toFixed(unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`
+}
+
+/**
+ * Calculate the average of a list of numeric values.
+ *
+ * Args:
+ *   values: Numeric values to average.
+ *
+ * Returns:
+ *   number | undefined
+ */
+function average(values: number[]): number | undefined {
+  if (values.length === 0) return undefined
+  return values.reduce((total, value) => total + value, 0) / values.length
 }
 
 /**
@@ -510,60 +568,63 @@ function buildGraphElements(
 }
 
 /**
- * Build the static SVG version of the pipeline diagram used in PDF export.
+ * Build an inline SVG line chart for CPU or RAM samples.
  *
  * Args:
- *   flowNodes: Ordered pipeline nodes included in the report.
+ *   samples: Resource usage samples captured during the trace.
+ *   field: Numeric sample field rendered in the chart.
+ *   color: Stroke color used by the chart.
  *
  * Returns:
  *   string
  */
-function buildReportFlowSvg(flowNodes: FlowNode[]): string {
-  if (flowNodes.length === 0) return '<p class="muted">No hay diagrama disponible.</p>'
+function buildUsageChartSvg(
+  samples: ResourceUsageSample[],
+  field: 'cpuPercent' | 'memoryUsedPercent',
+  color: string
+): string {
+  if (samples.length === 0) return '<p class="muted tiny">Sin muestras disponibles.</p>'
 
-  const rowHeight = 86
-  const height = Math.max(160, flowNodes.length * rowHeight + 60)
-  const rows = flowNodes
-    .map((node, index) => {
-      const config = STAGE_CONFIG[node.stage]
-      const y = 46 + index * rowHeight
-      const branchOffset = node.branch === 'tool' ? 120 : 0
-      const x = 70 + branchOffset
-      const cardX = 122 + branchOffset
-      const next = flowNodes[index + 1]
-      const line = next
-        ? `<path d="M ${x} ${y + 30} C ${x} ${y + 58}, ${next.branch === 'tool' ? 190 : 70} ${y + 58}, ${next.branch === 'tool' ? 190 : 70} ${y + rowHeight - 30}" fill="none" stroke="${config.color}" stroke-width="2.5" stroke-linecap="round" />`
-        : ''
+  const width = 360
+  const height = 92
+  const paddingX = 10
+  const paddingY = 14
+  const plotWidth = width - paddingX * 2
+  const plotHeight = height - paddingY * 2
+  const points = samples
+    .map((sample, index) => {
+      const value = Math.max(0, Math.min(100, sample[field]))
+      const x =
+        paddingX + (samples.length === 1 ? plotWidth : (index / (samples.length - 1)) * plotWidth)
+      const y = paddingY + plotHeight - (value / 100) * plotHeight
 
-      return `
-        ${line}
-        <circle cx="${x}" cy="${y}" r="30" fill="${config.color}" fill-opacity="0.15" stroke="${config.color}" stroke-width="2.5" />
-        <text x="${x}" y="${y + 4}" text-anchor="middle" font-size="10" fill="#0f172a" font-weight="700">${escapeHtml(config.short)}</text>
-        <rect x="${cardX}" y="${y - 25}" width="${node.branch === 'tool' ? 250 : 330}" height="50" rx="14" fill="#f8fafc" stroke="#cbd5e1" />
-        <text x="${cardX + 14}" y="${y - 4}" font-size="12" fill="#0f172a" font-weight="700">${escapeHtml(node.label)}</text>
-        <text x="${cardX + 14}" y="${y + 15}" font-size="10" fill="#64748b">${escapeHtml(formatMs(node.durationMs ?? node.elapsedMs))} · ${node.count} evento(s)</text>
-      `
+      return `${x.toFixed(1)},${y.toFixed(1)}`
     })
-    .join('')
+    .join(' ')
+  const last = samples[samples.length - 1]
 
   return `
-    <svg viewBox="0 0 620 ${height}" width="100%" height="${height}" role="img">
-      <rect width="620" height="${height}" fill="#ffffff" />
-      ${rows}
+    <svg viewBox="0 0 ${width} ${height}" width="100%" height="${height}" role="img">
+      <rect x="0" y="0" width="${width}" height="${height}" rx="10" fill="#f8fafc" />
+      <path d="M ${paddingX} ${paddingY} H ${width - paddingX} M ${paddingX} ${height / 2} H ${width - paddingX} M ${paddingX} ${height - paddingY} H ${width - paddingX}" stroke="#e2e8f0" stroke-width="1" />
+      <polyline points="${points}" fill="none" stroke="${color}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+      <text x="${paddingX}" y="${height - 3}" fill="#64748b" font-size="9">0</text>
+      <text x="${width - 52}" y="${height - 3}" fill="#64748b" font-size="9">${escapeHtml(formatMs(last.elapsedMs))}</text>
     </svg>
   `
 }
 
 /**
- * Build the printable benchmark report with metrics, diagram, tools and output.
+ * Build the printable benchmark report with a compact first-page summary.
  *
  * Args:
  *   chatId: Chat identifier for the report.
  *   metrics: Calculated benchmark metrics.
  *   events: Debug events included in the report.
- *   output: Assistant output produced by the request.
+ *   outputContentLength: Number of characters generated by the assistant.
  *   tools: Tool traces extracted from the events.
- *   flowNodes: Ordered pipeline nodes for the report diagram.
+ *   systemInfo: Hardware information captured from Electron.
+ *   resourceSamples: CPU and RAM samples captured during execution.
  *
  * Returns:
  *   string
@@ -572,16 +633,18 @@ function buildReportHtml({
   chatId,
   metrics,
   events,
-  output,
+  outputContentLength,
   tools,
-  flowNodes
+  systemInfo,
+  resourceSamples
 }: {
   chatId: string
   metrics: ReturnType<typeof buildMetrics>
   events: DebugLabEvent[]
-  output: string
+  outputContentLength: number
   tools: ToolTrace[]
-  flowNodes: FlowNode[]
+  systemInfo: DebugLabHardwareInfo | null
+  resourceSamples: ResourceUsageSample[]
 }): string {
   const chartItems = [
     { label: 'Entrada', value: metrics.inputMs, color: '#22d3ee' },
@@ -606,6 +669,16 @@ function buildReportHtml({
       `
     })
     .join('')
+  const cpuValues = resourceSamples.map((sample) => sample.cpuPercent)
+  const ramValues = resourceSamples.map((sample) => sample.memoryUsedPercent)
+  const cpuAverage = average(cpuValues)
+  const ramAverage = average(ramValues)
+  const cpuMax = cpuValues.length > 0 ? Math.max(...cpuValues) : undefined
+  const ramMax = ramValues.length > 0 ? Math.max(...ramValues) : undefined
+  const promptPreview = compactJson(
+    events.find((event) => event.stage === 'backend_receive')?.prompt_preview,
+    260
+  )
   const eventRows = events
     .map((event, index) => {
       const stage = normalizeStage(event)
@@ -619,6 +692,18 @@ function buildReportHtml({
         </tr>
       `
     })
+    .join('')
+  const toolRows = tools
+    .map(
+      (tool, index) => `
+        <tr>
+          <td>${index + 1}</td>
+          <td>${escapeHtml(tool.name)}</td>
+          <td>${escapeHtml(tool.status || '-')}</td>
+          <td>${escapeHtml(formatMs(tool.durationMs))}</td>
+        </tr>
+      `
+    )
     .join('')
   const toolBlocks = tools
     .map(
@@ -637,6 +722,7 @@ function buildReportHtml({
       `
     )
     .join('')
+  const gpuText = systemInfo?.gpuDevices.join(', ') || '-'
 
   return `
     <!doctype html>
@@ -645,60 +731,108 @@ function buildReportHtml({
         <meta charset="utf-8" />
         <title>Informe Kai Debug Lab</title>
         <style>
+          @page { size: A4; margin: 10mm; }
           * { box-sizing: border-box; }
-          body { font-family: Arial, sans-serif; color: #0f172a; margin: 28px; }
-          h1 { margin: 0 0 4px; font-size: 26px; }
-          h2 { margin: 26px 0 12px; font-size: 18px; }
+          body { font-family: Arial, sans-serif; color: #0f172a; margin: 0; }
+          h1 { margin: 0 0 4px; font-size: 23px; }
+          h2 { margin: 14px 0 8px; font-size: 15px; }
           h3 { margin: 0 0 8px; font-size: 15px; }
           h4 { margin: 14px 0 6px; font-size: 12px; color: #475569; }
           .muted { color: #64748b; }
-          .hero { border: 1px solid #cbd5e1; border-radius: 18px; padding: 18px; background: linear-gradient(135deg, #f8fafc, #ecfeff); }
-          .metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 18px 0 6px; }
-          .metric { border: 1px solid #cbd5e1; border-radius: 12px; padding: 10px; background: white; }
-          .metric span { display: block; color: #64748b; font-size: 11px; }
-          .metric strong { display:block; margin-top: 4px; font-size: 17px; }
+          .tiny { font-size: 10px; }
+          .page { page-break-after: always; }
+          .hero { border: 1px solid #cbd5e1; border-radius: 14px; padding: 12px; background: linear-gradient(135deg, #f8fafc, #ecfeff); }
+          .prompt-preview { margin: 7px 0 0; font-size: 10px; line-height: 1.35; color: #334155; max-height: 28px; overflow: hidden; }
+          .metrics { display: grid; grid-template-columns: repeat(5, 1fr); gap: 7px; margin: 10px 0; }
+          .metric { border: 1px solid #cbd5e1; border-radius: 10px; padding: 7px; background: white; min-height: 48px; }
+          .metric span { display: block; color: #64748b; font-size: 9px; text-transform: uppercase; }
+          .metric strong { display:block; margin-top: 3px; font-size: 13px; }
+          .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+          .panel { border: 1px solid #cbd5e1; border-radius: 12px; padding: 9px; background: white; }
+          .kv { display: grid; grid-template-columns: 108px 1fr; gap: 5px; font-size: 10px; margin: 4px 0; }
+          .kv span { color: #64748b; }
           .two-cols { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
-          .bar-row { display: grid; grid-template-columns: 90px 1fr 72px; gap: 10px; align-items: center; margin: 8px 0; font-size: 12px; }
-          .bar-track { height: 14px; border-radius: 999px; background: #e2e8f0; overflow: hidden; }
+          .bar-row { display: grid; grid-template-columns: 76px 1fr 62px; gap: 8px; align-items: center; margin: 5px 0; font-size: 10px; }
+          .bar-track { height: 10px; border-radius: 999px; background: #e2e8f0; overflow: hidden; }
           .bar-fill { height: 100%; border-radius: 999px; }
           table { width: 100%; border-collapse: collapse; margin-top: 12px; }
           th, td { border: 1px solid #cbd5e1; padding: 7px; font-size: 11px; vertical-align: top; }
           th { background: #f1f5f9; text-align: left; }
           pre { white-space: pre-wrap; word-break: break-word; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px; font-size: 10px; }
-          section { break-inside: avoid; margin-top: 18px; }
+          section { break-inside: avoid; margin-top: 14px; }
           .tool-block { border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px; }
+          .chart-title { display:flex; justify-content:space-between; align-items:center; font-size: 10px; color:#475569; margin-bottom: 5px; }
         </style>
       </head>
       <body>
-        <div class="hero">
-          <h1>Informe Kai Debug Lab</h1>
-          <p class="muted">Chat: ${escapeHtml(chatId || 'Todos')} · Request: ${escapeHtml(metrics.requestId || '-')} · ${new Date().toLocaleString()}</p>
+        <main class="page">
+          <div class="hero">
+            <h1>Informe Kai Debug Lab</h1>
+            <p class="muted tiny">Chat: ${escapeHtml(chatId || 'Todos')} · Request: ${escapeHtml(metrics.requestId || '-')} · ${new Date().toLocaleString()}</p>
+            <p class="prompt-preview"><strong>Petición:</strong> ${escapeHtml(promptPreview)}</p>
+          </div>
+
           <div class="metrics">
             <div class="metric"><span>Modelo</span><strong>${escapeHtml(metrics.model || '-')}</strong></div>
-            <div class="metric"><span>Fase final</span><strong>${escapeHtml(STAGE_CONFIG[metrics.currentStage].label)}</strong></div>
-            <div class="metric"><span>Total</span><strong>${escapeHtml(formatMs(metrics.totalMs))}</strong></div>
-            <div class="metric"><span>Tokens/s</span><strong>${metrics.tokensPerSecond ? metrics.tokensPerSecond.toFixed(2) : '-'}</strong></div>
+            <div class="metric"><span>Temperatura</span><strong>${formatNumber(metrics.temperature)}</strong></div>
+            <div class="metric"><span>Primer token</span><strong>${escapeHtml(formatMs(metrics.firstTokenMs))}</strong></div>
+            <div class="metric"><span>Total respuesta</span><strong>${escapeHtml(formatMs(metrics.totalMs))}</strong></div>
+            <div class="metric"><span>Tools usadas</span><strong>${tools.length}</strong></div>
             <div class="metric"><span>Tokens entrada</span><strong>${formatNumber(metrics.inputTokens)}</strong></div>
-            <div class="metric"><span>Tiempo entrada</span><strong>${escapeHtml(formatMs(metrics.inputMs))}</strong></div>
-            <div class="metric"><span>Tokens salida</span><strong>${formatNumber(metrics.outputTokens)}</strong></div>
-            <div class="metric"><span>Tiempo salida</span><strong>${escapeHtml(formatMs(metrics.outputMs))}</strong></div>
+            <div class="metric"><span>Tokens generados</span><strong>${formatNumber(metrics.outputTokens)}</strong></div>
+            <div class="metric"><span>Prompt length</span><strong>${formatNumber(metrics.promptChars)}</strong></div>
+            <div class="metric"><span>Content length</span><strong>${formatNumber(outputContentLength)}</strong></div>
+            <div class="metric"><span>Tokens/s</span><strong>${metrics.tokensPerSecond ? metrics.tokensPerSecond.toFixed(2) : '-'}</strong></div>
           </div>
-        </div>
+
+          <div class="grid-2">
+            <section class="panel">
+              <h2>Hardware</h2>
+              <div class="kv"><span>Equipo</span><strong>${escapeHtml(systemInfo?.hostname || '-')}</strong></div>
+              <div class="kv"><span>Sistema</span><strong>${escapeHtml(systemInfo?.platform || '-')} ${escapeHtml(systemInfo?.arch || '')}</strong></div>
+              <div class="kv"><span>Procesador</span><strong>${escapeHtml(systemInfo?.cpuModel || '-')}</strong></div>
+              <div class="kv"><span>Núcleos</span><strong>${formatNumber(systemInfo?.cpuCores)}</strong></div>
+              <div class="kv"><span>Memoria RAM</span><strong>${escapeHtml(formatBytes(systemInfo?.totalMemoryBytes))}</strong></div>
+              <div class="kv"><span>GPU</span><strong>${escapeHtml(gpuText)}</strong></div>
+            </section>
+
+            <section class="panel">
+              <h2>Tiempos principales</h2>
+              <div class="kv"><span>Tokenización</span><strong>${escapeHtml(formatMs(metrics.inputMs))}</strong></div>
+              <div class="kv"><span>Hasta LM</span><strong>${escapeHtml(formatMs(metrics.timeToLmMs))}</strong></div>
+              <div class="kv"><span>LM Studio</span><strong>${escapeHtml(formatMs(metrics.lmMs))}</strong></div>
+              <div class="kv"><span>Tools total</span><strong>${escapeHtml(formatMs(metrics.toolMs))}</strong></div>
+              <div class="kv"><span>Salida</span><strong>${escapeHtml(formatMs(metrics.outputMs))}</strong></div>
+              <div class="kv"><span>Eventos debug</span><strong>${formatNumber(metrics.eventCount)}</strong></div>
+            </section>
+          </div>
+
+          <section class="panel">
+            <h2>Distribución temporal</h2>
+            ${chartRows}
+          </section>
+
+          <div class="grid-2">
+            <section class="panel">
+              <div class="chart-title"><strong>Uso de CPU</strong><span>media ${cpuAverage?.toFixed(1) ?? '-'}% · máx ${cpuMax?.toFixed(1) ?? '-'}%</span></div>
+              ${buildUsageChartSvg(resourceSamples, 'cpuPercent', '#0ea5e9')}
+            </section>
+            <section class="panel">
+              <div class="chart-title"><strong>Uso de RAM</strong><span>media ${ramAverage?.toFixed(1) ?? '-'}% · máx ${ramMax?.toFixed(1) ?? '-'}%</span></div>
+              ${buildUsageChartSvg(resourceSamples, 'memoryUsedPercent', '#10b981')}
+            </section>
+          </div>
+
+        </main>
+
         <section>
-          <h2>Distribución temporal</h2>
-          ${chartRows}
-        </section>
-        <section>
-          <h2>Diagrama del flujo</h2>
-          ${buildReportFlowSvg(flowNodes)}
-        </section>
-        <section>
+          <h2>Resumen de tools</h2>
+          <table>
+            <thead><tr><th>#</th><th>Tool</th><th>Estado</th><th>Duración</th></tr></thead>
+            <tbody>${toolRows || '<tr><td colspan="4">No se ejecutaron tools.</td></tr>'}</tbody>
+          </table>
           <h2>Tools</h2>
           ${toolBlocks || '<p class="muted">No se ejecutaron tools.</p>'}
-        </section>
-        <section>
-          <h2>Salida acumulada</h2>
-          <pre>${escapeHtml(output || '-')}</pre>
         </section>
         <section>
           <h2>Timeline técnico</h2>
@@ -711,7 +845,6 @@ function buildReportHtml({
     </html>
   `
 }
-
 /**
  * Render the docked debug lab for the currently active chat stream.
  *
@@ -732,13 +865,19 @@ export default function DebugLabPage() {
   const [output, setOutput] = useState('')
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
   const [exporting, setExporting] = useState(false)
+  const [systemInfo, setSystemInfo] = useState<DebugLabHardwareInfo | null>(null)
+  const [resourceSamples, setResourceSamples] = useState<ResourceUsageSample[]>([])
   const previousLatestNodeId = useRef<string | null>(null)
+  const traceStartedAt = useRef<number | null>(null)
 
   useEffect(() => {
     previousLatestNodeId.current = null
+    traceStartedAt.current = null
     setEvents([])
     setOutput('')
     setSelectedNodeId(null)
+    setSystemInfo(null)
+    setResourceSamples([])
   }, [targetChatId])
 
   useEffect(() => {
@@ -764,6 +903,8 @@ export default function DebugLabPage() {
 
   const running =
     events.length > 0 && !events.some((event) => event.type === 'done' || event.type === 'error')
+  const hasEvents = events.length > 0
+  const firstEventElapsedMs = numberField(events[0]?.elapsed_ms) ?? 0
   const metrics = useMemo(() => buildMetrics(events), [events])
   const flowNodes = useMemo(() => buildFlowNodes(events), [events])
   const tools = useMemo(() => buildTools(events), [events])
@@ -786,6 +927,64 @@ export default function DebugLabPage() {
     setSelectedNodeId(null)
   }, [latestNodeId])
 
+  useEffect(() => {
+    if (!hasEvents) return
+
+    let cancelled = false
+
+    if (traceStartedAt.current === null) {
+      traceStartedAt.current = Date.now() - firstEventElapsedMs
+    }
+
+    /**
+     * Capture one system usage sample for the current debug trace.
+     *
+     * Args:
+     *   None.
+     *
+     * Returns:
+     *   Promise<void>
+     */
+    const captureSystemSample = async (): Promise<void> => {
+      try {
+        const snapshot = await window.electronAPI.getDebugLabSystemSnapshot()
+
+        if (cancelled) return
+
+        const elapsedMs = Math.max(0, Date.now() - (traceStartedAt.current ?? Date.now()))
+        setSystemInfo(snapshot.hardware)
+        setResourceSamples((current) =>
+          [
+            ...current,
+            {
+              ...snapshot.sample,
+              elapsedMs
+            }
+          ].slice(-300)
+        )
+      } catch (error) {
+        console.error('No se pudo capturar uso del sistema:', error)
+      }
+    }
+
+    void captureSystemSample()
+
+    if (!running) {
+      return () => {
+        cancelled = true
+      }
+    }
+
+    const interval = window.setInterval(() => {
+      void captureSystemSample()
+    }, 1000)
+
+    return () => {
+      cancelled = true
+      window.clearInterval(interval)
+    }
+  }, [firstEventElapsedMs, hasEvents, running])
+
   /**
    * Open a printable benchmark report for the current debug trace.
    *
@@ -800,13 +999,32 @@ export default function DebugLabPage() {
 
     try {
       setExporting(true)
+      let reportSystemInfo = systemInfo
+      let reportResourceSamples = resourceSamples
+
+      try {
+        const snapshot = await window.electronAPI.getDebugLabSystemSnapshot()
+        const elapsedMs = Math.max(0, Date.now() - (traceStartedAt.current ?? Date.now()))
+        reportSystemInfo = snapshot.hardware
+        reportResourceSamples = [
+          ...reportResourceSamples,
+          {
+            ...snapshot.sample,
+            elapsedMs
+          }
+        ]
+      } catch (error) {
+        console.error('No se pudo preparar el snapshot del informe:', error)
+      }
+
       const html = buildReportHtml({
         chatId: targetChatId,
         metrics,
         events,
-        output,
+        outputContentLength: output.length,
         tools,
-        flowNodes
+        systemInfo: reportSystemInfo,
+        resourceSamples: reportResourceSamples
       })
       const result = await window.electronAPI.exportDebugLabPdf(html)
 
@@ -830,9 +1048,12 @@ export default function DebugLabPage() {
   const reset = () => {
     if (running) return
     previousLatestNodeId.current = null
+    traceStartedAt.current = null
     setEvents([])
     setOutput('')
     setSelectedNodeId(null)
+    setSystemInfo(null)
+    setResourceSamples([])
   }
 
   return (

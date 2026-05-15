@@ -1,5 +1,6 @@
 import { app, shell, BrowserWindow, ipcMain, dialog, screen } from 'electron'
 import path from 'path'
+import os from 'os'
 import { writeFile } from 'fs/promises'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
@@ -23,6 +24,146 @@ let currentStartupStatus = {
   message: 'Iniciando Kai IA...'
 }
 
+type DebugLabHardwareInfo = {
+  hostname: string
+  platform: string
+  arch: string
+  cpuModel: string
+  cpuCores: number
+  totalMemoryBytes: number
+  gpuDevices: string[]
+}
+
+type CpuTotals = {
+  idle: number
+  total: number
+}
+
+let previousCpuTotals: CpuTotals | null = null
+let cachedDebugLabHardwareInfo: Promise<DebugLabHardwareInfo> | null = null
+
+/**
+ * Read aggregate CPU idle and total times from Node.
+ *
+ * Args:
+ *   None.
+ *
+ * Returns:
+ *   CpuTotals
+ */
+function readCpuTotals(): CpuTotals {
+  return os.cpus().reduce(
+    (acc, cpu) => {
+      const total = Object.values(cpu.times).reduce((sum, value) => sum + value, 0)
+
+      return {
+        idle: acc.idle + cpu.times.idle,
+        total: acc.total + total
+      }
+    },
+    { idle: 0, total: 0 }
+  )
+}
+
+/**
+ * Calculate system CPU usage since the previous sample.
+ *
+ * Args:
+ *   None.
+ *
+ * Returns:
+ *   number
+ */
+function readCpuUsagePercent(): number {
+  const current = readCpuTotals()
+  const previous = previousCpuTotals
+  previousCpuTotals = current
+
+  if (!previous) return 0
+
+  const idleDelta = current.idle - previous.idle
+  const totalDelta = current.total - previous.total
+
+  if (totalDelta <= 0) return 0
+
+  return Math.max(0, Math.min(100, (1 - idleDelta / totalDelta) * 100))
+}
+
+/**
+ * Build the static hardware block used by Debug Lab reports.
+ *
+ * Args:
+ *   None.
+ *
+ * Returns:
+ *   Promise<DebugLabHardwareInfo>
+ */
+async function getDebugLabHardwareInfo(): Promise<DebugLabHardwareInfo> {
+  if (cachedDebugLabHardwareInfo) return cachedDebugLabHardwareInfo
+
+  cachedDebugLabHardwareInfo = (async () => {
+    const cpus = os.cpus()
+    const gpuInfo = (await app.getGPUInfo('basic')) as {
+      gpuDevice?: Array<{
+        active?: boolean
+        deviceString?: string
+        vendorId?: number
+        deviceId?: number
+      }>
+    }
+    const gpuDevices = (gpuInfo.gpuDevice ?? [])
+      .map((device) => {
+        if (device.deviceString) return device.deviceString
+
+        const ids = [device.vendorId, device.deviceId]
+          .filter((value): value is number => typeof value === 'number')
+          .map((value) => `0x${value.toString(16)}`)
+
+        return ids.length > 0 ? ids.join(':') : ''
+      })
+      .filter((value) => value.trim().length > 0)
+
+    return {
+      hostname: os.hostname(),
+      platform: `${os.type()} ${os.release()}`,
+      arch: os.arch(),
+      cpuModel: cpus[0]?.model ?? 'CPU desconocida',
+      cpuCores: cpus.length,
+      totalMemoryBytes: os.totalmem(),
+      gpuDevices: gpuDevices.length > 0 ? gpuDevices : ['GPU no detectada']
+    }
+  })()
+
+  return cachedDebugLabHardwareInfo
+}
+
+/**
+ * Capture one hardware and resource usage snapshot for Debug Lab.
+ *
+ * Args:
+ *   None.
+ *
+ * Returns:
+ *   Promise<object>
+ */
+async function getDebugLabSystemSnapshot(): Promise<object> {
+  const totalMemoryBytes = os.totalmem()
+  const freeMemoryBytes = os.freemem()
+  const usedMemoryBytes = totalMemoryBytes - freeMemoryBytes
+
+  return {
+    hardware: await getDebugLabHardwareInfo(),
+    sample: {
+      capturedAt: Date.now(),
+      cpuPercent: Number(readCpuUsagePercent().toFixed(2)),
+      memoryUsedBytes: usedMemoryBytes,
+      memoryFreeBytes: freeMemoryBytes,
+      memoryTotalBytes: totalMemoryBytes,
+      memoryUsedPercent: Number(((usedMemoryBytes / totalMemoryBytes) * 100).toFixed(2))
+    }
+  }
+}
+
 /**
  * Send a startup progress update to the splash window.
  *
@@ -34,7 +175,6 @@ let currentStartupStatus = {
  *   void
  */
 function sendStartupStatus(step: string, message: string): void {
-
   currentStartupStatus = { step, message }
 
   if (splashWindow && !splashWindow.isDestroyed()) {
@@ -52,7 +192,6 @@ function sendStartupStatus(step: string, message: string): void {
  *   BrowserWindow
  */
 function createBaseWindow(options?: Electron.BrowserWindowConstructorOptions): BrowserWindow {
-
   const win = new BrowserWindow({
     width: 1200,
     height: 900,
@@ -85,7 +224,6 @@ function createBaseWindow(options?: Electron.BrowserWindowConstructorOptions): B
  *   void
  */
 function loadRendererRoute(win: BrowserWindow, route: string): void {
-
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
     void win.loadURL(`${process.env['ELECTRON_RENDERER_URL']}#${route}`)
   } else {
@@ -105,7 +243,6 @@ function loadRendererRoute(win: BrowserWindow, route: string): void {
  *   void
  */
 function destroySplashWindow(): void {
-
   if (splashWindow && !splashWindow.isDestroyed()) {
     splashWindow.close()
   }
@@ -122,7 +259,6 @@ function destroySplashWindow(): void {
  *   void
  */
 function createSplashWindow(): void {
-
   splashWindow = createBaseWindow({
     width: 720,
     height: 220,
@@ -158,7 +294,6 @@ function createSplashWindow(): void {
  *   void
  */
 function createSettingsWindow(): void {
-
   if (settingsWindow && !settingsWindow.isDestroyed()) {
     settingsWindow.focus()
     return
@@ -192,7 +327,6 @@ function createSettingsWindow(): void {
  *   BrowserWindow | null
  */
 function getDebugParentWindow(): BrowserWindow | null {
-
   if (mainWindow && !mainWindow.isDestroyed()) return mainWindow
   if (settingsWindow && !settingsWindow.isDestroyed()) return settingsWindow
   if (onboardingWindow && !onboardingWindow.isDestroyed()) return onboardingWindow
@@ -209,7 +343,6 @@ function getDebugParentWindow(): BrowserWindow | null {
  *   Electron.Rectangle | null
  */
 function getDockedDebugBounds(): Electron.Rectangle | null {
-
   const parentWindow = getDebugParentWindow()
 
   if (!parentWindow) return null
@@ -240,7 +373,6 @@ function getDockedDebugBounds(): Electron.Rectangle | null {
  *   void
  */
 function syncDebugWindowBounds(): void {
-
   if (!debugWindow || debugWindow.isDestroyed()) return
 
   const bounds = getDockedDebugBounds()
@@ -260,7 +392,6 @@ function syncDebugWindowBounds(): void {
  *   void
  */
 function createDebugWindow(chatId?: string): void {
-
   const route = chatId ? `/debug-lab?chatId=${encodeURIComponent(chatId)}` : '/debug-lab'
 
   if (debugWindow && !debugWindow.isDestroyed()) {
@@ -323,7 +454,6 @@ function createDebugWindow(chatId?: string): void {
  *   void
  */
 function createMainWindow(): void {
-
   mainWindow = createBaseWindow({
     width: 1200,
     height: 900,
@@ -352,7 +482,6 @@ function createMainWindow(): void {
  *   void
  */
 function createOnboardingWindow(): void {
-
   onboardingWindow = createBaseWindow({
     width: 1200,
     height: 900,
@@ -381,7 +510,6 @@ function createOnboardingWindow(): void {
  *   Promise<void>
  */
 async function runStartupFlow(): Promise<void> {
-
   createSplashWindow()
 
   if (!splashWindow) return
@@ -487,6 +615,10 @@ app.whenReady().then(() => {
         error: error instanceof Error ? error.message : 'Error desconocido'
       }
     }
+  })
+
+  ipcMain.handle('debug-lab:get-system-snapshot', async () => {
+    return getDebugLabSystemSnapshot()
   })
 
   ipcMain.handle('startup:get-current-status', () => {

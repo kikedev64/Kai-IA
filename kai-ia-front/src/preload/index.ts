@@ -14,7 +14,8 @@ if (process.contextIsolated) {
       closeApp: () => ipcRenderer.invoke('app:quit'),
       openSettingsWindow: () => ipcRenderer.invoke('window:open-settings'),
       openDebugLabWindow: (chatId?: string) => ipcRenderer.invoke('window:open-debug-lab', chatId),
-      exportDebugLabPdf: (html: string) => ipcRenderer.invoke('debug-lab:export-pdf', html)
+      exportDebugLabPdf: (html: string) => ipcRenderer.invoke('debug-lab:export-pdf', html),
+      getDebugLabSystemSnapshot: () => ipcRenderer.invoke('debug-lab:get-system-snapshot')
     })
 
     contextBridge.exposeInMainWorld('configApi', {

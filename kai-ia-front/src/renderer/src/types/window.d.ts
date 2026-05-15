@@ -10,6 +10,25 @@ declare global {
       exportDebugLabPdf: (
         html: string
       ) => Promise<{ ok: boolean; path?: string; cancelled?: boolean; error?: string }>
+      getDebugLabSystemSnapshot: () => Promise<{
+        hardware: {
+          hostname: string
+          platform: string
+          arch: string
+          cpuModel: string
+          cpuCores: number
+          totalMemoryBytes: number
+          gpuDevices: string[]
+        }
+        sample: {
+          capturedAt: number
+          cpuPercent: number
+          memoryUsedBytes: number
+          memoryFreeBytes: number
+          memoryTotalBytes: number
+          memoryUsedPercent: number
+        }
+      }>
     }
 
     configApi: {
@@ -32,13 +51,10 @@ declare global {
       getOnboardingCompleted: () => Promise<boolean>
       setOnboardingCompleted: (value: boolean) => Promise<boolean>
       resetOnboardingState: () => Promise<boolean>
-      
     }
 
     startupApi: {
-      onStatus: (
-        callback: (payload: { step: string; message: string }) => void
-      ) => () => void
+      onStatus: (callback: (payload: { step: string; message: string }) => void) => () => void
       getCurrentStatus: () => Promise<{ step: string; message: string }>
       resetAndOpenOnboarding: () => Promise<boolean>
       completeOnboardingAndOpenMain: () => Promise<boolean>
@@ -58,9 +74,7 @@ declare global {
       getPendingEmailNotificationClick: () => Promise<{ messageId: string } | null>
       clearPendingEmailNotificationClick: (messageId?: string) => Promise<boolean>
 
-      onEmailNotificationClick: (
-        callback: (payload: { messageId: string }) => void
-      ) => () => void
+      onEmailNotificationClick: (callback: (payload: { messageId: string }) => void) => () => void
     }
   }
 }
