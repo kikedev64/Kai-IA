@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useLocation } from 'react-router-dom'
 import { Download, MessageSquareText, RotateCcw } from 'lucide-react'
+import Chart from 'chart.js/auto'
+import type { ChartConfiguration, ChartDataset } from 'chart.js'
 import {
   Background,
   Controls,
@@ -99,6 +101,14 @@ type TemporalDistributionItem = {
 type UsageChartField = 'cpuPercent' | 'memoryUsedBytes' | 'gpuPercent' | 'vramUsedBytes'
 
 type UsageChartUnit = 'percent' | 'gb'
+
+type ReportChartImages = {
+  temporal?: string
+  cpu?: string
+  ram?: string
+  gpu?: string
+  vram?: string
+}
 
 type GraphNodeData = {
   label: string
@@ -626,92 +636,270 @@ function buildTemporalDistributionItems(
 }
 
 /**
- * Format values for the resource charts.
+ * Convert a resource sample value into the chart unit.
  *
  * Args:
- *   value: Numeric chart value.
+ *   sample: Node-level resource sample.
+ *   field: Resource field read from the sample.
  *   unit: Unit rendered by the chart.
  *
  * Returns:
- *   string
+ *   number | null
  */
-function formatChartValue(value: number | undefined, unit: UsageChartUnit): string {
-  if (typeof value !== 'number') return '-'
-  if (unit === 'gb') return `${value.toFixed(2)} GB`
-  return `${value.toFixed(1)}%`
+function readChartValue(
+  sample: NodeResourceUsageSample,
+  field: UsageChartField,
+  unit: UsageChartUnit
+): number | null {
+  const value = sample[field]
+
+  if (typeof value !== 'number') return null
+
+  return unit === 'gb' ? Number((value / 1024 / 1024 / 1024).toFixed(4)) : Number(value.toFixed(2))
 }
 
 /**
- * Build an inline SVG line chart for resource samples.
+ * Render a Chart.js configuration into a PNG data URL for the PDF report.
  *
  * Args:
- *   samples: Resource usage samples captured during the trace.
- *   field: Numeric sample field rendered in the chart.
- *   color: Stroke color used by the chart.
- *   unit: Unit rendered on the y axis.
+ *   config: Chart.js configuration.
+ *   width: Canvas width in pixels.
+ *   height: Canvas height in pixels.
  *
  * Returns:
- *   string
+ *   Promise<string>
  */
-function buildUsageChartSvg(
+async function renderChartImage(
+  config: ChartConfiguration,
+  width = 980,
+  height = 320
+): Promise<string> {
+  const canvas = document.createElement('canvas')
+  canvas.width = width
+  canvas.height = height
+
+  const chart = new Chart(canvas, {
+    ...config,
+    options: {
+      ...config.options,
+      animation: false,
+      responsive: false,
+      maintainAspectRatio: false,
+      devicePixelRatio: 2
+    }
+  })
+
+  chart.update()
+  await new Promise((resolve) => window.requestAnimationFrame(resolve))
+
+  const image = canvas.toDataURL('image/png')
+  chart.destroy()
+
+  return image
+}
+
+/**
+ * Build a line chart image for a resource metric.
+ *
+ * Args:
+ *   samples: Node-level resource samples.
+ *   title: Dataset title.
+ *   field: Resource field rendered by the chart.
+ *   color: Dataset color.
+ *   unit: Unit rendered by the chart.
+ *
+ * Returns:
+ *   Promise<string | undefined>
+ */
+async function buildResourceChartImage(
   samples: NodeResourceUsageSample[],
+  title: string,
   field: UsageChartField,
   color: string,
   unit: UsageChartUnit
-): string {
-  if (samples.length === 0) return '<p class="muted tiny">Sin muestras disponibles.</p>'
+): Promise<string | undefined> {
+  const points = samples
+    .map((sample) => ({
+      label: `${sample.nodeLabel} ${sample.phase === 'start' ? 'inicio' : 'fin'}`,
+      value: readChartValue(sample, field, unit)
+    }))
+    .filter((point): point is { label: string; value: number } => typeof point.value === 'number')
 
-  const width = 360
-  const height = 112
-  const paddingX = 12
-  const paddingTop = 12
-  const paddingBottom = 27
-  const plotWidth = width - paddingX * 2
-  const plotHeight = height - paddingTop - paddingBottom
-  const validSamples = samples.filter((sample) => typeof sample[field] === 'number')
+  if (points.length === 0) return undefined
 
-  if (validSamples.length === 0) return '<p class="muted tiny">Sin datos disponibles.</p>'
+  const unitLabel = unit === 'gb' ? 'GB en uso' : '% de uso'
 
-  const values = validSamples.map((sample) => {
-    const rawValue = sample[field]
-    const numericValue = typeof rawValue === 'number' ? rawValue : 0
+  return renderChartImage(
+    {
+      type: 'line',
+      data: {
+        labels: points.map((_, index) => `${index + 1}`),
+        datasets: [
+          {
+            label: title,
+            data: points.map((point) => point.value),
+            borderColor: color,
+            backgroundColor: `${color}22`,
+            pointBackgroundColor: color,
+            pointBorderColor: '#ffffff',
+            pointRadius: 5,
+            pointHoverRadius: 5,
+            borderWidth: 4,
+            tension: 0.35,
+            fill: true
+          } satisfies ChartDataset<'line', number[]>
+        ]
+      },
+      options: {
+        layout: {
+          padding: 18
+        },
+        plugins: {
+          legend: {
+            display: true,
+            align: 'start',
+            labels: {
+              color: '#334155',
+              boxWidth: 14,
+              boxHeight: 14,
+              font: {
+                size: 15,
+                weight: 'bold'
+              }
+            }
+          },
+          tooltip: {
+            callbacks: {
+              title: (items) => points[items[0]?.dataIndex ?? 0]?.label ?? '',
+              label: (item) => `${title}: ${item.formattedValue} ${unit === 'gb' ? 'GB' : '%'}`
+            }
+          }
+        },
+        scales: {
+          x: {
+            title: {
+              display: true,
+              text: 'Muestras por nodo',
+              color: '#64748b',
+              font: {
+                size: 13
+              }
+            },
+            grid: {
+              color: '#e2e8f0'
+            },
+            ticks: {
+              color: '#64748b',
+              maxRotation: 0,
+              autoSkip: true,
+              maxTicksLimit: 14,
+              font: {
+                size: 12
+              }
+            }
+          },
+          y: {
+            beginAtZero: true,
+            max: unit === 'percent' ? 100 : undefined,
+            title: {
+              display: true,
+              text: unitLabel,
+              color: '#64748b',
+              font: {
+                size: 13
+              }
+            },
+            grid: {
+              color: '#e2e8f0'
+            },
+            ticks: {
+              color: '#64748b',
+              font: {
+                size: 12
+              }
+            }
+          }
+        }
+      }
+    },
+    1200,
+    520
+  )
+}
 
-    return unit === 'gb' ? numericValue / 1024 / 1024 / 1024 : numericValue
-  })
-  const maxValue =
-    unit === 'percent' ? 100 : Math.max(1, Math.max(...values) * (values.length > 1 ? 1.15 : 1.4))
-  const points = validSamples
-    .map((sample, index) => {
-      const rawValue = sample[field]
-      const value =
-        unit === 'gb'
-          ? (typeof rawValue === 'number' ? rawValue : 0) / 1024 / 1024 / 1024
-          : Math.max(0, Math.min(100, typeof rawValue === 'number' ? rawValue : 0))
-      const x =
-        paddingX +
-        (validSamples.length === 1 ? plotWidth : (index / (validSamples.length - 1)) * plotWidth)
-      const y = paddingTop + plotHeight - (value / maxValue) * plotHeight
+/**
+ * Build a bar chart image for the temporal distribution.
+ *
+ * Args:
+ *   metrics: Calculated report metrics.
+ *
+ * Returns:
+ *   Promise<string | undefined>
+ */
+async function buildTemporalChartImage(
+  metrics: ReturnType<typeof buildMetrics>
+): Promise<string | undefined> {
+  const items = buildTemporalDistributionItems(metrics).filter(
+    (item) => typeof item.value === 'number'
+  )
 
-      return `${x.toFixed(1)},${y.toFixed(1)}`
-    })
-    .join(' ')
-  const last = validSamples[validSamples.length - 1]
-  const first = validSamples[0]
-  const middle = validSamples[Math.floor(validSamples.length / 2)]
-  const topLabel = formatChartValue(maxValue, unit)
+  if (items.length === 0) return undefined
 
-  return `
-    <svg viewBox="0 0 ${width} ${height}" width="100%" height="${height}" role="img">
-      <rect x="0" y="0" width="${width}" height="${height}" rx="10" fill="#f8fafc" />
-      <path d="M ${paddingX} ${paddingTop} H ${width - paddingX} M ${paddingX} ${paddingTop + plotHeight / 2} H ${width - paddingX} M ${paddingX} ${paddingTop + plotHeight} H ${width - paddingX}" stroke="#e2e8f0" stroke-width="1" />
-      <polyline points="${points}" fill="none" stroke="${color}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
-      <text x="${paddingX}" y="9" fill="#64748b" font-size="8">${escapeHtml(topLabel)}</text>
-      <text x="${paddingX}" y="${paddingTop + plotHeight + 11}" fill="#64748b" font-size="8">0</text>
-      <text x="${paddingX}" y="${height - 5}" fill="#64748b" font-size="8">${escapeHtml(`${first.nodeLabel} ${first.phase === 'start' ? 'inicio' : 'fin'}`)}</text>
-      <text x="${width / 2}" y="${height - 5}" fill="#64748b" font-size="8" text-anchor="middle">${escapeHtml(`${middle.nodeLabel} ${middle.phase === 'start' ? 'inicio' : 'fin'}`)}</text>
-      <text x="${width - paddingX}" y="${height - 5}" fill="#64748b" font-size="8" text-anchor="end">${escapeHtml(`${last.nodeLabel} ${last.phase === 'start' ? 'inicio' : 'fin'}`)}</text>
-    </svg>
-  `
+  return renderChartImage(
+    {
+      type: 'bar',
+      data: {
+        labels: items.map((item) => item.label),
+        datasets: [
+          {
+            label: 'Duración en ms',
+            data: items.map((item) => item.value ?? 0),
+            backgroundColor: items.map((item) => item.color),
+            borderRadius: 8
+          } satisfies ChartDataset<'bar', number[]>
+        ]
+      },
+      options: {
+        layout: {
+          padding: 12
+        },
+        plugins: {
+          legend: {
+            display: false
+          }
+        },
+        scales: {
+          x: {
+            grid: {
+              display: false
+            },
+            ticks: {
+              color: '#475569',
+              font: {
+                size: 12
+              }
+            }
+          },
+          y: {
+            beginAtZero: true,
+            title: {
+              display: true,
+              text: 'Milisegundos',
+              color: '#64748b'
+            },
+            grid: {
+              color: '#e2e8f0'
+            },
+            ticks: {
+              color: '#64748b'
+            }
+          }
+        }
+      }
+    },
+    1200,
+    420
+  )
 }
 
 /**
@@ -891,7 +1079,35 @@ function buildReportCsvFiles(
 }
 
 /**
- * Build the printable benchmark report with a compact first-page summary.
+ * Build every chart image used by the PDF report.
+ *
+ * Args:
+ *   metrics: Calculated report metrics.
+ *   flowNodes: Ordered pipeline nodes.
+ *   resourceSamples: System samples captured during the trace.
+ *
+ * Returns:
+ *   Promise<ReportChartImages>
+ */
+async function buildReportChartImages(
+  metrics: ReturnType<typeof buildMetrics>,
+  flowNodes: FlowNode[],
+  resourceSamples: ResourceUsageSample[]
+): Promise<ReportChartImages> {
+  const nodeResourceSamples = buildNodeResourceSamples(flowNodes, resourceSamples)
+  const [temporal, cpu, ram, gpu, vram] = await Promise.all([
+    buildTemporalChartImage(metrics),
+    buildResourceChartImage(nodeResourceSamples, 'Uso de CPU', 'cpuPercent', '#0ea5e9', 'percent'),
+    buildResourceChartImage(nodeResourceSamples, 'Uso de RAM', 'memoryUsedBytes', '#10b981', 'gb'),
+    buildResourceChartImage(nodeResourceSamples, 'Uso de GPU', 'gpuPercent', '#a855f7', 'percent'),
+    buildResourceChartImage(nodeResourceSamples, 'Uso de VRAM', 'vramUsedBytes', '#f97316', 'gb')
+  ])
+
+  return { temporal, cpu, ram, gpu, vram }
+}
+
+/**
+ * Build the printable benchmark report with cover, prompt, hardware and chart pages.
  *
  * Args:
  *   chatId: Chat identifier for the report.
@@ -901,7 +1117,8 @@ function buildReportCsvFiles(
  *   tools: Tool traces extracted from the events.
  *   flowNodes: Ordered pipeline nodes for resource sampling.
  *   systemInfo: Hardware information captured from Electron.
- *   resourceSamples: CPU and RAM samples captured during execution.
+ *   resourceSamples: Resource usage samples captured during execution.
+ *   chartImages: Pre-rendered Chart.js images embedded in the PDF.
  *
  * Returns:
  *   string
@@ -914,7 +1131,8 @@ function buildReportHtml({
   tools,
   flowNodes,
   systemInfo,
-  resourceSamples
+  resourceSamples,
+  chartImages
 }: {
   chatId: string
   metrics: ReturnType<typeof buildMetrics>
@@ -924,24 +1142,10 @@ function buildReportHtml({
   flowNodes: FlowNode[]
   systemInfo: DebugLabHardwareInfo | null
   resourceSamples: ResourceUsageSample[]
+  chartImages: ReportChartImages
 }): string {
-  const chartItems = buildTemporalDistributionItems(metrics)
-  const maxChartValue = Math.max(1, ...chartItems.map((item) => item.value ?? 0))
-  const chartRows = chartItems
-    .map((item) => {
-      const width = Math.max(2, ((item.value ?? 0) / maxChartValue) * 100)
-      return `
-        <div class="bar-row">
-          <span>${escapeHtml(item.label)}</span>
-          <div class="bar-track">
-            <div class="bar-fill" style="width:${width}%;background:${item.color};"></div>
-          </div>
-          <strong>${escapeHtml(formatMs(item.value))}</strong>
-        </div>
-      `
-    })
-    .join('')
   const nodeResourceSamples = buildNodeResourceSamples(flowNodes, resourceSamples)
+  const lastResourceSample = resourceSamples.at(-1)
   const cpuValues = nodeResourceSamples.map((sample) => sample.cpuPercent)
   const ramValues = nodeResourceSamples.map((sample) => sample.memoryUsedBytes / 1024 / 1024 / 1024)
   const gpuValues = nodeResourceSamples
@@ -960,10 +1164,8 @@ function buildReportHtml({
   const ramMax = ramValues.length > 0 ? Math.max(...ramValues) : undefined
   const gpuMax = gpuValues.length > 0 ? Math.max(...gpuValues) : undefined
   const vramMax = vramValues.length > 0 ? Math.max(...vramValues) : undefined
-  const promptPreview = compactJson(
-    events.find((event) => event.stage === 'backend_receive')?.prompt_preview,
-    1200
-  )
+  const backendReceiveEvent = events.find((event) => event.stage === 'backend_receive')
+  const promptPreview = toText(backendReceiveEvent?.prompt ?? backendReceiveEvent?.prompt_preview)
   const toolRows = tools
     .map(
       (tool, index) => `
@@ -994,6 +1196,10 @@ function buildReportHtml({
     )
     .join('')
   const gpuText = systemInfo?.primaryGpuName || systemInfo?.gpuDevices.join(', ') || '-'
+  const chartImage = (src: string | undefined, label: string) =>
+    src
+      ? `<img class="chart-image" src="${src}" alt="${escapeHtml(label)}" />`
+      : '<p class="muted tiny">Sin datos disponibles.</p>'
 
   return `
     <!doctype html>
@@ -1012,8 +1218,12 @@ function buildReportHtml({
           .muted { color: #64748b; }
           .tiny { font-size: 10px; }
           .page { page-break-after: always; }
-          .hero { border: 1px solid #cbd5e1; border-radius: 14px; padding: 12px; background: linear-gradient(135deg, #f8fafc, #ecfeff); }
-          .prompt-preview { margin: 7px 0 0; font-size: 10px; line-height: 1.35; color: #334155; white-space: pre-wrap; word-break: break-word; }
+          .hero { border: 1px solid #cbd5e1; border-radius: 14px; padding: 14px; background: linear-gradient(135deg, #f8fafc, #ecfeff); }
+          .prompt-section { page-break-after: always; break-inside: auto; page-break-inside: auto; border: 1px solid #cbd5e1; border-radius: 12px; padding: 12px; background: white; }
+          .prompt-section h2 { margin-top: 0; }
+          .prompt-preview { margin: 8px 0 0; border: 1px solid #e2e8f0; border-radius: 10px; padding: 10px; background: #f8fafc; font-size: 10.5px; line-height: 1.45; color: #334155; white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-word; break-inside: auto; page-break-inside: auto; }
+          .cover-meta { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 12px 0; }
+          .cover-meta .metric { min-height: 54px; }
           .metrics { display: grid; grid-template-columns: repeat(5, 1fr); gap: 7px; margin: 10px 0; }
           .metric { border: 1px solid #cbd5e1; border-radius: 10px; padding: 7px; background: white; min-height: 48px; }
           .metric span { display: block; color: #64748b; font-size: 9px; text-transform: uppercase; }
@@ -1026,6 +1236,13 @@ function buildReportHtml({
           .bar-row { display: grid; grid-template-columns: 76px 1fr 62px; gap: 8px; align-items: center; margin: 5px 0; font-size: 10px; }
           .bar-track { height: 10px; border-radius: 999px; background: #e2e8f0; overflow: hidden; }
           .bar-fill { height: 100%; border-radius: 999px; }
+          .analytics-grid { display: block; margin-top: 10px; }
+          .analytics-grid .panel { margin-top: 14px; page-break-inside: avoid; break-inside: avoid; }
+          .chart-image { display: block; width: 100%; height: 330px; object-fit: contain; }
+          .chart-wide { margin-top: 12px; }
+          .chart-wide .chart-image { height: 340px; }
+          .chart-full .chart-image { height: 430px; }
+          .chart-full { min-height: 520px; page-break-inside: avoid; break-inside: avoid; }
           table { width: 100%; border-collapse: collapse; margin-top: 12px; }
           th, td { border: 1px solid #cbd5e1; padding: 7px; font-size: 11px; vertical-align: top; }
           th { background: #f1f5f9; text-align: left; }
@@ -1039,8 +1256,13 @@ function buildReportHtml({
         <main class="page">
           <div class="hero">
             <h1>Informe Kai Debug Lab</h1>
-            <p class="muted tiny">Chat: ${escapeHtml(chatId || 'Todos')} · Request: ${escapeHtml(metrics.requestId || '-')} · ${new Date().toLocaleString()}</p>
-            <p class="prompt-preview"><strong>Petición:</strong> ${escapeHtml(promptPreview)}</p>
+            <p class="muted tiny">Informe de trazabilidad de una petición ejecutada en Kai IA.</p>
+          </div>
+
+          <div class="cover-meta">
+            <div class="metric"><span>ID chat</span><strong>${escapeHtml(chatId || 'Todos')}</strong></div>
+            <div class="metric"><span>Request</span><strong>${escapeHtml(metrics.requestId || '-')}</strong></div>
+            <div class="metric"><span>Fecha</span><strong>${escapeHtml(new Date().toLocaleString())}</strong></div>
           </div>
 
           <div class="metrics">
@@ -1055,7 +1277,14 @@ function buildReportHtml({
             <div class="metric"><span>Content length</span><strong>${formatNumber(outputContentLength)}</strong></div>
             <div class="metric"><span>Tokens/s</span><strong>${metrics.tokensPerSecond ? metrics.tokensPerSecond.toFixed(2) : '-'}</strong></div>
           </div>
+        </main>
 
+        <section class="prompt-section">
+          <h2>Petición y mensaje inicial</h2>
+          <div class="prompt-preview">${escapeHtml(promptPreview)}</div>
+        </section>
+
+        <main class="page">
           <div class="grid-2">
             <section class="panel">
               <h2>Hardware</h2>
@@ -1063,9 +1292,9 @@ function buildReportHtml({
               <div class="kv"><span>Sistema</span><strong>${escapeHtml(systemInfo?.platform || '-')} ${escapeHtml(systemInfo?.arch || '')}</strong></div>
               <div class="kv"><span>Procesador</span><strong>${escapeHtml(systemInfo?.cpuModel || '-')}</strong></div>
               <div class="kv"><span>Núcleos</span><strong>${formatNumber(systemInfo?.cpuCores)}</strong></div>
-              <div class="kv"><span>RAM instalada</span><strong>${escapeHtml(formatBytes(systemInfo?.totalMemoryBytes))}</strong></div>
+              <div class="kv"><span>RAM disponible</span><strong>${escapeHtml(formatBytes(lastResourceSample?.memoryFreeBytes))}</strong></div>
               <div class="kv"><span>GPU</span><strong>${escapeHtml(gpuText)}</strong></div>
-              <div class="kv"><span>VRAM</span><strong>${escapeHtml(formatBytes(systemInfo?.vramTotalBytes))}</strong></div>
+              <div class="kv"><span>VRAM disponible</span><strong>${escapeHtml(formatBytes(systemInfo?.vramTotalBytes))}</strong></div>
             </section>
 
             <section class="panel">
@@ -1079,27 +1308,30 @@ function buildReportHtml({
             </section>
           </div>
 
-          <section class="panel">
+          <section class="panel chart-wide">
             <h2>Distribución temporal</h2>
-            ${chartRows}
+            ${chartImage(chartImages.temporal, 'Distribución temporal')}
           </section>
 
-          <div class="grid-2">
+        </main>
+
+        <main class="page">
+          <div class="analytics-grid">
             <section class="panel">
               <div class="chart-title"><strong>Uso de CPU</strong><span>media ${cpuAverage?.toFixed(1) ?? '-'}% · máx ${cpuMax?.toFixed(1) ?? '-'}%</span></div>
-              ${buildUsageChartSvg(nodeResourceSamples, 'cpuPercent', '#0ea5e9', 'percent')}
+              ${chartImage(chartImages.cpu, 'Uso de CPU')}
             </section>
             <section class="panel">
               <div class="chart-title"><strong>Uso de RAM</strong><span>media ${ramAverage?.toFixed(2) ?? '-'} GB · máx ${ramMax?.toFixed(2) ?? '-'} GB</span></div>
-              ${buildUsageChartSvg(nodeResourceSamples, 'memoryUsedBytes', '#10b981', 'gb')}
+              ${chartImage(chartImages.ram, 'Uso de RAM')}
             </section>
             <section class="panel">
               <div class="chart-title"><strong>Uso de GPU</strong><span>media ${gpuAverage?.toFixed(1) ?? '-'}% · máx ${gpuMax?.toFixed(1) ?? '-'}%</span></div>
-              ${buildUsageChartSvg(nodeResourceSamples, 'gpuPercent', '#a855f7', 'percent')}
+              ${chartImage(chartImages.gpu, 'Uso de GPU')}
             </section>
             <section class="panel">
               <div class="chart-title"><strong>Uso de VRAM</strong><span>media ${vramAverage?.toFixed(2) ?? '-'} GB · máx ${vramMax?.toFixed(2) ?? '-'} GB</span></div>
-              ${buildUsageChartSvg(nodeResourceSamples, 'vramUsedBytes', '#f97316', 'gb')}
+              ${chartImage(chartImages.vram, 'Uso de VRAM')}
             </section>
           </div>
 
@@ -1108,7 +1340,7 @@ function buildReportHtml({
         <section>
           <h2>Resumen de tools</h2>
           <table>
-            <thead><tr><th>#</th><th>Tool</th><th>Estado</th><th>Duración</th></tr></thead>
+            <thead><tr><th></th><th>Tool</th><th>Estado</th><th>Duración</th></tr></thead>
             <tbody>${toolRows || '<tr><td colspan="4">No se ejecutaron tools.</td></tr>'}</tbody>
           </table>
           <h2>Tools</h2>
@@ -1215,7 +1447,7 @@ export default function DebugLabPage() {
      * Capture one system usage sample for the current debug trace.
      *
      * Args:
-     *   None.
+     *   elapsedOverride: Optional trace elapsed time assigned to the sample.
      *
      * Returns:
      *   Promise<void>
@@ -1284,7 +1516,7 @@ export default function DebugLabPage() {
    *   void
    */
   const exportReport = async () => {
-    if (events.length === 0 || exporting) return
+    if (events.length === 0 || exporting || running) return
 
     try {
       setExporting(true)
@@ -1306,6 +1538,7 @@ export default function DebugLabPage() {
         console.error('No se pudo preparar el snapshot del informe:', error)
       }
 
+      const chartImages = await buildReportChartImages(metrics, flowNodes, reportResourceSamples)
       const html = buildReportHtml({
         chatId: targetChatId,
         metrics,
@@ -1314,7 +1547,8 @@ export default function DebugLabPage() {
         tools,
         flowNodes,
         systemInfo: reportSystemInfo,
-        resourceSamples: reportResourceSamples
+        resourceSamples: reportResourceSamples,
+        chartImages
       })
       const csvFiles = buildReportCsvFiles(metrics, flowNodes, reportResourceSamples)
       const result = await window.electronAPI.exportDebugLabReport({ html, csvFiles })
@@ -1418,7 +1652,7 @@ export default function DebugLabPage() {
           </IconButton>
           <IconButton
             label={exporting ? 'Exportando' : 'ZIP'}
-            disabled={events.length === 0 || exporting}
+            disabled={events.length === 0 || exporting || running}
             onClick={() => void exportReport()}
           >
             <Download size={15} />

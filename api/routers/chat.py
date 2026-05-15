@@ -1085,6 +1085,7 @@ def assistant_chat_stream(req: ChatStreamRequest) -> StreamingResponse:
                 "backend_receive",
                 "FastAPI recibe el mensaje del renderer y empieza el flujo de chat.",
                 chat_id=chat_id,
+                prompt=prompt,
                 prompt_preview=prompt[:500],
                 prompt_chars=len(prompt),
                 limit_history=limit_history,

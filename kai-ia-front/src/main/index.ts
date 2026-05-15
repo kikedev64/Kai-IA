@@ -413,6 +413,7 @@ async function getDebugLabHardwareInfo(): Promise<DebugLabHardwareInfo> {
 
   cachedDebugLabHardwareInfo = (async () => {
     const cpus = os.cpus()
+    const totalMemoryBytes = os.totalmem()
     const platformName = await readWindowsPlatformName()
     const windowsGpu = await readWindowsGpuHardware()
     let electronGpuDevices: string[] = []
@@ -452,7 +453,7 @@ async function getDebugLabHardwareInfo(): Promise<DebugLabHardwareInfo> {
       arch: os.arch(),
       cpuModel: cpus[0]?.model ?? 'CPU desconocida',
       cpuCores: cpus.length,
-      totalMemoryBytes: os.totalmem(),
+      totalMemoryBytes,
       gpuDevices: gpuDevices.length > 0 ? gpuDevices : ['GPU no detectada'],
       primaryGpuName: gpuDevices[0],
       vramTotalBytes: windowsGpu.vramTotalBytes

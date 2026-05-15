@@ -17,6 +17,7 @@ export type DebugLabEvent = {
   stage?: DebugStage
   message?: string
   content?: string
+  prompt?: string
   elapsed_ms?: number
   duration_ms?: number
   prompt_chars?: number
@@ -53,7 +54,6 @@ export const DEBUG_LAB_CHANNEL = 'kai-debug-lab-events'
  *   void
  */
 export function publishDebugLabEvent(message: DebugLabBroadcastMessage): void {
-
   const channel = new BroadcastChannel(DEBUG_LAB_CHANNEL)
   channel.postMessage(message)
   channel.close()
