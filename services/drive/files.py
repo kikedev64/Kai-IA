@@ -1,4 +1,5 @@
 import mimetypes
+import re
 from googleapiclient.http import MediaIoBaseUpload
 from googleapiclient.errors import HttpError
 import io
@@ -100,6 +101,30 @@ def _ensure_public_reader_permission(service: object, file_id: str) -> bool:
     ).execute()
 
     return True
+
+
+def _drive_name_query(name_query: str) -> str:
+    """Build a Drive query that supports simple name alternatives.
+
+    Args:
+        name_query: Drive filename search query.
+
+    Returns:
+        str
+    """
+    parts = [
+        part.strip(" '\"")
+        for part in re.split(r"\s+(?:o|or)\s+|[,;|]", name_query, flags=re.IGNORECASE)
+        if part.strip(" '\"")
+    ]
+    terms = parts or [name_query.strip(" '\"")]
+    escaped_terms = [term.replace("'", "\\'") for term in terms if term]
+
+    if not escaped_terms:
+        return "trashed=false"
+
+    name_filters = " or ".join(f"name contains '{term}'" for term in escaped_terms)
+    return f"({name_filters}) and trashed=false"
 
 
 def list_drive_files(max_results: int = 20) -> dict:
@@ -279,7 +304,7 @@ def search_drive_files_by_name(name_query: str, max_results: int = 20) -> dict:
 
     service = _get_service()
 
-    query = f"name contains '{name_query}' and trashed=false"
+    query = _drive_name_query(name_query)
 
     res = (
         service.files()
