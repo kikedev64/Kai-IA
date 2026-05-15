@@ -1,22 +1,6 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useLocation } from 'react-router-dom'
-import {
-  Activity,
-  AlertTriangle,
-  BarChart3,
-  Braces,
-  CheckCircle2,
-  Clock3,
-  Cpu,
-  Download,
-  Gauge,
-  MessageSquareText,
-  RotateCcw,
-  Timer,
-  Wrench,
-  Zap,
-  type LucideIcon
-} from 'lucide-react'
+import { Download, MessageSquareText, RotateCcw } from 'lucide-react'
 import {
   Background,
   Controls,
@@ -299,30 +283,6 @@ function stringField(value: unknown): string | undefined {
  */
 function numberField(value: unknown): number | undefined {
   return typeof value === 'number' && Number.isFinite(value) ? value : undefined
-}
-
-/**
- * Parse stringified JSON when possible and keep plain text otherwise.
- *
- * Args:
- *   value: Value received from a tool call or debug event.
- *
- * Returns:
- *   unknown
- */
-function parseMaybeJson(value: unknown): unknown {
-  if (typeof value !== 'string') return value
-
-  const trimmed = value.trim()
-  if (!trimmed) return value
-
-  if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) return value
-
-  try {
-    return JSON.parse(trimmed)
-  } catch {
-    return value
-  }
 }
 
 /**
@@ -771,8 +731,10 @@ export default function DebugLabPage() {
   const [output, setOutput] = useState('')
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
   const [exporting, setExporting] = useState(false)
+  const previousLatestNodeId = useRef<string | null>(null)
 
   useEffect(() => {
+    previousLatestNodeId.current = null
     setEvents([])
     setOutput('')
     setSelectedNodeId(null)
@@ -804,6 +766,7 @@ export default function DebugLabPage() {
   const metrics = useMemo(() => buildMetrics(events), [events])
   const flowNodes = useMemo(() => buildFlowNodes(events), [events])
   const tools = useMemo(() => buildTools(events), [events])
+  const latestNodeId = flowNodes.at(-1)?.id ?? null
   const activeStage = metrics.currentStage
   const selectedNode = selectedNodeId
     ? (flowNodes.find((node) => node.id === selectedNodeId) ?? null)
@@ -815,18 +778,12 @@ export default function DebugLabPage() {
     () => buildGraphElements(flowNodes, activeStage, selectedNodeId, running),
     [activeStage, flowNodes, running, selectedNodeId]
   )
-  const statusConfig = events.some((event) => event.type === 'error')
-    ? { label: 'Error', icon: AlertTriangle, color: 'text-rose-200', bg: 'bg-rose-500/10' }
-    : running
-      ? { label: 'Trazando', icon: Activity, color: 'text-cyan-100', bg: 'bg-cyan-400/10' }
-      : events.length > 0
-        ? {
-            label: 'Completado',
-            icon: CheckCircle2,
-            color: 'text-emerald-100',
-            bg: 'bg-emerald-400/10'
-          }
-        : { label: 'Escuchando', icon: Activity, color: 'text-slate-300', bg: 'bg-white/[0.06]' }
+  useEffect(() => {
+    if (!latestNodeId || previousLatestNodeId.current === latestNodeId) return
+
+    previousLatestNodeId.current = latestNodeId
+    setSelectedNodeId(null)
+  }, [latestNodeId])
 
   /**
    * Open a printable benchmark report for the current debug trace.
@@ -871,6 +828,7 @@ export default function DebugLabPage() {
    */
   const reset = () => {
     if (running) return
+    previousLatestNodeId.current = null
     setEvents([])
     setOutput('')
     setSelectedNodeId(null)
@@ -964,6 +922,7 @@ export default function DebugLabPage() {
                 <FlowCanvas
                   nodes={graphElements.nodes}
                   edges={graphElements.edges}
+                  focusedNodeId={selectedNodeId ?? latestNodeId}
                   onSelectNode={(nodeId) => {
                     setSelectedNodeId((current) => (current === nodeId ? null : nodeId))
                   }}
@@ -994,41 +953,50 @@ export default function DebugLabPage() {
   )
 }
 
+/**
+ * Render the interactive React Flow canvas and keep the focused node centered.
+ *
+ * Args:
+ *   nodes: Graph nodes rendered by React Flow.
+ *   edges: Graph edges rendered by React Flow.
+ *   focusedNodeId: Node that should own the viewport focus.
+ *   onSelectNode: Stores the node selected by the user.
+ *
+ * Returns:
+ *   React.JSX.Element
+ */
 function FlowCanvas({
   nodes,
   edges,
+  focusedNodeId,
   onSelectNode
 }: {
   nodes: DebugGraphNode[]
   edges: DebugGraphEdge[]
-  /**
-   * Render the interactive React Flow canvas and keep it fitted to new nodes.
-   *
-   * Args:
-   *   nodes: Graph nodes rendered by React Flow.
-   *   edges: Graph edges rendered by React Flow.
-   *   onSelectNode: Stores the node selected by the user.
-   *
-   * Returns:
-   *   React.JSX.Element
-   */
+  focusedNodeId: string | null
   onSelectNode: (nodeId: string) => void
 }) {
   const flow = useReactFlow<DebugGraphNode, DebugGraphEdge>()
 
   useEffect(() => {
-    if (nodes.length === 0) return
+    if (!focusedNodeId) return
+
+    const focusedNode = nodes.find((node) => node.id === focusedNodeId)
+    if (!focusedNode) return
 
     const timeout = window.setTimeout(() => {
-      flow.fitView({
-        padding: 0.2,
-        duration: 360,
-        maxZoom: 1.05
-      })
+      flow.setCenter(
+        focusedNode.position.x + NODE_SIZE / 2,
+        focusedNode.position.y + NODE_SIZE / 2,
+        {
+          duration: 360,
+          zoom: 0.95
+        }
+      )
     }, 50)
 
     return () => window.clearTimeout(timeout)
-  }, [flow, nodes.length])
+  }, [flow, focusedNodeId, nodes])
 
   return (
     <ReactFlow
@@ -1076,7 +1044,7 @@ function DebugRoundNode({ data }: NodeProps<DebugGraphNode>) {
         type="target"
         position={Position.Top}
         isConnectable={false}
-        style={{ opacity: 0, top: 6, pointerEvents: 'none' }}
+        style={{ opacity: 0, top: -10, pointerEvents: 'none' }}
       />
       <div
         className={`flex items-center justify-center rounded-full border text-center transition ${
@@ -1124,12 +1092,22 @@ function DebugRoundNode({ data }: NodeProps<DebugGraphNode>) {
         type="source"
         position={Position.Bottom}
         isConnectable={false}
-        style={{ opacity: 0, bottom: 38, pointerEvents: 'none' }}
+        style={{ opacity: 0, top: NODE_SIZE + 10, bottom: 'auto', pointerEvents: 'none' }}
       />
     </div>
   )
 }
 
+/**
+ * Return the latest displayable message attached to a flow node.
+ *
+ * Args:
+ *   node: Flow node being inspected.
+ *   latest: Most recent debug event associated with the node.
+ *
+ * Returns:
+ *   string | null
+ */
 function getNodeMessage(node: FlowNode, latest?: DebugLabEvent): string | null {
   if (node.stage === 'token') return null
 
@@ -1323,37 +1301,18 @@ function InfoLine({
   )
 }
 
-function StatusPill({
-  config
-}: {
-  /**
-   * Render the current stage pill with its configured color.
-   *
-   * Args:
-   *   config: Stage configuration for the current pipeline stage.
-   *
-   * Returns:
-   *   React.JSX.Element
-   */
-  config: {
-    label: string
-    icon: LucideIcon
-    color: string
-    bg: string
-  }
-}) {
-  const Icon = config.icon
-
-  return (
-    <div
-      className={`flex items-center gap-2 rounded-2xl border border-white/10 px-3 py-2 ${config.bg} ${config.color}`}
-    >
-      <Icon size={15} />
-      <span className="text-sm font-semibold">{config.label}</span>
-    </div>
-  )
-}
-
+/**
+ * Render a compact icon button used by debug lab actions.
+ *
+ * Args:
+ *   label: Accessible title and tooltip text.
+ *   disabled: Whether the button is inactive.
+ *   onClick: Action executed when the button is pressed.
+ *   children: Icon rendered inside the button.
+ *
+ * Returns:
+ *   React.JSX.Element
+ */
 function IconButton({
   label,
   disabled,
@@ -1362,18 +1321,6 @@ function IconButton({
 }: {
   label: string
   disabled?: boolean
-  /**
-   * Render a compact icon button used by debug lab actions.
-   *
-   * Args:
-   *   label: Accessible title and tooltip text.
-   *   disabled: Whether the button is inactive.
-   *   onClick: Action executed when the button is pressed.
-   *   children: Icon rendered inside the button.
-   *
-   * Returns:
-   *   React.JSX.Element
-   */
   onClick: () => void
   children: ReactNode
 }) {
@@ -1389,135 +1336,6 @@ function IconButton({
       <span className="sr-only">{label}</span>
     </button>
   )
-}
-
-/**
- * Render a JSON or text payload with structured formatting.
- *
- * Args:
- *   label: Payload label.
- *   value: Payload value to display.
- *   maxLength: Maximum text length before truncation.
- *
- * Returns:
- *   React.JSX.Element
- */
-function DataBlock({
-  label,
-  value,
-  maxLength = 1400
-}: {
-  label: string
-  value: unknown
-  maxLength?: number
-}) {
-  return (
-    <div className="overflow-hidden rounded-2xl border border-white/10 bg-black/25">
-      <div className="border-b border-white/10 px-3 py-2 text-[10px] uppercase tracking-[0.08em] text-slate-500">
-        {label}
-      </div>
-      <div className="max-h-72 overflow-auto p-3">
-        <StructuredValue value={parseMaybeJson(value)} maxLength={maxLength} />
-      </div>
-    </div>
-  )
-}
-
-/**
- * Render nested arrays and objects as a readable debug payload.
- *
- * Args:
- *   value: Value to render.
- *   depth: Current nesting depth.
- *   maxLength: Maximum text length for scalar previews.
- *
- * Returns:
- *   React.JSX.Element
- */
-function StructuredValue({
-  value,
-  depth = 0,
-  maxLength = 1400
-}: {
-  value: unknown
-  depth?: number
-  maxLength?: number
-}) {
-  const parsedValue = parseMaybeJson(value)
-
-  if (parsedValue === null || parsedValue === undefined) {
-    return <span className="text-xs text-slate-500">null</span>
-  }
-
-  if (typeof parsedValue === 'string') {
-    const trimmed =
-      parsedValue.length > maxLength ? `${parsedValue.slice(0, maxLength)}...` : parsedValue
-    return (
-      <pre className="whitespace-pre-wrap break-words text-xs leading-5 text-slate-200">
-        {trimmed}
-      </pre>
-    )
-  }
-
-  if (typeof parsedValue === 'number' || typeof parsedValue === 'boolean') {
-    return (
-      <span className="inline-flex rounded-full border border-cyan-300/15 bg-cyan-400/10 px-2 py-1 text-xs text-cyan-100">
-        {String(parsedValue)}
-      </span>
-    )
-  }
-
-  if (Array.isArray(parsedValue)) {
-    const items = parsedValue.slice(0, 14)
-
-    return (
-      <div className="space-y-2">
-        {items.map((item, index) => (
-          <div key={index} className="rounded-xl border border-white/10 bg-white/[0.035] p-2">
-            <div className="mb-1 text-[10px] uppercase text-slate-500">Item {index + 1}</div>
-            <StructuredValue value={item} depth={depth + 1} maxLength={maxLength} />
-          </div>
-        ))}
-        {parsedValue.length > items.length && (
-          <div className="text-xs text-slate-500">
-            +{parsedValue.length - items.length} elementos más
-          </div>
-        )}
-      </div>
-    )
-  }
-
-  if (typeof parsedValue === 'object') {
-    const entries = Object.entries(parsedValue as Record<string, unknown>)
-    const visibleEntries = entries.slice(0, depth > 2 ? 10 : 18)
-
-    return (
-      <div className="space-y-2">
-        {visibleEntries.map(([key, item]) => (
-          <div
-            key={key}
-            className="grid gap-2 rounded-xl border border-white/10 bg-white/[0.035] p-2 sm:grid-cols-[120px_minmax(0,1fr)]"
-          >
-            <div className="break-words text-[11px] font-semibold text-cyan-200">{key}</div>
-            <div className="min-w-0">
-              <StructuredValue
-                value={item}
-                depth={depth + 1}
-                maxLength={Math.max(260, maxLength - depth * 180)}
-              />
-            </div>
-          </div>
-        ))}
-        {entries.length > visibleEntries.length && (
-          <div className="text-xs text-slate-500">
-            +{entries.length - visibleEntries.length} campos más
-          </div>
-        )}
-      </div>
-    )
-  }
-
-  return <span className="text-xs text-slate-300">{String(parsedValue)}</span>
 }
 
 /**

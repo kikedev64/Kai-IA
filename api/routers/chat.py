@@ -327,7 +327,7 @@ def _ensure_chat_title(
     current_title = get_chat_title(chat_id)
     if current_title:
         if DEBUG_TOOLS:
-            logger.debug(f"[{request_id}] El chat ya tiene título: {current_title}")
+            logger.info(f"[{request_id}] El chat ya tiene título: {current_title}")
         return
 
     generated_title = None
@@ -341,20 +341,20 @@ def _ensure_chat_title(
             if len(generated_title) > 60:
                 generated_title = generated_title[:60].strip()
         if DEBUG_TOOLS:
-            logger.debug(f"[{request_id}] Título generado por LLM: {generated_title}")
+            logger.info(f"[{request_id}] Título generado por LLM: {generated_title}")
     except Exception:
         logger.exception("[%s] Error generando título con LLM", request_id)
 
     if not generated_title:
         generated_title = _fallback_title_from_user_input(user_input)
         if DEBUG_TOOLS:
-            logger.debug(f"[{request_id}] Usando título fallback: {generated_title}")
+            logger.info(f"[{request_id}] Usando título fallback: {generated_title}")
 
     update_chat_title(chat_id, generated_title)
 
     saved_title = get_chat_title(chat_id)
     if DEBUG_TOOLS:
-        logger.debug(f"[{request_id}] Título guardado en BD: {saved_title}")
+        logger.info(f"[{request_id}] Título guardado en BD: {saved_title}")
 
 
 @router.post("/start")
@@ -413,20 +413,20 @@ def chat_endpoint(
         messages += sanitized
 
         if DEBUG_TOOLS:
-            logger.debug(f"\n=== [{request_id}] CHAT START {start_ts} ===")
-            logger.debug(f"[{request_id}] chat_id: {chat_id}")
-            logger.debug(f"[{request_id}] USER: {user_input}")
-            logger.debug(f"[{request_id}] user_message_count: {user_message_count}")
-            logger.debug(f"[{request_id}] is_first_user_message: {is_first_user_message}")
+            logger.info(f"\n=== [{request_id}] CHAT START {start_ts} ===")
+            logger.info(f"[{request_id}] chat_id: {chat_id}")
+            logger.info(f"[{request_id}] USER: {user_input}")
+            logger.info(f"[{request_id}] user_message_count: {user_message_count}")
+            logger.info(f"[{request_id}] is_first_user_message: {is_first_user_message}")
 
         for step in range(MAX_TOOL_STEPS):
             msg = call_lm_studio(messages)
             tool_calls = getattr(msg, "tool_calls", None)
 
             if DEBUG_TOOLS:
-                logger.debug(f"\n[{request_id}] STEP {step} - MODEL MESSAGE")
-                logger.debug(f"[{request_id}] content: {repr(msg.content)}")
-                logger.debug(
+                logger.info(f"\n[{request_id}] STEP {step} - MODEL MESSAGE")
+                logger.info(f"[{request_id}] content: {repr(msg.content)}")
+                logger.info(
                     f"[{request_id}] tool_calls: {len(tool_calls) if tool_calls else 0}"
                 )
 
@@ -436,9 +436,9 @@ def chat_endpoint(
                 legacy_tc = extract_legacy_tool_call(content)
                 if legacy_tc:
                     if DEBUG_TOOLS:
-                        logger.debug(f"\n[{request_id}] LEGACY TOOL JSON DETECTED (content)")
-                        logger.debug(f"[{request_id}] legacy tool: {legacy_tc.get('name')}")
-                        logger.debug(
+                        logger.info(f"\n[{request_id}] LEGACY TOOL JSON DETECTED (content)")
+                        logger.info(f"[{request_id}] legacy tool: {legacy_tc.get('name')}")
+                        logger.info(
                             f"[{request_id}] legacy args: {json.dumps(legacy_tc.get('arguments'), ensure_ascii=False)}"
                         )
 
@@ -513,10 +513,10 @@ def chat_endpoint(
                         )
 
                     if DEBUG_TOOLS:
-                        logger.debug(
+                        logger.info(
                             f"\n[{request_id}] FINAL (after legacy tool exec): {final2}"
                         )
-                        logger.debug(f"=== [{request_id}] CHAT END ===\n")
+                        logger.info(f"=== [{request_id}] CHAT END ===\n")
 
                     return {"reply": final2, "chat_id": chat_id}
 
@@ -527,8 +527,8 @@ def chat_endpoint(
                     )
 
                 if DEBUG_TOOLS:
-                    logger.debug(f"\n[{request_id}] FINAL: {content}")
-                    logger.debug(f"=== [{request_id}] CHAT END ===\n")
+                    logger.info(f"\n[{request_id}] FINAL: {content}")
+                    logger.info(f"=== [{request_id}] CHAT END ===\n")
 
                 return {"reply": content, "chat_id": chat_id}
 
@@ -551,9 +551,9 @@ def chat_endpoint(
                 )
 
                 if DEBUG_TOOLS:
-                    logger.debug(f"\n[{request_id}] TOOL CALL -> {tc.function.name}")
-                    logger.debug(f"[{request_id}] tool_call_id: {tc.id}")
-                    logger.debug(f"[{request_id}] raw arguments: {tc.function.arguments}")
+                    logger.info(f"\n[{request_id}] TOOL CALL -> {tc.function.name}")
+                    logger.info(f"[{request_id}] tool_call_id: {tc.id}")
+                    logger.info(f"[{request_id}] raw arguments: {tc.function.arguments}")
 
             messages.append(assistant_payload)
 
@@ -561,9 +561,9 @@ def chat_endpoint(
                 result = handle_tool_call(tc)
 
                 if DEBUG_TOOLS:
-                    logger.debug(f"\n[{request_id}] TOOL RESULT <- {tc.function.name}")
-                    logger.debug(f"[{request_id}] tool_call_id: {tc.id}")
-                    logger.debug(
+                    logger.info(f"\n[{request_id}] TOOL RESULT <- {tc.function.name}")
+                    logger.info(f"[{request_id}] tool_call_id: {tc.id}")
+                    logger.info(
                         f"[{request_id}] result: {json.dumps(result, ensure_ascii=False, indent=2)}"
                     )
 
@@ -575,9 +575,9 @@ def chat_endpoint(
                     add_message(chat_id, "assistant", final_auth_reply)
 
                     if DEBUG_TOOLS:
-                        logger.debug(f"\n[{request_id}] AUTH EXPIRED DETECTED")
-                        logger.debug(f"[{request_id}] message: {final_auth_reply}")
-                        logger.debug(f"=== [{request_id}] CHAT END ===\n")
+                        logger.info(f"\n[{request_id}] AUTH EXPIRED DETECTED")
+                        logger.info(f"[{request_id}] message: {final_auth_reply}")
+                        logger.info(f"=== [{request_id}] CHAT END ===\n")
 
                     return {"reply": final_auth_reply, "chat_id": chat_id}
 
@@ -1041,13 +1041,13 @@ def assistant_chat_stream(req: ChatStreamRequest) -> StreamingResponse:
                 yield event
 
             if DEBUG_TOOLS:
-                logger.debug(f"\n=== [{request_id}] STREAM CHAT START ===")
-                logger.debug(f"[{request_id}] chat_id: {chat_id}")
-                logger.debug(f"[{request_id}] USER: {prompt}")
-                logger.debug(f"[{request_id}] limit_history: {limit_history}")
-                logger.debug(f"[{request_id}] profile_context: {bool(profile_context)}")
-                logger.debug(f"[{request_id}] use_tools: {use_tools}")
-                logger.debug(f"[{request_id}] messages_count: {len(messages)}")
+                logger.info(f"\n=== [{request_id}] STREAM CHAT START ===")
+                logger.info(f"[{request_id}] chat_id: {chat_id}")
+                logger.info(f"[{request_id}] USER: {prompt}")
+                logger.info(f"[{request_id}] limit_history: {limit_history}")
+                logger.info(f"[{request_id}] profile_context: {bool(profile_context)}")
+                logger.info(f"[{request_id}] use_tools: {use_tools}")
+                logger.info(f"[{request_id}] messages_count: {len(messages)}")
 
             executed_tool_results: list[tuple[str, dict]] = []
 
@@ -1112,9 +1112,9 @@ def assistant_chat_stream(req: ChatStreamRequest) -> StreamingResponse:
                     yield event
 
                 if DEBUG_TOOLS:
-                    logger.debug(f"\n[{request_id}] STEP {step} - MODEL MESSAGE")
-                    logger.debug(f"[{request_id}] content: {repr(content)}")
-                    logger.debug(f"[{request_id}] tool_calls: {len(tool_calls)}")
+                    logger.info(f"\n[{request_id}] STEP {step} - MODEL MESSAGE")
+                    logger.info(f"[{request_id}] content: {repr(content)}")
+                    logger.info(f"[{request_id}] tool_calls: {len(tool_calls)}")
 
                 if not tool_calls and content and not is_garbage_text(content):
                     if should_store_assistant_message(content):
@@ -1137,7 +1137,7 @@ def assistant_chat_stream(req: ChatStreamRequest) -> StreamingResponse:
                         final_text = clean_model_output(forced_final.content or "")
 
                         if DEBUG_TOOLS:
-                            logger.debug(
+                            logger.info(
                                 f"\n[{request_id}] FORCED FINAL AFTER TOOL CHAIN: {repr(final_text)}"
                             )
 
@@ -1222,8 +1222,8 @@ def assistant_chat_stream(req: ChatStreamRequest) -> StreamingResponse:
                         yield event
 
                     if DEBUG_TOOLS:
-                        logger.debug(f"\n[{request_id}] TOOL RESULT <- {tc.function.name}")
-                        logger.debug(
+                        logger.info(f"\n[{request_id}] TOOL RESULT <- {tc.function.name}")
+                        logger.info(
                             f"[{request_id}] result: {json.dumps(result, ensure_ascii=False)[:1500]}"
                         )
 
