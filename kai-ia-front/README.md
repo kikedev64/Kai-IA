@@ -1,7 +1,7 @@
 # Kai IA Frontend
 
 <p align="center">
-  <img src="../assets/icon.png" alt="Kai IA icon" width="120" />
+  <img src="../assets/logo.png" alt="Kai IA logo" width="120" />
 </p>
 
 <p align="center">
