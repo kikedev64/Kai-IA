@@ -1,0 +1,9 @@
+credentials.json
+token.json
+.venv
+*.pyc
+*.db
+node_modules/
+package-lock.json
+oauth_temp.json
+*.env

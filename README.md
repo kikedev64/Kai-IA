@@ -1,96 +1,168 @@
-<img src="LOGO.png" alt="Kai IA Logo" width="250"/>
+# Kai IA
 
-# Inteligencia Artificial Personal
+<p align="center">
+  <img src="assets/logo.png" alt="Kai IA logo" width="140" />
+</p>
 
-------------------------------------------------------------------------
+<p align="center">
+  <img alt="Project status" src="https://img.shields.io/badge/status-TFG%20prototype-2563eb" />
+  <img alt="Backend" src="https://img.shields.io/badge/backend-FastAPI-009688?logo=fastapi&logoColor=white" />
+  <img alt="Frontend" src="https://img.shields.io/badge/frontend-Electron%20%2B%20React-47848f?logo=electron&logoColor=white" />
+  <img alt="LLM" src="https://img.shields.io/badge/LLM-LM%20Studio-111827" />
+  <img alt="License" src="https://img.shields.io/badge/license-Apache%202.0-blue" />
+</p>
 
-## 🧠 Descripción
+Kai IA is a desktop assistant built as a Final Degree Project (TFG). It combines
+a FastAPI backend, an Electron/React desktop client, Google Workspace
+integrations and a local LLM runtime through LM Studio.
 
-**Kai IA** es un asistente personal inteligente basado en un LLM que integra múltiples servicios como:
+The project is designed around a practical assistant workflow: chat with a local
+model, use tools for Gmail, Calendar, Drive and Tasks, inspect execution traces
+with Debug Lab, and export benchmark reports with PDF and CSV data.
 
--   📧 Gmail
--   📅 Google Calendar
--   📂 Google Drive
--   (Ver en un futuro)
+> The logo stored in `assets/logo.png` was generated with AI and is used as the
+> visual identity of this academic prototype.
 
-El objetivo del proyecto es crear una **secretaria virtual autónoma** capaz de: 
-    - Gestionar correos 
-    - Organizar calendarios 
-    - Administrar archivos 
-    - Automatizar flujos de trabajo 
-    - Tomar decisiones basadas en contexto
+## Project Status
 
-------------------------------------------------------------------------
+Kai IA is an academic prototype focused on end-to-end integration and
+observability. The current implementation includes:
 
-## 🏗 Arquitectura
+- Desktop chat interface with persisted conversations.
+- FastAPI backend with routers grouped by domain.
+- Google OAuth flow for Gmail, Calendar, Drive and Tasks.
+- Local LLM calls through an OpenAI-compatible LM Studio endpoint.
+- Tool calling pipeline with structured debug events.
+- Debug Lab for execution visualization and report generation.
+- ZIP report export with PDF summary and CSV chart data.
 
-El sistema está compuesto por:
+## Repository Layout
 
-### 🔹 1. LLM
+| Path | Description |
+| --- | --- |
+| `main.py` | FastAPI application entrypoint. |
+| `api/` | API schemas and route modules. |
+| `api/routers/` | FastAPI router layer by domain. |
+| `core/` | Database, configuration, auth and shared models. |
+| `services/` | Google Workspace and application service logic. |
+| `tools/` | LLM tool definitions and execution handlers. |
+| `llm/` | LM Studio client integration. |
+| `kai-ia-front/` | Electron, React and TypeScript desktop app. |
+| `assets/` | Shared project images and branding assets. |
 
-Modelo de lenguaje que: 
+## Architecture
 
-    - Interpreta peticiones del usuario 
-    - Decide qué servicio utilizar 
-    - Genera respuestas estructuradas 
-    - Orquesta los microservicios
+```text
+Electron + React renderer
+        |
+        | HTTP / SSE / IPC
+        v
+FastAPI backend
+        |
+        | tool calls
+        v
+Services layer -> Gmail / Calendar / Drive / Tasks
+        |
+        | OpenAI-compatible API
+        v
+LM Studio local model
+```
 
-### 🔹 2. Backend (FastAPI)
+The desktop app owns the user experience. The backend owns orchestration,
+Google API access, tool execution, persistence and debug stream generation.
 
-El backend esta desarrollado en su totalidad con FastAPI junto con integraciones de Google Cloud para tratar distintas APIs para realizar servicios concretos
+## Requirements
 
-### 🔹 3. Integraciones
+| Area | Requirement |
+| --- | --- |
+| Operating system | Windows recommended for the current desktop workflow. |
+| Python | Python 3.11 or compatible environment. |
+| Node.js | Node.js and npm for the Electron frontend. |
+| LLM runtime | LM Studio with an OpenAI-compatible local server. |
+| Google APIs | OAuth credentials for Gmail, Calendar, Drive and Tasks. |
 
-Uso de: 
+## Quick Start
 
-    - Google OAuth2
-    - Google API Client
+### 1. Backend
 
-### 🔹 4. Frontend
+```powershell
+python -m venv .venv
+.\.venv\Scripts\activate
+pip install -r requirements.txt
+uvicorn main:app --reload --port 8000
+```
 
-(Aun por elegir)
+Expected backend base URL:
 
-------------------------------------------------------------------------
+```text
+http://127.0.0.1:8000
+```
 
-## ⚙️ Tecnologías Utilizadas
+### 2. Frontend
 
--   🐍 Python 3.11+
--   ⚡ FastAPI
--   🔗 Google APIs (Drive, Gmail, Calendar)
--   🧠 LLM local (Aun por seleccionar el más óptimo para el proyecto)
+```powershell
+cd kai-ia-front
+npm install
+npm run dev
+```
 
-------------------------------------------------------------------------
+### 3. LM Studio
 
-## 📌 Roadmap
--   ✅ Enviar y recibir correos electrónicos en Gmail
--   ✅ Extrar hilo de correos electrónicos completos.
--   ✅ Listar archivos de Drive
--   ✅ Descargar archivos por ID
--   ✅ Generar URL para descargas de ficheros de Drive
--   ✅ Subir ficheros a Drive 
--   ✅ Integración de Calendar
--   ✅ Leer, crear y modificar entradas de Calendar
--   ✅ Instanciar FastAPI para los Endpoints
--   ⏳ Probar todas las funcionalidades de los serivicios creados
--   ⏳ Crear los Endpoints para cada servicio
--   ⏳ Seleccionar el modelo LLM más óptimo para el contexto
--   ⏳ Seleccionar tecnologías Front, frameworks de CSS y similares
--   ⏳ Generar el front de forma intuitiva y facil de usar
--   ⏳ Pruebas y testing
--   ⏳ Maquetación y generación de Memoria
--   ⏳ Generación de manual de usuario
+Start the LM Studio local server and configure the backend to use its
+OpenAI-compatible base URL and API key.
 
+Common environment keys:
 
-------------------------------------------------------------------------
+```env
+BASE_URL_OPEN_AI=http://127.0.0.1:1234/v1
+API_KEY_OPEN_AI=lm-studio
+GOOGLE_REDIRECT_URI=http://127.0.0.1:8000/auth/google/callback
+```
 
-## 📄 Licencia
+## Documentation
 
-Este proyecto ha sido desarrollado como Trabajo Fin de Grado (TFG) en el Grado en Ingeniería Informática.
+- [Backend README](api/README.md)
+- [Router Reference](api/routers/README.md)
+- [Frontend README](kai-ia-front/README.md)
 
-El código fuente se proporciona exclusivamente con fines académicos y demostrativos. No se autoriza su uso comercial, distribución o modificación sin el consentimiento expreso del autor. Para solicitudes de uso, colaboración o licenciamiento, contactar directamente con el autor.
+## Core Capabilities
 
----
+| Capability | Description |
+| --- | --- |
+| Chat | Conversational interface backed by a local model. |
+| Gmail | Read, search, summarize and send email. |
+| Calendar | List events, create meetings and check availability. |
+| Drive | Search, upload, list, delete and publish files. |
+| Tasks | Create, update, list and delete Google Tasks. |
+| Debug Lab | Visualize backend execution stages and tool calls. |
+| Reports | Export PDF and CSV data for later analysis. |
 
-### 🎨 Recursos gráficos
+## Development Commands
 
-El logotipo principal (`LOGO.png`) y el icono del proyecto (`icon.png`) han sido creados mediante herramientas de inteligencia artificial generativa, y su uso queda limitado al contexto de este proyecto académico.
+| Command | Location | Purpose |
+| --- | --- | --- |
+| `uvicorn main:app --reload --port 8000` | repository root | Run the backend API. |
+| `npm run dev` | `kai-ia-front/` | Run the Electron app in development. |
+| `npm run typecheck` | `kai-ia-front/` | Validate TypeScript projects. |
+| `npm run build` | `kai-ia-front/` | Build the frontend output. |
+| `npm run build:win` | `kai-ia-front/` | Create a Windows desktop build. |
+
+## Security Notes
+
+This repository may use local OAuth files such as `credentials.json`,
+`token.json` and runtime configuration. Treat them as private secrets and avoid
+committing real credentials in public repositories.
+
+Kai IA also includes a settings toggle for direct service endpoint exposure.
+When disabled, optional HTTP routes for Calendar, Drive, Tasks and operational
+Gmail actions are hidden, while the chat workflow, settings, authentication and
+frontend email watcher remain available.
+
+## Copyright and License
+
+Copyright (c) 2026 Enrique Padilla Padilla.
+
+Licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE) for the
+full license text.
+
+The logo in `assets/logo.png` was generated with AI.
