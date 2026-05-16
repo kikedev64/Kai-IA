@@ -20,9 +20,6 @@ The project is designed around a practical assistant workflow: chat with a local
 model, use tools for Gmail, Calendar, Drive and Tasks, inspect execution traces
 with Debug Lab, and export benchmark reports with PDF and CSV data.
 
-> The logo stored in `assets/logo.png` was generated with AI and is used as the
-> visual identity of this academic prototype.
-
 ## Project Status
 
 Kai IA is an academic prototype focused on end-to-end integration and
@@ -35,6 +32,11 @@ observability. The current implementation includes:
 - Tool calling pipeline with structured debug events.
 - Debug Lab for execution visualization and report generation.
 - ZIP report export with PDF summary and CSV chart data.
+
+> In this context, end-to-end integration means that the project connects the
+> complete assistant workflow: desktop interface, backend orchestration, local
+> LLM runtime, Google Workspace services, tool execution, persistence and debug
+> reporting.
 
 ## Repository Layout
 
