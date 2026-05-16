@@ -1,4 +1,8 @@
 import { useState } from 'react'
+import {
+  isPlainObject,
+  parseProfileJsonReply
+} from '../../../../services/profile_json.service'
 
 type Props = {
   onNext?: () => void
@@ -26,20 +30,6 @@ const ProfileSetupSlide = ({ onNext, onPrev }: Props) => {
   const [loadingPreview, setLoadingPreview] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
-
-  /**
-   * Check that a parsed model response is a plain JSON object.
-   *
-   * Args:
-   *   value: Value returned by JSON parsing.
-   *
-   * Returns:
-   *   value is Record<string, unknown>
-   */
-  const isValidPlainObject = (value: unknown): value is Record<string, unknown> => {
-
-    return typeof value === 'object' && value !== null && !Array.isArray(value)
-  }
 
   /**
    * Generate and validate the JSON profile preview from the free-text profile.
@@ -83,18 +73,7 @@ const ProfileSetupSlide = ({ onNext, onPrev }: Props) => {
         throw new Error('La respuesta del backend no tiene un formato válido')
       }
 
-      let parsedJson: unknown
-
-      try {
-        parsedJson = JSON.parse(data.reply)
-      } catch {
-        throw new Error('El modelo no devolvió un JSON válido')
-      }
-
-      if (!isValidPlainObject(parsedJson)) {
-        throw new Error('El JSON devuelto debe ser un objeto válido')
-      }
-
+      const parsedJson = parseProfileJsonReply(data.reply)
       setPreviewJson(parsedJson)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error desconocido')
@@ -126,7 +105,7 @@ const ProfileSetupSlide = ({ onNext, onPrev }: Props) => {
         throw new Error('Primero genera una vista previa válida')
       }
 
-      if (!isValidPlainObject(previewJson)) {
+      if (!isPlainObject(previewJson)) {
         throw new Error('El JSON generado no es válido')
       }
 

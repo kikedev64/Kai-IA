@@ -691,7 +691,7 @@ function createBaseWindow(options?: Electron.BrowserWindowConstructorOptions): B
     height: 900,
     show: false,
     autoHideMenuBar: true,
-    ...(process.platform === 'linux' ? { icon } : {}),
+    icon,
     webPreferences: {
       preload: path.join(__dirname, '../preload/index.js'),
       sandbox: false
@@ -1181,6 +1181,7 @@ app.whenReady().then(() => {
         width: 540,
         height: 720,
         parent: parentWindow,
+        icon,
         modal: false,
         autoHideMenuBar: true,
         resizable: true,
