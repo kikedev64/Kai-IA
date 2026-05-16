@@ -43,7 +43,7 @@ tools, streams assistant responses and emits Debug Lab events for observability.
 ## Runtime Flow
 
 <p align="center">
-  <img src="assets/backend_runtime_flow_trans.png" alt="Kai IA backend runtime flow" />
+  <img src="../assets/backend_runtime_flow_trans.png" alt="Kai IA backend runtime flow" />
 </p>
 
 
