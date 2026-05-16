@@ -3,7 +3,7 @@ import logging
 import time
 import uuid
 from datetime import datetime, timezone, timedelta
-from typing import Any, Iterator
+from typing import Iterator
 
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import StreamingResponse
@@ -38,6 +38,7 @@ router = APIRouter(prefix="/assistant", tags=["Assistant"])
 logger = logging.getLogger("uvicorn")
 
 MAX_TOOL_STEPS = 12
+MAX_EMPTY_MODEL_RETRIES = 2
 
 
 class ChatStreamRequest(BaseModel):
@@ -64,344 +65,6 @@ GMAIL_CONTEXT_TOOLS = {
     "get_full_email",
 }
 
-TOOL_COMPLETION_GROUPS = {
-    "gmail": {
-        "read_last_emails_full",
-        "read_last_emails_from_sender",
-        "read_last_emails_by_subject",
-        "read_thread_from_message_id",
-        "get_full_email",
-        "reply_email",
-        "send_email",
-    },
-    "calendar": {
-        "create_calendar_event",
-        "list_calendar_events",
-        "update_calendar_event",
-        "delete_calendar_event",
-        "delete_calendar_event_by_query",
-        "find_calendar_events",
-        "delete_calendar_events_by_conditions",
-        "create_meet_invitation",
-    },
-    "calendar_availability": {
-        "freebusy_query",
-    },
-    "tasks": {
-        "find_reminders_by_conditions",
-        "list_reminders",
-        "create_reminder",
-        "update_reminder",
-        "delete_reminder",
-    },
-    "task_creation": {
-        "create_reminder",
-        "create_calendar_event",
-    },
-    "drive": {
-        "list_drive_files",
-        "search_drive_files_by_name",
-        "get_public_download_link",
-    },
-}
-
-SUCCESSFUL_WRITE_TOOLS = {
-    "create_calendar_event",
-    "update_calendar_event",
-    "delete_calendar_event",
-    "delete_calendar_event_by_query",
-    "delete_calendar_events_by_conditions",
-    "create_meet_invitation",
-    "reply_email",
-    "send_email",
-    "create_reminder",
-    "update_reminder",
-    "delete_reminder",
-}
-
-GMAIL_DEFAULT_MAX_RESULTS = 5
-GMAIL_HARD_MAX_RESULTS = 6
-GMAIL_CONTEXT_MAX_EMAILS = 6
-DRIVE_DEFAULT_MAX_RESULTS = 8
-DRIVE_HARD_MAX_RESULTS = 10
-
-EMAIL_RELEVANCE_KEYWORDS = (
-    "universidad",
-    "tfg",
-    "practicas",
-    "prácticas",
-    "entrevista",
-    "entrevistas",
-    "matricula",
-    "matrícula",
-    "becario",
-    "becaria",
-    "prueba",
-)
-
-
-class _PatchedToolFunction:
-    """Small adapter used to override noisy model-generated tool arguments."""
-
-    def __init__(self, name: str, arguments: dict[str, Any]) -> None:
-        self.name = name
-        self.arguments = json.dumps(arguments, ensure_ascii=False)
-
-
-class _PatchedToolCall:
-    """Adapter with the same shape expected by handle_tool_call."""
-
-    def __init__(self, original_tc: object, name: str, arguments: dict[str, Any]) -> None:
-        self.id = getattr(original_tc, "id", f"patched-{uuid.uuid4().hex[:8]}")
-        self.function = _PatchedToolFunction(name, arguments)
-
-
-def parse_tool_arguments_safely(raw_arguments: object) -> dict[str, Any]:
-    """Parse model tool arguments into a dictionary without raising."""
-
-    if isinstance(raw_arguments, dict):
-        return raw_arguments
-
-    if not isinstance(raw_arguments, str):
-        return {}
-
-    try:
-        parsed = json.loads(raw_arguments or "{}")
-    except Exception:
-        return {}
-
-    return parsed if isinstance(parsed, dict) else {}
-
-
-def clamp_int(value: object, default: int, minimum: int, maximum: int) -> int:
-    """Return value as an int clamped to a safe range."""
-
-    try:
-        parsed = int(value)
-    except Exception:
-        parsed = default
-
-    return max(minimum, min(parsed, maximum))
-
-
-def normalize_tool_call(tc: object) -> object:
-    """Normalize noisy or risky tool arguments before executing a tool."""
-
-    name = tc.function.name
-    args = parse_tool_arguments_safely(tc.function.arguments)
-
-    if name in {
-        "read_last_emails_full",
-        "read_last_emails_from_sender",
-        "read_last_emails_by_subject",
-    }:
-        args["max_results"] = clamp_int(
-            args.get("max_results"),
-            default=GMAIL_DEFAULT_MAX_RESULTS,
-            minimum=1,
-            maximum=GMAIL_HARD_MAX_RESULTS,
-        )
-
-    if name in {"list_drive_files", "search_drive_files_by_name"}:
-        args["max_results"] = clamp_int(
-            args.get("max_results"),
-            default=DRIVE_DEFAULT_MAX_RESULTS,
-            minimum=1,
-            maximum=DRIVE_HARD_MAX_RESULTS,
-        )
-
-    return _PatchedToolCall(tc, name, args)
-
-
-def filter_gmail_result_for_prompt(result: dict, prompt: str) -> dict:
-    """Reduce Gmail noise before returning the result to the model context."""
-
-    if not isinstance(result, dict) or result.get("status") != "success":
-        return result
-
-    data = result.get("data")
-    if not isinstance(data, dict):
-        return result
-
-    emails = data.get("emails")
-    if not isinstance(emails, list):
-        return result
-
-    prompt_text = (prompt or "").lower()
-    active_keywords = [
-        keyword for keyword in EMAIL_RELEVANCE_KEYWORDS if keyword in prompt_text
-    ]
-    if not active_keywords:
-        active_keywords = list(EMAIL_RELEVANCE_KEYWORDS)
-
-    relevant_emails: list[dict] = []
-    for email in emails:
-        if not isinstance(email, dict):
-            continue
-
-        searchable_text = " ".join(
-            str(email.get(field, "")) for field in ("sender", "subject", "snippet")
-        ).lower()
-
-        if any(keyword in searchable_text for keyword in active_keywords):
-            relevant_emails.append(email)
-
-    selected_emails = relevant_emails[:GMAIL_CONTEXT_MAX_EMAILS]
-    if not selected_emails:
-        selected_emails = [
-            email for email in emails[:GMAIL_CONTEXT_MAX_EMAILS] if isinstance(email, dict)
-        ]
-
-    filtered_result = dict(result)
-    filtered_data = dict(data)
-    filtered_data["emails"] = selected_emails
-    filtered_data["count"] = len(selected_emails)
-    filtered_data["original_count"] = len(emails)
-    filtered_data["filtered_by_backend"] = True
-
-    filtered_result["data"] = filtered_data
-    return filtered_result
-
-
-def filter_tool_result_for_prompt(tool_name: str, result: dict, prompt: str) -> dict:
-    """Filter noisy tool results before appending them to the LLM context."""
-
-    if tool_name in {
-        "read_last_emails_full",
-        "read_last_emails_from_sender",
-        "read_last_emails_by_subject",
-    }:
-        return filter_gmail_result_for_prompt(result, prompt)
-
-    return result
-
-
-def has_successful_write_tool(tool_results: list[tuple[str, dict]]) -> bool:
-    """Return whether a write tool has already completed successfully."""
-
-    for name, result in tool_results:
-        if name not in SUCCESSFUL_WRITE_TOOLS:
-            continue
-        if isinstance(result, dict) and result.get("status") == "success":
-            return True
-
-    return False
-
-
-def required_tool_groups_for_prompt(prompt: str) -> set[str]:
-    """Infer which tool groups are required by a compound user request.
-
-    Args:
-        prompt: User message sent to the assistant.
-
-    Returns:
-        set[str]
-    """
-    text = (prompt or "").lower()
-    required: set[str] = set()
-
-    if any(word in text for word in ("gmail", "correo", "correos", "email", "emails")):
-        required.add("gmail")
-
-    if any(word in text for word in ("hueco", "huecos", "libre", "libres")):
-        required.add("calendar_availability")
-    elif "calendario" in text:
-        required.add("calendar")
-
-    wants_task_creation = any(word in text for word in ("crea", "crear", "creame", "créame"))
-    if wants_task_creation and any(word in text for word in ("tarea", "recordatorio", "reminder")):
-        required.add("task_creation")
-    elif any(word in text for word in ("tarea", "recordatorio", "reminder")):
-        required.add("tasks")
-
-    if any(word in text for word in ("drive", "archivo", "archivos", "documento", "documentos")):
-        required.add("drive")
-
-    return required
-
-
-def completed_tool_groups(tool_results: list[tuple[str, dict]]) -> set[str]:
-    """Return the tool groups already covered by executed tools.
-
-    Args:
-        tool_results: Tool results collected during the assistant flow.
-
-    Returns:
-        set[str]
-    """
-    tool_names = {name for name, _result in tool_results}
-
-    return {
-        group
-        for group, names in TOOL_COMPLETION_GROUPS.items()
-        if tool_names.intersection(names)
-    }
-
-
-def missing_required_tool_groups(
-    prompt: str, tool_results: list[tuple[str, dict]]
-) -> set[str]:
-    """Return required tool groups that still have no executed tool.
-
-    Args:
-        prompt: User message sent to the assistant.
-        tool_results: Tool results collected during the assistant flow.
-
-    Returns:
-        set[str]
-    """
-    return required_tool_groups_for_prompt(prompt) - completed_tool_groups(tool_results)
-
-
-def continue_pending_tool_groups_message(missing_groups: set[str]) -> dict:
-    """Build a system message that prevents premature final answers."""
-
-    labels = {
-        "gmail": "Gmail",
-        "calendar": "calendario",
-        "calendar_availability": "disponibilidad del calendario",
-        "tasks": "tareas",
-        "task_creation": "creación de tarea",
-        "drive": "Drive",
-    }
-    missing = ", ".join(labels[group] for group in sorted(missing_groups))
-
-    instructions: list[str] = []
-    for group in sorted(missing_groups):
-        if group == "calendar_availability":
-            instructions.append(
-                "para comprobar disponibilidad usa `freebusy_query` con un rango RFC3339"
-            )
-        elif group == "drive":
-            instructions.append(
-                "para buscar documentos usa `search_drive_files_by_name` con palabras clave"
-            )
-        elif group == "task_creation":
-            instructions.append(
-                "para crear el bloque pedido usa `create_calendar_event`; para recordatorios usa `create_reminder`"
-            )
-        elif group == "tasks":
-            instructions.append("para revisar tareas usa `list_reminders`")
-        elif group == "calendar":
-            instructions.append("para revisar calendario usa `list_calendar_events` o `find_calendar_events`")
-        elif group == "gmail":
-            instructions.append("para correos usa `read_last_emails_full` con pocos resultados")
-
-    hints = "\n- ".join(instructions)
-
-    return {
-        "role": "system",
-        "content": (
-            "La respuesta anterior es incompleta para la petición del usuario. "
-            f"Faltan herramientas por ejecutar: {missing}. "
-            "No des una respuesta final todavía. Continúa llamando a las tools necesarias. "
-            "No repitas una tool que ya haya devuelto información suficiente. "
-            "Si una herramienta devuelve 0 resultados, continúa con las demás. "
-            "Al final resume cada herramienta usada y su resultado."
-            "\n\nSugerencias concretas de tools:\n- "
-            f"{hints}"
-        ),
-    }
 
 def should_enable_tools(prompt: str) -> bool:
     """Decide whether to enable tools.
@@ -559,6 +222,31 @@ def should_store_assistant_message(text: str) -> bool:
     return True
 
 
+def is_garbage_text(text: str) -> bool:
+    """Check whether model text is unusable as a user-facing answer.
+
+    Args:
+        text: Model output text.
+
+    Returns:
+        bool
+    """
+    if not text:
+        return False
+
+    stripped = text.strip()
+    if not stripped:
+        return False
+
+    if set(stripped) == {"?"}:
+        return True
+
+    if stripped.startswith("<|start|>assistant<|channel|>commentary"):
+        return True
+
+    return False
+
+
 def post_tool_instruction_message(user_input: str) -> dict:
     """Build the instruction message used after a tool call.
 
@@ -624,6 +312,96 @@ def build_gmail_context_message(tool_name: str, result: dict) -> dict | None:
             "Si el usuario preguntó por correos, responde basándote en este bloque sin pedir pasos extra.\n"
         ),
     }
+
+
+def continue_after_empty_message(user_input: str) -> dict:
+    """Build a generic continuation instruction after an empty model response.
+
+    Args:
+        user_input: Original user request.
+
+    Returns:
+        dict
+    """
+    compact = " ".join((user_input or "").strip().split())
+    if len(compact) > 500:
+        compact = compact[:500].rstrip() + "..."
+
+    return {
+        "role": "system",
+        "content": (
+            "La respuesta anterior del modelo vino vacia. Esto no es valido.\n"
+            f"Peticion original del usuario: {compact}\n"
+            "Si todavia quedan acciones por ejecutar, continua llamando a las tools "
+            "necesarias segun la peticion original. Si ya terminaste todas las acciones, "
+            "responde ahora con un informe final claro. No devuelvas contenido vacio."
+        ),
+    }
+
+
+def final_after_tools_message(user_input: str) -> dict:
+    """Build a generic final-response instruction after tool execution.
+
+    Args:
+        user_input: Original user request.
+
+    Returns:
+        dict
+    """
+    compact = " ".join((user_input or "").strip().split())
+    if len(compact) > 500:
+        compact = compact[:500].rstrip() + "..."
+
+    return {
+        "role": "system",
+        "content": (
+            "Genera la respuesta final para el usuario usando solo la peticion original "
+            "y los resultados de tools ya presentes en el contexto.\n"
+            f"Peticion original: {compact}\n"
+            "No llames mas tools en esta respuesta. No devuelvas contenido vacio. "
+            "Si alguna parte no pudo completarse, dilo brevemente y continua con lo demas."
+        ),
+    }
+
+
+def fallback_text_from_tool_results(tool_results: list[tuple[str, dict]]) -> str:
+    """Build a final fallback response from executed tool results.
+
+    Args:
+        tool_results: Tool results collected during the assistant flow.
+
+    Returns:
+        str
+    """
+    if not tool_results:
+        return "No he podido generar una respuesta valida."
+
+    lines = ["He ejecutado herramientas, pero el modelo no devolvio una respuesta final valida."]
+    lines.append("")
+    lines.append("Resumen de tools ejecutadas:")
+
+    for tool_name, result in tool_results:
+        status = result.get("status") if isinstance(result, dict) else None
+        data = result.get("data") if isinstance(result, dict) else None
+        detail = ""
+
+        if isinstance(data, dict):
+            if "count" in data:
+                detail = f" con {data.get('count')} resultado(s)"
+            elif "summary" in data:
+                detail = f": {data.get('summary')}"
+            elif "id" in data:
+                detail = f": {data.get('id')}"
+
+        lines.append(f"- {tool_name}: {status or 'sin estado'}{detail}.")
+
+    lines.append("")
+    lines.append(
+        "No devuelvo una respuesta vacia para no dejar el flujo colgado. "
+        "Revisa el Debug Lab o los logs para ver el detalle completo de cada resultado."
+    )
+
+    return "\n".join(lines)
 
 
 def _fallback_title_from_user_input(user_input: str) -> str:
@@ -761,6 +539,7 @@ def chat_endpoint(
             logger.info(f"[{request_id}] is_first_user_message: {is_first_user_message}")
 
         executed_tool_results: list[tuple[str, dict]] = []
+        empty_model_retries = 0
 
         for step in range(MAX_TOOL_STEPS):
             msg = call_lm_studio(messages)
@@ -863,26 +642,19 @@ def chat_endpoint(
 
                     return {"reply": final2, "chat_id": chat_id}
 
-                missing_groups = missing_required_tool_groups(
-                    user_input, executed_tool_results
-                )
-                if missing_groups and not (
-                    executed_tool_results and has_successful_write_tool(executed_tool_results)
-                ):
-                    if step >= 2:
-                        if should_store_assistant_message(content):
-                            add_message(chat_id, "assistant", content)
-                            _ensure_chat_title(
-                                chat_id, user_input, is_first_user_message, request_id
-                            )
-                        if DEBUG_TOOLS:
-                            logger.info(f"\n[{request_id}] FORCED FINAL: {content}")
-                            logger.info(f"=== [{request_id}] CHAT END ===\n")
-                        return {"reply": content, "chat_id": chat_id}
+                if not content or is_garbage_text(content):
+                    if executed_tool_results and empty_model_retries < MAX_EMPTY_MODEL_RETRIES:
+                        empty_model_retries += 1
+                        messages.append(continue_after_empty_message(user_input))
+                        continue
 
-                    messages.append({"role": "assistant", "content": content})
-                    messages.append(continue_pending_tool_groups_message(missing_groups))
-                    continue
+                    if executed_tool_results:
+                        messages.append(final_after_tools_message(user_input))
+                        forced_final = call_lm_studio(messages, use_tools=False)
+                        content = clean_model_output(forced_final.content or "")
+
+                    if not content or is_garbage_text(content):
+                        content = fallback_text_from_tool_results(executed_tool_results)
 
                 if should_store_assistant_message(content):
                     add_message(chat_id, "assistant", content)
@@ -921,10 +693,10 @@ def chat_endpoint(
 
             messages.append(assistant_payload)
 
+            empty_model_retries = 0
+
             for tc in tool_calls:
-                tc = normalize_tool_call(tc)
                 result = handle_tool_call(tc)
-                result = filter_tool_result_for_prompt(tc.function.name, result, user_input)
                 executed_tool_results.append((tc.function.name, result))
 
                 if DEBUG_TOOLS:
@@ -963,6 +735,12 @@ def chat_endpoint(
                     messages.append(gmail_context_msg)
 
                 messages.append(post_tool_instruction_message(user_input))
+
+        if executed_tool_results:
+            fallback_reply = fallback_text_from_tool_results(executed_tool_results)
+            add_message(chat_id, "assistant", fallback_reply)
+            _ensure_chat_title(chat_id, user_input, is_first_user_message, request_id)
+            return {"reply": fallback_reply, "chat_id": chat_id}
 
         raise HTTPException(
             status_code=500,
@@ -1410,6 +1188,7 @@ def assistant_chat_stream(req: ChatStreamRequest) -> StreamingResponse:
                 logger.info(f"[{request_id}] messages_count: {len(messages)}")
 
             executed_tool_results: list[tuple[str, dict]] = []
+            empty_model_retries = 0
 
             for step in range(MAX_TOOL_STEPS):
                 event = debug_event(
@@ -1477,33 +1256,6 @@ def assistant_chat_stream(req: ChatStreamRequest) -> StreamingResponse:
                     logger.info(f"[{request_id}] tool_calls: {len(tool_calls)}")
 
                 if not tool_calls and content and not is_garbage_text(content):
-                    missing_groups = missing_required_tool_groups(
-                        prompt, executed_tool_results
-                    )
-                    if missing_groups and not (
-                        executed_tool_results
-                        and has_successful_write_tool(executed_tool_results)
-                    ):
-                        if step >= 2:
-                            if should_store_assistant_message(content):
-                                add_message(chat_id, "assistant", content)
-                            _ensure_chat_title(
-                                chat_id,
-                                prompt,
-                                is_first_user_message,
-                                request_id,
-                            )
-                            yield from stream_text(content)
-                            yield done_event()
-                            return
-
-                        messages.append({"role": "assistant", "content": content})
-                        messages.append(
-                            continue_pending_tool_groups_message(missing_groups)
-                        )
-                        use_tools = True
-                        continue
-
                     if should_store_assistant_message(content):
                         add_message(chat_id, "assistant", content)
 
@@ -1520,32 +1272,13 @@ def assistant_chat_stream(req: ChatStreamRequest) -> StreamingResponse:
 
                 if not tool_calls:
                     if executed_tool_results:
-                        missing_groups = missing_required_tool_groups(
-                            prompt, executed_tool_results
-                        )
-                        if missing_groups and not has_successful_write_tool(
-                            executed_tool_results
-                        ):
-                            if step >= 2:
-                                final_text = fallback_text_from_tool_results(executed_tool_results)
-                                if should_store_assistant_message(final_text):
-                                    add_message(chat_id, "assistant", final_text)
-                                _ensure_chat_title(
-                                    chat_id,
-                                    prompt,
-                                    is_first_user_message,
-                                    request_id,
-                                )
-                                yield from stream_text(final_text)
-                                yield done_event()
-                                return
-
-                            messages.append(
-                                continue_pending_tool_groups_message(missing_groups)
-                            )
+                        if empty_model_retries < MAX_EMPTY_MODEL_RETRIES:
+                            empty_model_retries += 1
+                            messages.append(continue_after_empty_message(prompt))
                             use_tools = True
                             continue
 
+                        messages.append(final_after_tools_message(prompt))
                         forced_final = call_lm_studio(messages, use_tools=False)
                         final_text = clean_model_output(forced_final.content or "")
 
@@ -1616,10 +1349,9 @@ def assistant_chat_stream(req: ChatStreamRequest) -> StreamingResponse:
                     if event:
                         yield event
 
-                    tc = normalize_tool_call(tc)
+                    empty_model_retries = 0
                     tool_started_at = time.perf_counter()
                     result = handle_tool_call(tc)
-                    result = filter_tool_result_for_prompt(tc.function.name, result, prompt)
                     tool_ms = round((time.perf_counter() - tool_started_at) * 1000, 2)
                     executed_tool_results.append((tc.function.name, result))
                     event = debug_event(
@@ -1675,9 +1407,21 @@ def assistant_chat_stream(req: ChatStreamRequest) -> StreamingResponse:
                 messages.append(post_tool_instruction_message(prompt))
 
                 use_tools = True
+            if executed_tool_results:
+                final_text = fallback_text_from_tool_results(executed_tool_results)
+                if should_store_assistant_message(final_text):
+                    add_message(chat_id, "assistant", final_text)
+                _ensure_chat_title(
+                    chat_id,
+                    prompt,
+                    is_first_user_message,
+                    request_id,
+                )
+                yield from stream_text(final_text)
+                yield done_event()
+                return
 
-            yield error_event("Se alcanzó el máximo de tool steps")
-
+            yield error_event("Se alcanzo el maximo de tool steps")
         except Exception as e:
             logger.exception("[%s] ERROR EN /chat/stream", request_id)
             yield error_event(str(e))
