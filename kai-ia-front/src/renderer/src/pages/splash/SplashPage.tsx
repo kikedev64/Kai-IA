@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { AlertTriangle, CheckCircle2, Loader2, RotateCcw, X } from 'lucide-react'
-import logo from '../../assets/logo.png'
+import icon from '../../assets/icon.png'
 import { loadInitialChatBootstrap } from '../../services/assistant.services'
 import { useChatBootstrap } from '../../context/chat-bootstrap.context'
 
@@ -183,7 +183,7 @@ export default function SplashPage(): React.JSX.Element {
             <div className="absolute inset-0 rounded-[24px] bg-cyan-400/10 blur-xl" />
             <div className="relative flex h-[88px] w-[88px] items-center justify-center rounded-[24px] bg-white/[0.08] ring-1 ring-white/10 backdrop-blur-2xl">
               <img
-                src={logo}
+                src={icon}
                 alt="Kai IA"
                 className="h-[52px] w-[52px] object-contain drop-shadow-[0_0_20px_rgba(34,211,238,0.18)]"
               />

@@ -1,5 +1,5 @@
-appId: com.electron.app
-productName: kai-ia-front
+appId: com.kai.ia
+productName: Kai IA
 directories:
   buildResources: build
 files:
@@ -12,7 +12,7 @@ files:
 asarUnpack:
   - resources/**
 win:
-  executableName: kai-ia-front
+  executableName: kai-ia
 nsis:
   artifactName: ${name}-${version}-setup.${ext}
   shortcutName: ${productName}
@@ -33,11 +33,11 @@ linux:
     - AppImage
     - snap
     - deb
-  maintainer: electronjs.org
+  maintainer: Enrique Padilla Padilla
   category: Utility
 appImage:
   artifactName: ${name}-${version}.${ext}
 npmRebuild: false
 publish:
   provider: generic
-  url: https://example.com/auto-updates
+  url: https://github.com/kikedev64/Kai-IA/releases

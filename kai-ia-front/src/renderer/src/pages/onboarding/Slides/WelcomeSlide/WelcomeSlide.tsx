@@ -1,4 +1,4 @@
-import logo from '../../../../assets/LOGO.png'
+import icon from '../../../../assets/icon.png'
 
 type Props  = {
   onNext?: () => void
@@ -19,8 +19,8 @@ const WelcomeSlide = ({onNext}:Props) => {
     <section className="flex min-h-screen w-full items-center justify-center bg-slate-950 px-6 text-white">
       <div className="mx-auto flex max-w-3xl flex-col items-center text-center">
         <img
-          src={logo}
-          alt="Logo de Kai IA"
+          src={icon}
+          alt="Icono de Kai IA"
           className="mb-8 w-24 md:w-55"
         />
 
