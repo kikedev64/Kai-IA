@@ -52,21 +52,9 @@ observability. The current implementation includes:
 
 ## Architecture
 
-```text
-Electron + React renderer
-        |
-        | HTTP / SSE / IPC
-        v
-FastAPI backend
-        |
-        | tool calls
-        v
-Services layer -> Gmail / Calendar / Drive / Tasks
-        |
-        | OpenAI-compatible API
-        v
-LM Studio local model
-```
+<p align="center">
+  <img src="assets/main_architecture.png" alt="Kai IA main architecture" />
+</p>
 
 The desktop app owns the user experience. The backend owns orchestration,
 Google API access, tool execution, persistence and debug stream generation.
@@ -75,11 +63,16 @@ Google API access, tool execution, persistence and debug stream generation.
 
 | Area | Requirement |
 | --- | --- |
-| Operating system | Windows recommended for the current desktop workflow. |
-| Python | Python 3.11 or compatible environment. |
-| Node.js | Node.js and npm for the Electron frontend. |
-| LLM runtime | LM Studio with an OpenAI-compatible local server. |
+| Operating system | Windows 11 Profesional 25H2. |
+| Python | Python 3.11.9 or compatible environment. |
+| Node.js | Node.js v22.18.0 and npm for the Electron frontend. |
+| Electron | Electron ^39.2.6. |
+| LLM runtime | LM Studio 0.4.13 with an OpenAI-compatible local server. |
 | Google APIs | OAuth credentials for Gmail, Calendar, Drive and Tasks. |
+
+> These requirements describe the environment used to create and test this
+> project. Kai IA may be compatible with other operating systems or software
+> versions, but those combinations have not been tested.
 
 ## Quick Start
 
