@@ -15,15 +15,6 @@ The backend is the orchestration layer for Kai IA. It exposes the FastAPI
 application, manages Google OAuth and service calls, stores chat data, executes
 tools, streams assistant responses and emits Debug Lab events for observability.
 
-> The project logo was generated with AI and is referenced from
-> `../assets/logo.png`.
-
-## Preview
-
-| API Docs | Debug Stream | Tool Reports |
-| --- | --- | --- |
-| ![API docs](../assets/screenshots/api-docs.png) | ![Debug stream](../assets/screenshots/debug-stream.png) | ![Tool report](../assets/screenshots/tool-report.png) |
-
 ## Responsibilities
 
 - Serve the HTTP API used by the Electron frontend.
@@ -48,22 +39,10 @@ tools, streams assistant responses and emits Debug Lab events for observability.
 
 ## Runtime Flow
 
-```text
-Frontend request
-      |
-      v
-FastAPI router
-      |
-      v
-Service or assistant orchestration
-      |
-      +--> Google Workspace APIs
-      +--> LM Studio
-      +--> Tool handlers
-      |
-      v
-JSON response or Server-Sent Events stream
-```
+<p align="center">
+  <img src="../assets/backend_runtime_flow_trans.png" alt="Kai IA backend runtime flow" />
+</p>
+
 
 ## Installation
 
@@ -77,7 +56,7 @@ pip install -r requirements.txt
 
 ## Configuration
 
-Create a local `.env` file in the repository root. Typical values are:
+Create a local `.env` file in the root of the repository with the following values:
 
 ```env
 BASE_URL_OPEN_AI=http://127.0.0.1:1234/v1
@@ -138,18 +117,6 @@ The assistant stream emits structured events for:
 
 The frontend consumes these events to draw the Debug Lab flow and generate PDF
 and CSV reports.
-
-## Quality Checks
-
-Recommended checks before delivery:
-
-```powershell
-python -m compileall api core services tools llm
-uvicorn main:app --reload --port 8000
-```
-
-Run these checks from the active virtual environment when using a project-local
-Python installation.
 
 ## Copyright and License
 

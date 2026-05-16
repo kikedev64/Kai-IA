@@ -20,9 +20,6 @@ The project is designed around a practical assistant workflow: chat with a local
 model, use tools for Gmail, Calendar, Drive and Tasks, inspect execution traces
 with Debug Lab, and export benchmark reports with PDF and CSV data.
 
-> The logo stored in `assets/logo.png` was generated with AI and is used as the
-> visual identity of this academic prototype.
-
 ## Project Status
 
 Kai IA is an academic prototype focused on end-to-end integration and
@@ -35,6 +32,11 @@ observability. The current implementation includes:
 - Tool calling pipeline with structured debug events.
 - Debug Lab for execution visualization and report generation.
 - ZIP report export with PDF summary and CSV chart data.
+
+> In this context, end-to-end integration means that the project connects the
+> complete assistant workflow: desktop interface, backend orchestration, local
+> LLM runtime, Google Workspace services, tool execution, persistence and debug
+> reporting.
 
 ## Repository Layout
 
@@ -52,21 +54,9 @@ observability. The current implementation includes:
 
 ## Architecture
 
-```text
-Electron + React renderer
-        |
-        | HTTP / SSE / IPC
-        v
-FastAPI backend
-        |
-        | tool calls
-        v
-Services layer -> Gmail / Calendar / Drive / Tasks
-        |
-        | OpenAI-compatible API
-        v
-LM Studio local model
-```
+<p align="center">
+  <img src="assets/main_architecture_trans.png" alt="Kai IA main architecture" />
+</p>
 
 The desktop app owns the user experience. The backend owns orchestration,
 Google API access, tool execution, persistence and debug stream generation.
@@ -75,11 +65,16 @@ Google API access, tool execution, persistence and debug stream generation.
 
 | Area | Requirement |
 | --- | --- |
-| Operating system | Windows recommended for the current desktop workflow. |
-| Python | Python 3.11 or compatible environment. |
-| Node.js | Node.js and npm for the Electron frontend. |
-| LLM runtime | LM Studio with an OpenAI-compatible local server. |
+| Operating system | Windows 11 Profesional 25H2. |
+| Python | Python 3.11.9 or compatible environment. |
+| Node.js | Node.js v22.18.0 and npm for the Electron frontend. |
+| Electron | Electron ^39.2.6. |
+| LLM runtime | LM Studio 0.4.13 with an OpenAI-compatible local server. |
 | Google APIs | OAuth credentials for Gmail, Calendar, Drive and Tasks. |
+
+> These requirements describe the environment used to create and test this
+> project. Kai IA may be compatible with other operating systems or software
+> versions, but those combinations have not been tested.
 
 ## Quick Start
 

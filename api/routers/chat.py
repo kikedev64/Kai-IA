@@ -61,6 +61,7 @@ GMAIL_CONTEXT_TOOLS = {
     "read_last_emails_from_sender",
     "read_last_emails_by_subject",
     "read_thread_from_message_id",
+    "get_full_email",
 }
 
 TOOL_COMPLETION_GROUPS = {
@@ -70,28 +71,57 @@ TOOL_COMPLETION_GROUPS = {
         "read_last_emails_by_subject",
         "read_thread_from_message_id",
         "get_full_email",
+        "reply_email",
+        "send_email",
     },
+
     "calendar": {
+        "create_calendar_event",
         "list_calendar_events",
+        "update_calendar_event",
+        "delete_calendar_event",
+        "delete_calendar_event_by_query",
         "find_calendar_events",
+        "delete_calendar_events_by_conditions",
+        "create_meet_invitation",
     },
+
     "calendar_availability": {
         "freebusy_query",
     },
+
     "tasks": {
+        "find_reminders_by_conditions",
+        "list_reminders",
+        "create_reminder",
         "update_reminder",
         "delete_reminder",
-        "list_reminders",
-        "find_reminders_by_conditions",
     },
+
     "task_creation": {
         "create_reminder",
+        "create_calendar_event",
     },
+
     "drive": {
         "list_drive_files",
         "search_drive_files_by_name",
         "get_public_download_link",
     },
+}
+
+SUCCESSFUL_WRITE_TOOLS = {
+    "create_calendar_event",
+    "update_calendar_event",
+    "delete_calendar_event",
+    "delete_calendar_event_by_query",
+    "delete_calendar_events_by_conditions",
+    "create_meet_invitation",
+    "reply_email",
+    "send_email",
+    "create_reminder",
+    "update_reminder",
+    "delete_reminder",
 }
 
 
@@ -158,6 +188,24 @@ def missing_required_tool_groups(
         set[str]
     """
     return required_tool_groups_for_prompt(prompt) - completed_tool_groups(tool_results)
+
+
+def has_successful_write_tool(tool_results: list[tuple[str, dict]]) -> bool:
+    """Return whether a write tool has already completed successfully.
+
+    Args:
+        tool_results: Tool results collected during the assistant flow.
+
+    Returns:
+        bool
+    """
+    for name, result in tool_results:
+        if name not in SUCCESSFUL_WRITE_TOOLS:
+            continue
+        if isinstance(result, dict) and result.get("status") == "success":
+            return True
+
+    return False
 
 
 def continue_pending_tool_groups_message(missing_groups: set[str]) -> dict:
@@ -653,7 +701,13 @@ def chat_endpoint(
                 missing_groups = missing_required_tool_groups(
                     user_input, executed_tool_results
                 )
-                if missing_groups:
+                if missing_groups and not (
+                    executed_tool_results and has_successful_write_tool(executed_tool_results)
+                ):
+                    if DEBUG_TOOLS:
+                        logger.info(
+                            f"[{request_id}] pending tool groups before final: {sorted(missing_groups)}"
+                        )
                     messages.append({"role": "assistant", "content": content})
                     messages.append(continue_pending_tool_groups_message(missing_groups))
                     continue
@@ -1253,7 +1307,14 @@ def assistant_chat_stream(req: ChatStreamRequest) -> StreamingResponse:
                     missing_groups = missing_required_tool_groups(
                         prompt, executed_tool_results
                     )
-                    if missing_groups:
+                    if missing_groups and not (
+                        executed_tool_results
+                        and has_successful_write_tool(executed_tool_results)
+                    ):
+                        if DEBUG_TOOLS:
+                            logger.info(
+                                f"[{request_id}] pending tool groups before final: {sorted(missing_groups)}"
+                            )
                         messages.append({"role": "assistant", "content": content})
                         messages.append(
                             continue_pending_tool_groups_message(missing_groups)
@@ -1280,7 +1341,13 @@ def assistant_chat_stream(req: ChatStreamRequest) -> StreamingResponse:
                         missing_groups = missing_required_tool_groups(
                             prompt, executed_tool_results
                         )
-                        if missing_groups:
+                        if missing_groups and not has_successful_write_tool(
+                            executed_tool_results
+                        ):
+                            if DEBUG_TOOLS:
+                                logger.info(
+                                    f"[{request_id}] pending tool groups before forced final: {sorted(missing_groups)}"
+                                )
                             messages.append(
                                 continue_pending_tool_groups_message(missing_groups)
                             )
