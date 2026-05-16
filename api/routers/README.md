@@ -1,135 +1,148 @@
-# Router Reference
+# Kai IA Router Reference
 
-This directory contains the FastAPI routers registered by `main.py`. Routes are grouped by external service or application domain, and endpoint logic remains thin enough to delegate business behavior to `services`, `core`, `llm`, and `tools`.
+<p align="center">
+  <img src="../../assets/logo.png" alt="Kai IA logo" width="110" />
+</p>
 
-## Route Groups
+<p align="center">
+  <img alt="Router layer" src="https://img.shields.io/badge/layer-FastAPI%20routers-009688" />
+  <img alt="Streaming" src="https://img.shields.io/badge/streaming-SSE-2563eb" />
+  <img alt="Google Workspace" src="https://img.shields.io/badge/services-Google%20Workspace-4285f4" />
+</p>
 
-| Module | Prefix | Tags |
+This directory contains the FastAPI routers registered by `main.py`. Routers
+are intentionally thin: request validation, HTTP errors and response mapping
+stay here, while business logic lives in `services`, `core`, `llm` and `tools`.
+
+> The Kai IA logo was generated with AI.
+
+## Router Groups
+
+| Module | Prefix | Tags | Responsibility |
+| --- | --- | --- | --- |
+| `app.py` | `/app` | `App` | Desktop bootstrap checks. |
+| `auth.py` | `/auth/google` | `Auth` | Google OAuth URL, callback and validation. |
+| `calendar.py` | `/calendar` | `Calendar` | Google Calendar operations. |
+| `chat.py` | `/assistant` | `Assistant` | Chat, streaming, tools and Debug Lab events. |
+| `config.py` | `/config` | `config` | Runtime configuration. |
+| `drive.py` | `/drive` | `Drive` | Google Drive file operations. |
+| `gmail/__init__.py` | `/gmail` | `Gmail` | Gmail router composition. |
+| `gmail/gmail.py` | `/gmail/email-request` | `Email Requests` | Gmail message operations. |
+| `gmail/history.py` | `/gmail/history` | `History` | Gmail history tracking. |
+| `health.py` | `/health` | `Health` | API health check. |
+| `settings.py` | `/settings` | `Settings` | Editable app settings. |
+| `tasks.py` | `/tasks` | `Tasks` | Google Tasks operations. |
+
+## Assistant Routes
+
+| Method | Path | Handler | Purpose |
+| --- | --- | --- | --- |
+| `POST` | `/assistant/start` | `start` | Create a new chat session. |
+| `POST` | `/assistant/chat` | `chat_endpoint` | Run a non-streaming assistant turn. |
+| `POST` | `/assistant/ask` | `ask_llm` | Send a direct prompt to the model. |
+| `GET` | `/assistant/chats` | `get_chats` | List stored chat sessions. |
+| `GET` | `/assistant/chats/{chat_id}` | `get_chat_by_id` | Read one chat with its messages. |
+| `POST` | `/assistant/chat/stream` | `assistant_chat_stream` | Stream tokens, debug events and tool results. |
+
+## Google Workspace Routes
+
+### Gmail
+
+| Method | Path | Purpose |
 | --- | --- | --- |
-| `app.py` | `/app` | `App` |
-| `auth.py` | `/auth/google` | `Auth` |
-| `calendar.py` | `/calendar` | `Calendar` |
-| `chat.py` | `/assistant` | `Assistant` |
-| `config.py` | `/config` | `config` |
-| `drive.py` | `/drive` | `Drive` |
-| `gmail/__init__.py` | `/gmail` | `Gmail` |
-| `gmail/gmail.py` | `/gmail/email-request` | `Email Requests` |
-| `gmail/history.py` | `/gmail/history` | `History` |
-| `health.py` | `/health` | `Health` |
-| `settings.py` | `/settings` | `Settings` |
-| `tasks.py` | `/tasks` | `Tasks` |
+| `POST` | `/gmail/email-request/send` | Send an email. |
+| `POST` | `/gmail/email-request/send-with-attachment` | Send an email with uploaded attachments. |
+| `GET` | `/gmail/email-request/read/last` | Read recent emails. |
+| `GET` | `/gmail/email-request/read/from` | Read emails from a sender. |
+| `GET` | `/gmail/email-request/read/subject` | Search by subject. |
+| `GET` | `/gmail/email-request/thread/from-message/{message_id}` | Read a thread from a message id. |
+| `GET` | `/gmail/email-request/email` | Read a single email by id. |
 
-## App
+### Gmail History
 
-| Method | Path | Handler | Description |
-| --- | --- | --- | --- |
-| `GET` | `/app/bootstrap` | `bootstrap` | Returns startup checks used by the desktop shell. |
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `GET` | `/gmail/history/latest-history-id` | Read the latest Gmail history id. |
+| `POST` | `/gmail/history/check` | Check whether Gmail changed. |
+| `POST` | `/gmail/history/read` | Read changes since a known history id. |
+| `GET` | `/gmail/history/` | List stored history ids. |
 
-## Auth
+### Calendar
 
-| Method | Path | Handler | Description |
-| --- | --- | --- | --- |
-| `GET` | `/auth/google/callback` | `google_oauth_callback` | Handles the Google OAuth callback. |
-| `GET` | `/auth/google/url` | `google_oauth_url` | Returns the Google OAuth authorization URL. |
-| `GET` | `/auth/google/test` | `google_oauth_test` | Checks whether Google credentials are usable. |
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `GET` | `/calendar/events` | List calendar events. |
+| `POST` | `/calendar/events` | Create an event. |
+| `GET` | `/calendar/events/{event_id}` | Read an event. |
+| `PATCH` | `/calendar/events/{event_id}` | Update an event. |
+| `DELETE` | `/calendar/events/{event_id}` | Delete an event. |
+| `POST` | `/calendar/freebusy` | Check availability. |
+| `POST` | `/calendar/events/meet` | Create a Google Meet event. |
 
-## Assistant
+### Drive
 
-| Method | Path | Handler | Description |
-| --- | --- | --- | --- |
-| `POST` | `/assistant/start` | `start` | Creates a new chat session. |
-| `POST` | `/assistant/chat` | `chat_endpoint` | Runs a non-streaming assistant turn. |
-| `POST` | `/assistant/ask` | `ask_llm` | Sends a direct prompt to the LLM with an optional system prompt. |
-| `GET` | `/assistant/chats` | `get_chats` | Lists stored chat sessions. |
-| `GET` | `/assistant/chats/{chat_id}` | `get_chat_by_id` | Returns one full chat session with messages. |
-| `POST` | `/assistant/chat/stream` | `assistant_chat_stream` | Streams assistant output, debug events, tool calls, and terminal events. |
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `GET` | `/drive/files` | List files. |
+| `GET` | `/drive/files/search` | Search files by name. |
+| `POST` | `/drive/upload` | Upload a file. |
+| `POST` | `/drive/files/{file_id}/public-link` | Create a public download link. |
+| `DELETE` | `/drive/files/{file_id}` | Delete a file. |
 
-## Calendar
+### Tasks
 
-| Method | Path | Handler | Description |
-| --- | --- | --- | --- |
-| `GET` | `/calendar/events` | `api_list_events` | Lists calendar events. |
-| `POST` | `/calendar/events` | `api_create_event` | Creates a calendar event. |
-| `GET` | `/calendar/events/{event_id}` | `api_get_event` | Returns one calendar event. |
-| `PATCH` | `/calendar/events/{event_id}` | `api_update_event` | Updates one calendar event. |
-| `DELETE` | `/calendar/events/{event_id}` | `api_delete_event` | Deletes one calendar event. |
-| `POST` | `/calendar/freebusy` | `api_freebusy` | Checks calendar availability. |
-| `POST` | `/calendar/events/meet` | `api_create_meet_event` | Creates a Google Meet event invitation. |
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `GET` | `/tasks/tasklists` | List task lists. |
+| `POST` | `/tasks/tasklists/ensure` | Find or create a task list. |
+| `GET` | `/tasks/tasklists/{tasklist_id}/tasks` | List tasks. |
+| `POST` | `/tasks/tasklists/{tasklist_id}/tasks` | Create a task. |
+| `GET` | `/tasks/tasklists/{tasklist_id}/tasks/{task_id}` | Read a task. |
+| `PATCH` | `/tasks/tasklists/{tasklist_id}/tasks/{task_id}` | Update a task. |
+| `DELETE` | `/tasks/tasklists/{tasklist_id}/tasks/{task_id}` | Delete a task. |
 
-## Config
+## Application Routes
 
-| Method | Path | Handler | Description |
-| --- | --- | --- | --- |
-| `GET` | `/config` | `read_config` | Reads all configuration or one key. |
-| `POST` | `/config` | `write_config` | Writes one configuration key. |
-
-## Drive
-
-| Method | Path | Handler | Description |
-| --- | --- | --- | --- |
-| `GET` | `/drive/files` | `api_list_files` | Lists Drive files. |
-| `POST` | `/drive/files/{file_id}/public-link` | `api_make_public_and_get_link` | Makes a file public and returns a download link. |
-| `DELETE` | `/drive/files/{file_id}` | `api_delete_file` | Deletes a Drive file. |
-| `POST` | `/drive/upload` | `api_upload_file` | Uploads a file to Drive. |
-| `GET` | `/drive/files/search` | `api_search_files` | Searches Drive files by name. |
-
-## Gmail
-
-The Gmail router is mounted under `/gmail`. It includes email request routes and history routes.
-
-### Email Requests
-
-| Method | Path | Handler | Description |
-| --- | --- | --- | --- |
-| `POST` | `/gmail/email-request/send` | `api_send_email` | Sends an email. |
-| `POST` | `/gmail/email-request/send-with-attachment` | `send_email_with_attachment` | Sends an email with uploaded attachments. |
-| `GET` | `/gmail/email-request/read/last` | `api_read_last_emails` | Reads the most recent emails. |
-| `GET` | `/gmail/email-request/read/from` | `api_read_last_emails_from_sender` | Reads recent emails from a sender. |
-| `GET` | `/gmail/email-request/read/subject` | `api_read_last_emails_by_subject` | Reads recent emails matching a subject. |
-| `GET` | `/gmail/email-request/thread/from-message/{message_id}` | `api_read_thread_from_message_id` | Reads the thread for a Gmail message. |
-| `GET` | `/gmail/email-request/email` | `get_email_by_id` | Reads a single Gmail message by id. |
-
-### History
-
-| Method | Path | Handler | Description |
-| --- | --- | --- | --- |
-| `GET` | `/gmail/history/latest-history-id` | `latest_history_id` | Returns the latest Gmail history id. |
-| `POST` | `/gmail/history/check` | `check_changes` | Checks whether Gmail history changed. |
-| `POST` | `/gmail/history/read` | `read_history` | Reads Gmail history since a known id. |
-| `GET` | `/gmail/history/` | `list_history_ids` | Lists stored Gmail history ids. |
-
-## Health
-
-| Method | Path | Handler | Description |
-| --- | --- | --- | --- |
-| `GET` | `/health` | `health_check` | Returns the backend health status. |
-
-## Settings
-
-| Method | Path | Handler | Description |
-| --- | --- | --- | --- |
-| `GET` | `/settings` | `get_settings` | Returns editable application settings. |
-| `PUT` | `/settings` | `update_settings` | Updates editable application settings. |
-
-## Tasks
-
-| Method | Path | Handler | Description |
-| --- | --- | --- | --- |
-| `GET` | `/tasks/tasklists` | `api_list_tasklists` | Lists Google Tasks task lists. |
-| `POST` | `/tasks/tasklists/ensure` | `api_ensure_tasklist` | Finds or creates a task list. |
-| `GET` | `/tasks/tasklists/{tasklist_id}/tasks` | `api_list_tasks` | Lists tasks in a task list. |
-| `POST` | `/tasks/tasklists/{tasklist_id}/tasks` | `api_create_task` | Creates a task. |
-| `PATCH` | `/tasks/tasklists/{tasklist_id}/tasks/{task_id}` | `api_update_task` | Updates a task. |
-| `DELETE` | `/tasks/tasklists/{tasklist_id}/tasks/{task_id}` | `api_delete_task` | Deletes a task. |
-| `GET` | `/tasks/tasklists/{tasklist_id}/tasks/{task_id}` | `api_get_task` | Returns one task. |
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `GET` | `/app/bootstrap` | Return startup checks for the desktop shell. |
+| `GET` | `/auth/google/url` | Return a Google OAuth authorization URL. |
+| `GET` | `/auth/google/callback` | Handle Google OAuth callback. |
+| `GET` | `/auth/google/test` | Check Google credential usability. |
+| `GET` | `/config` | Read configuration. |
+| `POST` | `/config` | Write one configuration value. |
+| `GET` | `/settings` | Read editable settings. |
+| `PUT` | `/settings` | Update editable settings. |
+| `GET` | `/health` | Return API health status. |
 
 ## Streaming Contract
 
-`POST /assistant/chat/stream` provides server-sent events for the main chat and Debug Lab. It can emit:
+`POST /assistant/chat/stream` returns Server-Sent Events. The stream can emit:
 
-- `debug` events for backend receive, tokenization, context assembly, LM Studio calls, tool selection, tool results, and completion.
-- `token` events for incremental assistant output.
-- `done` when the request finishes successfully.
-- `error` when the request fails.
+| Event | Description |
+| --- | --- |
+| `debug` | Pipeline stage update for Debug Lab. |
+| `token` | Incremental assistant output. |
+| `done` | Successful completion. |
+| `error` | Failed execution. |
 
-The frontend publishes these events to the Debug Lab window through `BroadcastChannel`.
+Debug stages include `backend_receive`, `tokenize`, `context`,
+`lmstudio_request`, `lmstudio_response`, `tool_selected`, `tool_result`,
+`token`, `done` and `error`.
+
+## Router Guidelines
+
+- Keep handlers small and delegate behavior to service modules.
+- Return Pydantic schemas or explicit dictionaries with stable shapes.
+- Raise `HTTPException` at the router boundary for user-facing errors.
+- Preserve Debug Lab event names when changing the assistant stream.
+- Keep route prefixes stable because the Electron frontend depends on them.
+
+## Copyright and License
+
+Copyright (c) 2026 Enrique Padilla Padilla.
+
+Licensed under the Apache License, Version 2.0. See [LICENSE](../../LICENSE)
+for the full license text.
+
+The Kai IA logo was generated with AI.
