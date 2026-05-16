@@ -18,12 +18,6 @@ tools, streams assistant responses and emits Debug Lab events for observability.
 > The project logo was generated with AI and is referenced from
 > `../assets/logo.png`.
 
-## Preview
-
-| API Docs | Debug Stream | Tool Reports |
-| --- | --- | --- |
-| ![API docs](../assets/screenshots/api-docs.png) | ![Debug stream](../assets/screenshots/debug-stream.png) | ![Tool report](../assets/screenshots/tool-report.png) |
-
 ## Responsibilities
 
 - Serve the HTTP API used by the Electron frontend.
@@ -48,22 +42,10 @@ tools, streams assistant responses and emits Debug Lab events for observability.
 
 ## Runtime Flow
 
-```text
-Frontend request
-      |
-      v
-FastAPI router
-      |
-      v
-Service or assistant orchestration
-      |
-      +--> Google Workspace APIs
-      +--> LM Studio
-      +--> Tool handlers
-      |
-      v
-JSON response or Server-Sent Events stream
-```
+<p align="center">
+  <img src="assets/backend_runtime_flow_trans.png" alt="Kai IA backend runtime flow" />
+</p>
+
 
 ## Installation
 
