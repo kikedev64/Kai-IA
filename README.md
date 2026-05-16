@@ -53,7 +53,7 @@ observability. The current implementation includes:
 ## Architecture
 
 <p align="center">
-  <img src="assets/main_architecture.png" alt="Kai IA main architecture" />
+  <img src="assets/main_architecture_trans.png" alt="Kai IA main architecture" />
 </p>
 
 The desktop app owns the user experience. The backend owns orchestration,
