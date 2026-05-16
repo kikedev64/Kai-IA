@@ -1,5 +1,6 @@
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
+from api.routers.service_exposure import require_service_endpoints_exposed
 from services.gmail.history_reader import (
     check_history_changes,
     get_history_ids,
@@ -95,7 +96,7 @@ def read_history(req: GmailHistoryReadRequest) -> dict:
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/")
+@router.get("/", dependencies=[Depends(require_service_endpoints_exposed)])
 def list_history_ids(only_latest: bool = Query(default=False)) -> dict:
     """Return the history ids list.
 

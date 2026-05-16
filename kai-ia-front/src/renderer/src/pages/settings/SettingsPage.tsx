@@ -23,7 +23,15 @@ import {
   saveLocalSettings
 } from '../../services/settings.service'
 
-type SettingsSectionId = 'general' | 'profile' | 'model' | 'tools' | 'google' | 'gmail' | 'prompts'
+type SettingsSectionId =
+  | 'general'
+  | 'profile'
+  | 'model'
+  | 'security'
+  | 'tools'
+  | 'google'
+  | 'gmail'
+  | 'prompts'
 
 type SettingsForm = {
   server_url: string
@@ -57,6 +65,12 @@ const SECTION_ITEMS: SectionItem[] = [
     label: 'Modelo',
     description: 'LLM, temperatura y system prompt',
     icon: <Bot size={16} />
+  },
+  {
+    id: 'security',
+    label: 'Seguridad',
+    description: 'Exposicion de endpoints directos',
+    icon: <ShieldCheck size={16} />
   },
   {
     id: 'google',
@@ -96,6 +110,7 @@ const EMPTY_FORM: SettingsForm = {
   email_max_total_size_attachment: '18874368',
   system_prompt_default: '',
   model_name: '',
+  expose_service_endpoints: 'true',
   temperature: '0',
   llm_context_length: '8192',
   tool_activation_keywords: '[]',
@@ -124,23 +139,23 @@ function FieldLabel({ title, subtitle }: { title: string; subtitle?: string }): 
   )
 }
 
+/**
+ * Render a styled single-line settings input.
+ *
+ * Args:
+ *   value: Current input value.
+ *   onChange: Receives the next text value.
+ *   placeholder: Empty-state text for the field.
+ *
+ * Returns:
+ *   React.JSX.Element
+ */
 function TextInput({
   value,
   onChange,
   placeholder
 }: {
   value: string
-  /**
-   * Render a styled single-line settings input.
-   *
-   * Args:
-   *   value: Current input value.
-   *   onChange: Receives the next text value.
-   *   placeholder: Empty-state text for the field.
-   *
-   * Returns:
-   *   React.JSX.Element
-   */
   onChange: (value: string) => void
   placeholder?: string
 }): React.JSX.Element {
@@ -155,6 +170,18 @@ function TextInput({
   )
 }
 
+/**
+ * Render a styled multi-line settings input.
+ *
+ * Args:
+ *   value: Current text area value.
+ *   onChange: Receives the next text value.
+ *   placeholder: Empty-state text for the field.
+ *   rows: Visible row count for the text area.
+ *
+ * Returns:
+ *   React.JSX.Element
+ */
 function TextArea({
   value,
   onChange,
@@ -162,18 +189,6 @@ function TextArea({
   rows = 5
 }: {
   value: string
-  /**
-   * Render a styled multi-line settings input.
-   *
-   * Args:
-   *   value: Current text area value.
-   *   onChange: Receives the next text value.
-   *   placeholder: Empty-state text for the field.
-   *   rows: Visible row count for the text area.
-   *
-   * Returns:
-   *   React.JSX.Element
-   */
   onChange: (value: string) => void
   placeholder?: string
   rows?: number
@@ -187,6 +202,46 @@ function TextArea({
       rows={rows}
       className="w-full resize-none rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm leading-6 text-white outline-none transition placeholder:text-slate-500 focus:border-cyan-300/30 focus:bg-black/25"
     />
+  )
+}
+
+/**
+ * Render a boolean setting with a native checkbox control.
+ *
+ * Args:
+ *   checked: Current enabled state.
+ *   onChange: Receives the next enabled state.
+ *   title: Main label text.
+ *   description: Helper text shown below the label.
+ *
+ * Returns:
+ *   React.JSX.Element
+ */
+function ToggleInput({
+  checked,
+  onChange,
+  title,
+  description
+}: {
+  checked: boolean
+  onChange: (checked: boolean) => void
+  title: string
+  description: string
+}): React.JSX.Element {
+
+  return (
+    <label className="flex cursor-pointer items-start justify-between gap-4 rounded-2xl border border-white/10 bg-black/20 px-4 py-4 transition hover:border-white/20 hover:bg-white/[0.06]">
+      <span className="min-w-0">
+        <span className="block text-sm font-medium text-white">{title}</span>
+        <span className="mt-1 block text-xs leading-5 text-slate-400">{description}</span>
+      </span>
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(event) => onChange(event.target.checked)}
+        className="mt-1 h-5 w-5 shrink-0 accent-cyan-300"
+      />
+    </label>
   )
 }
 
@@ -450,6 +505,7 @@ const SettingsPage = (): React.JSX.Element => {
         email_max_total_size_attachment: form.email_max_total_size_attachment,
         system_prompt_default: form.system_prompt_default,
         model_name: form.model_name,
+        expose_service_endpoints: form.expose_service_endpoints,
         temperature: form.temperature,
         llm_context_length: form.llm_context_length,
         tool_activation_keywords: form.tool_activation_keywords,
@@ -622,6 +678,23 @@ const SettingsPage = (): React.JSX.Element => {
                 placeholder="8192"
               />
             </div>
+          </SectionCard>
+        )
+
+      case 'security':
+        return (
+          <SectionCard
+            title="Seguridad HTTP"
+            description="Controla la superficie publica de endpoints directos del backend."
+          >
+            <ToggleInput
+              checked={form.expose_service_endpoints === 'true'}
+              onChange={(checked) =>
+                updateField('expose_service_endpoints', checked ? 'true' : 'false')
+              }
+              title="Exponer endpoints directos de servicios"
+              description="Activalo solo si necesitas llamar desde fuera a Calendar, Drive, Tasks o rutas operativas de Gmail. El chat, ajustes, autenticacion y notificaciones del front siguen funcionando aunque este apagado."
+            />
           </SectionCard>
         )
 

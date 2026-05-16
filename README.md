@@ -153,6 +153,11 @@ This repository may use local OAuth files such as `credentials.json`,
 `token.json` and runtime configuration. Treat them as private secrets and avoid
 committing real credentials in public repositories.
 
+Kai IA also includes a settings toggle for direct service endpoint exposure.
+When disabled, optional HTTP routes for Calendar, Drive, Tasks and operational
+Gmail actions are hidden, while the chat workflow, settings, authentication and
+frontend email watcher remain available.
+
 ## Copyright and License
 
 Copyright (c) 2026 Enrique Padilla Padilla.

@@ -33,6 +33,7 @@ notifications, Debug Lab and report export tools.
 - Chart.js report charts exported into PDF.
 - ZIP export containing a PDF report and CSV datasets.
 - System notification bridge for email events.
+- Settings toggle for optional backend service endpoint exposure.
 
 ## Frontend Layout
 
@@ -75,6 +76,14 @@ http://127.0.0.1:8000
 ```
 
 The exact backend host and port can be configured from onboarding or settings.
+
+## Settings
+
+The Settings window manages local desktop values and backend runtime values.
+The Security section includes a switch for direct service endpoint exposure.
+Disabling it hides optional HTTP routes for Calendar, Drive, Tasks and
+non-essential Gmail operations, while keeping the routes required by the
+desktop client available.
 
 ## Scripts
 

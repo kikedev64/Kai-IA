@@ -6,6 +6,7 @@ export type BackendSettings = {
   email_max_total_size_attachment: string
   system_prompt_default: string
   model_name: string
+  expose_service_endpoints: string
   temperature: string
   llm_context_length: string
   tool_activation_keywords: string

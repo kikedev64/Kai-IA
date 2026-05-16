@@ -33,6 +33,15 @@ stay here, while business logic lives in `services`, `core`, `llm` and `tools`.
 | `settings.py` | `/settings` | `Settings` | Editable app settings. |
 | `tasks.py` | `/tasks` | `Tasks` | Google Tasks operations. |
 
+## Endpoint Exposure
+
+The Settings screen includes `expose_service_endpoints`, a runtime switch for
+optional direct service routes. When the switch is disabled, Calendar, Drive,
+Tasks and non-essential Gmail operation endpoints return `404`. Frontend
+required routes stay available, including assistant chat, settings,
+authentication, Gmail history checks and single-email reads used by the desktop
+notification flow.
+
 ## Assistant Routes
 
 | Method | Path | Handler | Purpose |
@@ -58,6 +67,10 @@ stay here, while business logic lives in `services`, `core`, `llm` and `tools`.
 | `GET` | `/gmail/email-request/thread/from-message/{message_id}` | Read a thread from a message id. |
 | `GET` | `/gmail/email-request/email` | Read a single email by id. |
 
+`/gmail/email-request/email` remains available for the frontend email viewer
+when optional service exposure is disabled. The other Gmail operation routes in
+this group are protected by the exposure switch.
+
 ### Gmail History
 
 | Method | Path | Purpose |
@@ -66,6 +79,10 @@ stay here, while business logic lives in `services`, `core`, `llm` and `tools`.
 | `POST` | `/gmail/history/check` | Check whether Gmail changed. |
 | `POST` | `/gmail/history/read` | Read changes since a known history id. |
 | `GET` | `/gmail/history/` | List stored history ids. |
+
+The latest, check and read history routes remain available because the desktop
+email watcher depends on them. The stored-history listing route is protected by
+the exposure switch.
 
 ### Calendar
 

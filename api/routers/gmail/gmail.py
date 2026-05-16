@@ -1,5 +1,5 @@
 from __future__ import annotations
-from fastapi import APIRouter, HTTPException, Query, UploadFile, File, Form
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Form
 from googleapiclient.errors import HttpError
 from api.schemas.gmail import (
     GmailSendRequest,
@@ -17,11 +17,16 @@ from services.gmail.full_read import (
     read_thread_from_message_id,
 )
 from core.config import get_email_max_total_size_attachment
+from api.routers.service_exposure import require_service_endpoints_exposed
 
 router = APIRouter(prefix="/email-request", tags=["Email Requests"])
 
 
-@router.post("/send", response_model=GmailSendResponse)
+@router.post(
+    "/send",
+    response_model=GmailSendResponse,
+    dependencies=[Depends(require_service_endpoints_exposed)],
+)
 def api_send_email(req: GmailSendRequest) -> dict:
     """Serve the send email endpoint.
 
@@ -45,7 +50,10 @@ def api_send_email(req: GmailSendRequest) -> dict:
         raise HTTPException(status_code=e.resp.status, detail=str(e))
 
 
-@router.post("/send-with-attachment")
+@router.post(
+    "/send-with-attachment",
+    dependencies=[Depends(require_service_endpoints_exposed)],
+)
 async def send_email_with_attachment(
     to: str = Form(...),
     subject: str = Form(...),
@@ -148,7 +156,11 @@ def _email_to_api(e: Email) -> dict:
     }
 
 
-@router.get("/read/last", response_model=GmailReadEmailsResponse)
+@router.get(
+    "/read/last",
+    response_model=GmailReadEmailsResponse,
+    dependencies=[Depends(require_service_endpoints_exposed)],
+)
 def api_read_last_emails(
     max_results: int = Query(5, ge=1, le=50),
 ) -> dict:
@@ -167,7 +179,11 @@ def api_read_last_emails(
         raise HTTPException(status_code=e.resp.status, detail=str(e))
 
 
-@router.get("/read/from", response_model=GmailReadEmailsResponse)
+@router.get(
+    "/read/from",
+    response_model=GmailReadEmailsResponse,
+    dependencies=[Depends(require_service_endpoints_exposed)],
+)
 def api_read_last_emails_from_sender(
     sender: str = Query(..., min_length=1),
     max_results: int = Query(5, ge=1, le=50),
@@ -188,7 +204,11 @@ def api_read_last_emails_from_sender(
         raise HTTPException(status_code=e.resp.status, detail=str(e))
 
 
-@router.get("/read/subject", response_model=GmailReadEmailsResponse)
+@router.get(
+    "/read/subject",
+    response_model=GmailReadEmailsResponse,
+    dependencies=[Depends(require_service_endpoints_exposed)],
+)
 def api_read_last_emails_by_subject(
     subject: str = Query(..., min_length=1),
     max_results: int = Query(5, ge=1, le=50),
@@ -211,7 +231,11 @@ def api_read_last_emails_by_subject(
         raise HTTPException(status_code=e.resp.status, detail=str(e))
 
 
-@router.get("/thread/from-message/{message_id}", response_model=GmailThreadResponse)
+@router.get(
+    "/thread/from-message/{message_id}",
+    response_model=GmailThreadResponse,
+    dependencies=[Depends(require_service_endpoints_exposed)],
+)
 def api_read_thread_from_message_id(message_id: str) -> dict:
     """Serve the read thread from message id endpoint.
 

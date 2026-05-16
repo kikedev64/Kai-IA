@@ -54,6 +54,31 @@ def get_config_float(key: str, default: float = 0.0) -> float:
         return default
 
 
+def get_config_bool(key: str, default: bool = False) -> bool:
+    """Return a boolean runtime configuration value.
+
+    Args:
+        key: Configuration key to read.
+        default: Fallback value returned when no configured value exists.
+
+    Returns:
+        bool
+    """
+    value = get_runtime_config_value(key, default)
+
+    if isinstance(value, bool):
+        return value
+
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        if normalized in {"1", "true", "yes", "on", "enabled"}:
+            return True
+        if normalized in {"0", "false", "no", "off", "disabled"}:
+            return False
+
+    return bool(value)
+
+
 def get_config_json(key: str, default=None) -> object:
     """Return the config json.
 
@@ -174,6 +199,15 @@ def get_tool_activation_keywords() -> list[str]:
     return [
         str(keyword).strip().lower() for keyword in keywords if str(keyword).strip()
     ]
+
+
+def get_expose_service_endpoints() -> bool:
+    """Return whether optional direct service routers should be exposed.
+
+    Returns:
+        bool
+    """
+    return get_config_bool("expose_service_endpoints", True)
 
 
 class DEFAULT_PROMPTS:

@@ -12,6 +12,7 @@ from core.config import (
     get_google_scopes,
     get_google_token_file,
     get_model_name,
+    get_expose_service_endpoints,
     get_system_prompt_default,
     get_temperature,
     get_llm_context_length,
@@ -29,6 +30,7 @@ ALLOWED_KEYS = {
     "email_max_total_size_attachment",
     "system_prompt_default",
     "model_name",
+    "expose_service_endpoints",
     "temperature",
     "llm_context_length",
     "tool_activation_keywords",
@@ -62,6 +64,9 @@ def _build_settings_response() -> dict[str, str]:
         "email_max_total_size_attachment": str(get_email_max_total_size_attachment()),
         "system_prompt_default": get_system_prompt_default(),
         "model_name": get_model_name(),
+        "expose_service_endpoints": "true"
+        if get_expose_service_endpoints()
+        else "false",
         "temperature": str(get_temperature()),
         "default_prompts.resume_mail": DEFAULT_PROMPTS.resume_mail(),
         "default_prompts.basic_user_information_json": DEFAULT_PROMPTS.basic_user_information(),
@@ -73,6 +78,30 @@ def _build_settings_response() -> dict[str, str]:
             indent=2,
         ),
     }
+
+
+def _normalize_bool(value: Any) -> str:
+    """Normalize a setting value into a lowercase boolean string.
+
+    Args:
+        value: Raw value submitted by the settings screen.
+
+    Returns:
+        str
+    """
+    if isinstance(value, bool):
+        return "true" if value else "false"
+
+    normalized = str(value).strip().lower()
+    if normalized in {"1", "true", "yes", "on", "enabled"}:
+        return "true"
+    if normalized in {"0", "false", "no", "off", "disabled"}:
+        return "false"
+
+    raise HTTPException(
+        status_code=400,
+        detail="expose_service_endpoints debe ser booleano",
+    )
 
 
 def _normalize_and_validate(values: dict[str, Any]) -> dict[str, str]:
@@ -125,6 +154,10 @@ def _normalize_and_validate(values: dict[str, Any]) -> dict[str, str]:
             normalized[key] = str(value)
             continue
 
+        if key == "expose_service_endpoints":
+            normalized[key] = _normalize_bool(value)
+            continue
+
         if key == "email_max_total_size_attachment":
             try:
                 int(value)
@@ -136,29 +169,6 @@ def _normalize_and_validate(values: dict[str, Any]) -> dict[str, str]:
             normalized[key] = str(value)
             continue
 
-        if key == "llm_context_length":
-            try:
-                context_length = int(value)
-            except (TypeError, ValueError):
-                raise HTTPException(
-                    status_code=400,
-                    detail="llm_context_length debe ser entero",
-                )
-
-            if context_length < 1024:
-                raise HTTPException(
-                    status_code=400,
-                    detail="llm_context_length debe ser al menos 1024",
-                )
-
-            if context_length > 131072:
-                raise HTTPException(
-                    status_code=400,
-                    detail="llm_context_length es demasiado alto",
-                )
-
-            normalized[key] = str(context_length)
-            continue
         if key == "llm_context_length":
             try:
                 context_length = int(value)

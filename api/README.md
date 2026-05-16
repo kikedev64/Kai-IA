@@ -88,6 +88,12 @@ GOOGLE_REDIRECT_URI=http://127.0.0.1:8000/auth/google/callback
 Google OAuth credentials are expected through the local credential flow used by
 the application. Keep `credentials.json` and `token.json` private.
 
+Editable runtime settings are available from the desktop Settings screen. The
+`expose_service_endpoints` setting controls whether optional direct service
+routers are exposed over HTTP. Turning it off hides Calendar, Drive, Tasks and
+non-essential Gmail operation endpoints without disabling assistant tools or
+frontend-required routes.
+
 ## Running
 
 ```powershell

@@ -1,7 +1,7 @@
 from __future__ import annotations
 from typing import Literal, Optional
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from googleapiclient.errors import HttpError
 
 from api.schemas.tasks import (
@@ -22,9 +22,14 @@ from services.task.tasks_service import (
     delete_reminder,
 )
 from services.task.utils import _tasks_service
+from api.routers.service_exposure import require_service_endpoints_exposed
 
 
-router = APIRouter(prefix="/tasks", tags=["Tasks"])
+router = APIRouter(
+    prefix="/tasks",
+    tags=["Tasks"],
+    dependencies=[Depends(require_service_endpoints_exposed)],
+)
 
 
 def _tasklist_to_api(tl: dict) -> dict:

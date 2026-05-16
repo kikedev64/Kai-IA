@@ -1,5 +1,5 @@
 from __future__ import annotations
-from fastapi import APIRouter, HTTPException, Query, UploadFile, File, Form
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Form
 from googleapiclient.errors import HttpError
 from api.schemas.drive import (
     DriveListFilesResponse,
@@ -13,8 +13,13 @@ from services.drive.files import (
     upload_drive_file,
     search_drive_files_by_name,
 )
+from api.routers.service_exposure import require_service_endpoints_exposed
 
-router = APIRouter(prefix="/drive", tags=["Drive"])
+router = APIRouter(
+    prefix="/drive",
+    tags=["Drive"],
+    dependencies=[Depends(require_service_endpoints_exposed)],
+)
 
 
 @router.get("/files", response_model=DriveListFilesResponse)
