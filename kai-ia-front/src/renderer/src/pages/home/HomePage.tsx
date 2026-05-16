@@ -16,6 +16,42 @@ import {
   type DebugLabEvent
 } from '@renderer/services/debug_lab.service'
 
+const CHAT_COMPOSER_MIN_HEIGHT = 72
+const CHAT_COMPOSER_MAX_HEIGHT = 176
+
+/**
+ * Resize the chat composer until the configured maximum height, then scroll inside it.
+ *
+ * Args:
+ *   textarea: Composer textarea element.
+ *
+ * Returns:
+ *   void
+ */
+function resizeChatComposer(textarea: HTMLTextAreaElement): void {
+  textarea.style.height = 'auto'
+
+  const nextHeight = Math.min(textarea.scrollHeight, CHAT_COMPOSER_MAX_HEIGHT)
+
+  textarea.style.height = `${Math.max(CHAT_COMPOSER_MIN_HEIGHT, nextHeight)}px`
+  textarea.style.overflowY =
+    textarea.scrollHeight > CHAT_COMPOSER_MAX_HEIGHT ? 'auto' : 'hidden'
+}
+
+/**
+ * Reset the chat composer to its compact state.
+ *
+ * Args:
+ *   textarea: Composer textarea element.
+ *
+ * Returns:
+ *   void
+ */
+function resetChatComposer(textarea: HTMLTextAreaElement): void {
+  textarea.style.height = `${CHAT_COMPOSER_MIN_HEIGHT}px`
+  textarea.style.overflowY = 'hidden'
+}
+
 /**
  * Normalize common LaTeX delimiters before rendering markdown content.
  *
@@ -756,7 +792,7 @@ const HomePage = (): React.JSX.Element => {
     setInput('')
 
     if (textareaRef.current) {
-      textareaRef.current.style.height = '72px'
+      resetChatComposer(textareaRef.current)
     }
 
     setIsSending(true)
@@ -1049,14 +1085,17 @@ const HomePage = (): React.JSX.Element => {
                     disabled={isSending}
                     onChange={(e) => {
                       setInput(e.target.value)
-                      e.target.style.height = 'auto'
-                      e.target.style.height = `${e.target.scrollHeight}px`
+                      resizeChatComposer(e.target)
                     }}
                     onKeyDown={handleKeyDown}
                     placeholder={isSending ? 'Kai está terminando una acción...' : 'Escribe un mensaje para Kai...'}
                     rows={1}
-                    className="w-full resize-none bg-transparent px-4 py-4 text-sm text-white outline-none placeholder:text-slate-500 overflow-hidden disabled:cursor-not-allowed disabled:opacity-60"
-                    style={{ minHeight: '72px' }}
+                    className="w-full resize-none bg-transparent px-4 py-4 text-sm text-white outline-none placeholder:text-slate-500 disabled:cursor-not-allowed disabled:opacity-60"
+                    style={{
+                      minHeight: `${CHAT_COMPOSER_MIN_HEIGHT}px`,
+                      maxHeight: `${CHAT_COMPOSER_MAX_HEIGHT}px`,
+                      overflowY: 'hidden'
+                    }}
                   />
                 </div>
                 <button
