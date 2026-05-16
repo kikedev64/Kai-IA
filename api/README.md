@@ -15,9 +15,6 @@ The backend is the orchestration layer for Kai IA. It exposes the FastAPI
 application, manages Google OAuth and service calls, stores chat data, executes
 tools, streams assistant responses and emits Debug Lab events for observability.
 
-> The project logo was generated with AI and is referenced from
-> `../assets/logo.png`.
-
 ## Responsibilities
 
 - Serve the HTTP API used by the Electron frontend.
@@ -59,7 +56,7 @@ pip install -r requirements.txt
 
 ## Configuration
 
-Create a local `.env` file in the repository root. Typical values are:
+Create a local `.env` file in the root of the repository with the following values:
 
 ```env
 BASE_URL_OPEN_AI=http://127.0.0.1:1234/v1
@@ -120,18 +117,6 @@ The assistant stream emits structured events for:
 
 The frontend consumes these events to draw the Debug Lab flow and generate PDF
 and CSV reports.
-
-## Quality Checks
-
-Recommended checks before delivery:
-
-```powershell
-python -m compileall api core services tools llm
-uvicorn main:app --reload --port 8000
-```
-
-Run these checks from the active virtual environment when using a project-local
-Python installation.
 
 ## Copyright and License
 
