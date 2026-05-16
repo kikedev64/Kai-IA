@@ -1,3 +1,8 @@
+import {
+  isPlainObject,
+  parseProfileJsonReply
+} from './profile_json.service'
+
 export type BackendSettings = {
   google_redirect_uri: string
   google_scopes: string
@@ -28,20 +33,6 @@ type AskResponse = {
 type BackendTarget = {
   serverUrl?: string | null
   serverPort?: string | number | null
-}
-
-/**
- * Check whether a value is a non-array object.
- *
- * Args:
- *   value: Unknown value to validate.
- *
- * Returns:
- *   value is Record<string, unknown>
- */
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
 /**
@@ -238,13 +229,7 @@ export async function regenerateUserProfile(
     throw new Error('La respuesta del backend no tiene un formato válido')
   }
 
-  let parsed: unknown
-
-  try {
-    parsed = JSON.parse(data.reply)
-  } catch {
-    throw new Error('El modelo no devolvió un JSON válido')
-  }
+  const parsed = parseProfileJsonReply(data.reply)
 
   if (!isPlainObject(parsed)) {
     throw new Error('El user profile regenerado no es un objeto válido')
