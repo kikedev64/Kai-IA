@@ -14,8 +14,6 @@ This directory contains the FastAPI routers registered by `main.py`. Routers
 are intentionally thin: request validation, HTTP errors and response mapping
 stay here, while business logic lives in `services`, `core`, `llm` and `tools`.
 
-> The Kai IA logo was generated with AI.
-
 ## Router Groups
 
 | Module | Prefix | Tags | Responsibility |
@@ -146,14 +144,6 @@ the exposure switch.
 Debug stages include `backend_receive`, `tokenize`, `context`,
 `lmstudio_request`, `lmstudio_response`, `tool_selected`, `tool_result`,
 `token`, `done` and `error`.
-
-## Router Guidelines
-
-- Keep handlers small and delegate behavior to service modules.
-- Return Pydantic schemas or explicit dictionaries with stable shapes.
-- Raise `HTTPException` at the router boundary for user-facing errors.
-- Preserve Debug Lab event names when changing the assistant stream.
-- Keep route prefixes stable because the Electron frontend depends on them.
 
 ## Copyright and License
 
