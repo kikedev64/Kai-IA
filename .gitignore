@@ -1,9 +1,27 @@
 credentials.json
 token.json
 .venv
+__pycache__/
 *.pyc
 *.db
 node_modules/
 package-lock.json
 oauth_temp.json
 *.env
+
+# Build and release outputs
+dist/
+out/
+release/
+releases/
+artifacts/
+*.zip
+*.7z
+*.tar
+*.tar.gz
+*.rar
+*.exe
+*.msi
+*.blockmap
+kai-ia-front/dist/
+kai-ia-front/out/
