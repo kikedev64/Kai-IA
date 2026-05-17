@@ -2,15 +2,17 @@ from pydantic import BaseModel, Field
 
 
 class ChatStreamRequest(BaseModel):
-    """Request payload used by the streaming chat endpoint.
+    """Request payload used by the streaming assistant endpoint.
 
-    Contains the chat id, the user message and an optional system
-    prompt override for the active conversation.
+    Includes the active chat id, prompt, history window and optional
+    debug flags used by the Debug Lab view.
     """
 
     chat_id: str = Field(..., min_length=1)
-    message: str = Field(..., min_length=1)
-    system_prompt: str | None = None
+    prompt: str = Field(..., min_length=1)
+    limit_history: int = Field(default=6, ge=1, le=20)
+    profile_context: str | None = None
+    debug: bool = False
 
 
 class ChatResetRequest(BaseModel):
