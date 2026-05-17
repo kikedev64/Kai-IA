@@ -420,13 +420,13 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "get_full_email",
-            "description": "Lee el correo en su totalidad para hacer un resumen sobre el, todo ello en base a su id",
+            "description": "Lee un correo en su totalidad por message_id y genera un resumen. Usa read_thread_from_message_id si el usuario pide la conversacion completa o el hilo.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "id": {
+                    "message_id": {
                         "type": "string",
-                        "description": "ID del correo a partir del cual se desea total información de el",
+                        "description": "ID del mensaje de Gmail a leer por completo",
                     }
                 },
                 "required": ["message_id"],

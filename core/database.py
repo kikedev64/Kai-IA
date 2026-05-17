@@ -42,6 +42,10 @@ def _build_initial_config() -> dict[str, str]:
         "bandeja",
         "remitente",
         "asunto",
+        "hilo",
+        "hilos",
+        "mensaje",
+        "mensajes",
         "responde",
         "responder",
         "contesta",
@@ -173,6 +177,33 @@ def _seed_initial_config(cur: sqlite3.Cursor) -> None:
     initial_config = _build_initial_config()
 
     for key, value in initial_config.items():
+        if key == "tool_activation_keywords":
+            cur.execute("SELECT value FROM app_config WHERE key = ?", (key,))
+            row = cur.fetchone()
+            if row and row["value"]:
+                try:
+                    existing = json.loads(row["value"])
+                    defaults = json.loads(value)
+                except json.JSONDecodeError:
+                    existing = []
+                    defaults = json.loads(value)
+
+                if isinstance(existing, list):
+                    merged = list(existing)
+                    for keyword in defaults:
+                        if keyword not in merged:
+                            merged.append(keyword)
+
+                    cur.execute(
+                        """
+                        UPDATE app_config
+                        SET value = ?, updated_at = CURRENT_TIMESTAMP
+                        WHERE key = ?
+                        """,
+                        (json.dumps(merged, ensure_ascii=False), key),
+                    )
+                    continue
+
         cur.execute(
             """
             INSERT INTO app_config (key, value, updated_at)
@@ -226,6 +257,17 @@ def init_db() -> None:
         key TEXT PRIMARY KEY,
         value TEXT,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS chat_context (
+        chat_id TEXT NOT NULL,
+        key TEXT NOT NULL,
+        content TEXT NOT NULL,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY(chat_id, key),
+        FOREIGN KEY(chat_id) REFERENCES chat_sessions(chat_id) ON DELETE CASCADE
     )
     """)
 

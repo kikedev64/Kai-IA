@@ -102,7 +102,8 @@ def read_last_emails_by_subject(
     """
     service = _get_service()
 
-    query = f"subject:{subject_text}"
+    clean_subject = str(subject_text or "").replace('"', '\\"').strip()
+    query = f'subject:"{clean_subject}"' if clean_subject else ""
 
     res = (
         service.users()
@@ -110,6 +111,15 @@ def read_last_emails_by_subject(
         .list(userId="me", q=query, maxResults=max_results)
         .execute()
     )
+
+    if not res.get("messages") and clean_subject:
+        fallback_query = f"subject:{clean_subject}"
+        res = (
+            service.users()
+            .messages()
+            .list(userId="me", q=fallback_query, maxResults=max_results)
+            .execute()
+        )
 
     msgs = res.get("messages", [])
     if not msgs:

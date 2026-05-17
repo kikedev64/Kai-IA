@@ -23,6 +23,7 @@ client = openai.OpenAI(
 def call_lm_studio(
     messages: list,
     use_tools: bool = True,
+    tool_choice: str | dict | None = None,
     context_length: int | None = None,
 ) -> object:
     """Call LM Studio chat completions.
@@ -30,6 +31,7 @@ def call_lm_studio(
     Args:
         messages: Messages included in the operation.
         use_tools: Whether tool calling is enabled.
+        tool_choice: Optional tool-choice policy sent to the chat completion API.
         context_length: Optional model context length.
 
     Returns:
@@ -44,7 +46,7 @@ def call_lm_studio(
 
     if use_tools:
         kwargs["tools"] = TOOLS
-        kwargs["tool_choice"] = "auto"
+        kwargs["tool_choice"] = tool_choice or "auto"
 
     response = client.chat.completions.create(**kwargs)
     return response.choices[0].message

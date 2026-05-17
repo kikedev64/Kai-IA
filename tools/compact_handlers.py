@@ -186,17 +186,36 @@ def compact_freebusy_result(data: dict[str, Any]) -> dict:
     }
 
 
-def _email_to_dict(email) -> dict:
+def _trim_text(value: str | None, max_chars: int) -> str:
+    """Trim long text fields while keeping them useful for the model.
+
+    Args:
+        value: Text value processed by the function.
+        max_chars: Maximum number of characters kept.
+
+    Returns:
+        str
+    """
+    text = (value or "").strip()
+    if len(text) <= max_chars:
+        return text
+    return text[:max_chars].rstrip() + "\n..."
+
+
+def _email_to_dict(email, include_body: bool = False, max_body_chars: int = 5000) -> dict:
     """Convert an email model into a compact dictionary.
 
     Args:
         email: Email model processed by the function.
+        include_body: Whether to include the cleaned body.
+        max_body_chars: Maximum body characters kept when include_body is true.
 
     Returns:
         dict
     """
-    return {
+    data = {
         "id": email.id,
+        "message_id": email.id,
         "thread_id": email.thread_id,
         "sender": email.sender,
         "subject": email.subject,
@@ -204,17 +223,31 @@ def _email_to_dict(email) -> dict:
         "snippet": email.snippet,
     }
 
+    if include_body:
+        data["body"] = _trim_text(getattr(email, "body", ""), max_body_chars)
 
-def _thread_to_dict(thread) -> dict:
+    return data
+
+
+def _thread_to_dict(thread, include_body: bool = False, max_body_chars: int = 5000) -> dict:
     """Convert an email thread into a compact dictionary.
 
     Args:
         thread: Email thread processed by the function.
+        include_body: Whether to include cleaned message bodies.
+        max_body_chars: Maximum body characters kept for each email.
 
     Returns:
         dict
     """
     return {
         "thread_id": thread.thread_id,
-        "emails": [_email_to_dict(email) for email in thread.emails],
+        "emails": [
+            _email_to_dict(
+                email,
+                include_body=include_body,
+                max_body_chars=max_body_chars,
+            )
+            for email in thread.emails
+        ],
     }
