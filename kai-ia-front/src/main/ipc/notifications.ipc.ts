@@ -32,7 +32,51 @@ type EmailNotificationClickPayload = {
  */
 export function registerNotificationsIpc({ getMainWindow }: RegisterNotificationsIpcParams): void {
 
-  let pendingEmailNotificationClick: EmailNotificationClickPayload | null = null
+  let pendingEmailNotificationClicks: EmailNotificationClickPayload[] = []
+  const activeNotifications = new Set<Notification>()
+
+  /**
+   * Keep a notification click available until the renderer acknowledges it.
+   *
+   * Args:
+   *   payload: Email notification click payload.
+   *
+   * Returns:
+   *   void
+   */
+  const addPendingEmailNotificationClick = (payload: EmailNotificationClickPayload): void => {
+
+    if (
+      pendingEmailNotificationClicks.some(
+        (pendingPayload) => pendingPayload.messageId === payload.messageId
+      )
+    ) {
+      return
+    }
+
+    pendingEmailNotificationClicks = [...pendingEmailNotificationClicks, payload]
+  }
+
+  /**
+   * Remove acknowledged notification clicks from the pending queue.
+   *
+   * Args:
+   *   messageId: Optional message id to clear. If omitted, the full queue is cleared.
+   *
+   * Returns:
+   *   void
+   */
+  const clearPendingEmailNotificationClicks = (messageId?: string): void => {
+
+    if (!messageId) {
+      pendingEmailNotificationClicks = []
+      return
+    }
+
+    pendingEmailNotificationClicks = pendingEmailNotificationClicks.filter(
+      (payload) => payload.messageId !== messageId
+    )
+  }
 
   /**
    * Forward an email notification click to the renderer or keep it pending.
@@ -49,15 +93,16 @@ export function registerNotificationsIpc({ getMainWindow }: RegisterNotification
     payload: EmailNotificationClickPayload
   ): void => {
 
-    pendingEmailNotificationClick = payload
+    addPendingEmailNotificationClick(payload)
 
     if (mainWindow.webContents.isLoading()) {
       mainWindow.webContents.once('did-finish-load', () => {
-        if (pendingEmailNotificationClick) {
-          mainWindow.webContents.send(
-            'system-notifications:email-clicked',
-            pendingEmailNotificationClick
-          )
+        const stillPending = pendingEmailNotificationClicks.some(
+          (pendingPayload) => pendingPayload.messageId === payload.messageId
+        )
+
+        if (stillPending) {
+          mainWindow.webContents.send('system-notifications:email-clicked', payload)
         }
       })
       return
@@ -67,17 +112,19 @@ export function registerNotificationsIpc({ getMainWindow }: RegisterNotification
   }
 
   ipcMain.handle('system-notifications:get-pending-email-click', async () => {
-    const payload = pendingEmailNotificationClick
-    pendingEmailNotificationClick = null
+    const payload = pendingEmailNotificationClicks[0] ?? null
+
+    if (payload) {
+      clearPendingEmailNotificationClicks(payload.messageId)
+    }
+
     return payload
   })
 
   ipcMain.handle(
     'system-notifications:clear-pending-email-click',
     async (_event, messageId?: string) => {
-      if (!messageId || pendingEmailNotificationClick?.messageId === messageId) {
-        pendingEmailNotificationClick = null
-      }
+      clearPendingEmailNotificationClicks(messageId)
       return true
     }
   )
@@ -99,9 +146,20 @@ export function registerNotificationsIpc({ getMainWindow }: RegisterNotification
           silent: payload.silent ?? false,
           icon: path.join(process.cwd(), 'resources', 'icon.png')
         })
+        activeNotifications.add(notification)
+
+        const releaseNotification = (): void => {
+
+          activeNotifications.delete(notification)
+        }
+
+        notification.once('close', releaseNotification)
+        notification.once('failed', releaseNotification)
 
         notification.on('click', () => {
           const mainWindow = getMainWindow()
+
+          releaseNotification()
 
           if (!mainWindow || mainWindow.isDestroyed()) return
 

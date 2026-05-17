@@ -135,6 +135,43 @@ const MarkdownContent = ({ content }: { content: string }) => {
 
 const STREAM_LIMIT_HISTORY = 6
 type UserProfileJson = Record<string, unknown>
+type EmailNotificationClickPayload = { messageId: string }
+
+/**
+ * Build the complete email context that will be sent together with the user action.
+ *
+ * Args:
+ *   email: Full email payload loaded from the backend.
+ *
+ * Returns:
+ *   string
+ */
+function buildEmailActionContext(email: GmailApiEmail): string {
+
+  const recipients = [email.to, ...(email.cc ?? []), ...(email.bcc ?? [])]
+    .map((recipient) => recipient?.trim())
+    .filter(Boolean)
+    .join(', ')
+
+  return [
+    'CORREO COMPLETO SOBRE EL QUE DEBES TRABAJAR:',
+    `message_id: ${email.id}`,
+    `thread_id: ${email.thread_id || '-'}`,
+    email.message_id ? `rfc_message_id: ${email.message_id}` : null,
+    `from: ${email.sender || '-'}`,
+    `to_cc_bcc: ${recipients || '-'}`,
+    `subject: ${email.subject || '(sin asunto)'}`,
+    `date: ${email.date || '-'}`,
+    email.reply_to ? `reply_to: ${email.reply_to}` : null,
+    email.references ? `references: ${email.references}` : null,
+    email.in_reply_to ? `in_reply_to: ${email.in_reply_to}` : null,
+    '',
+    'CUERPO DEL CORREO:',
+    email.body || email.snippet || 'Sin contenido disponible'
+  ]
+    .filter((line): line is string => line !== null)
+    .join('\n')
+}
 
 /**
  * Check that a value is a plain object with at least one key.
@@ -244,6 +281,8 @@ const HomePage = (): React.JSX.Element => {
   const [isEmailActionLoading, setIsEmailActionLoading] = useState(false)
   const [isSubmittingEmailAction, setIsSubmittingEmailAction] = useState(false)
   const pendingEmailsRef = useRef<Map<string, GmailApiEmail>>(new Map())
+  const deferredEmailNotificationClicksRef = useRef<EmailNotificationClickPayload[]>([])
+  const canOpenEmailNotificationRef = useRef(true)
   const [userProfileJson, setUserProfileJson] = useState<UserProfileJson | null>(null)
 
   const {
@@ -268,6 +307,7 @@ const HomePage = (): React.JSX.Element => {
    */
   const openEmailActionModal = (email: GmailApiEmail) => {
 
+    canOpenEmailNotificationRef.current = false
     setIsEmailActionLoading(false)
     setSelectedEmailForAction(email)
     setEmailActionOpen(true)
@@ -282,7 +322,7 @@ const HomePage = (): React.JSX.Element => {
    * Returns:
    *   Promise<void>
    */
-  const openEmailNotificationPayload = (payload: { messageId: string }) => {
+  const openEmailNotificationPayload = (payload: EmailNotificationClickPayload) => {
 
     if (!payload || !payload.messageId) return
 
@@ -295,6 +335,7 @@ const HomePage = (): React.JSX.Element => {
     setSelectedEmailForAction(null)
     setIsEmailActionLoading(true)
     setEmailActionOpen(true)
+    canOpenEmailNotificationRef.current = false
 
     void readEmailById(payload.messageId)
       .then((loadedEmail) => {
@@ -302,11 +343,77 @@ const HomePage = (): React.JSX.Element => {
         setSelectedEmailForAction(loadedEmail)
       })
       .catch((error) => {
-        console.error('Error cargando correo tras pulsar notificación:', error)
+        console.error('Error cargando correo tras pulsar notificacion:', error)
       })
       .finally(() => {
         setIsEmailActionLoading(false)
       })
+  }
+
+  /**
+   * Queue a clicked email notification until the UI can safely open the email popup.
+   *
+   * Args:
+   *   payload: Notification click payload.
+   *
+   * Returns:
+   *   void
+   */
+  const deferEmailNotificationPayload = (payload: EmailNotificationClickPayload) => {
+
+    if (!payload || !payload.messageId) return
+
+    const alreadyQueued = deferredEmailNotificationClicksRef.current.some(
+      (queuedPayload) => queuedPayload.messageId === payload.messageId
+    )
+
+    if (!alreadyQueued) {
+      deferredEmailNotificationClicksRef.current = [
+        ...deferredEmailNotificationClicksRef.current,
+        payload
+      ]
+    }
+  }
+
+  /**
+   * Open the next queued email notification when chat and modal state are idle.
+   *
+   * Args:
+   *   None.
+   *
+   * Returns:
+   *   void
+   */
+  const flushDeferredEmailNotificationPayload = () => {
+
+    if (!canOpenEmailNotificationRef.current) return
+
+    const [nextPayload, ...remainingPayloads] = deferredEmailNotificationClicksRef.current
+    if (!nextPayload) return
+
+    deferredEmailNotificationClicksRef.current = remainingPayloads
+    openEmailNotificationPayload(nextPayload)
+  }
+
+  /**
+   * Route notification clicks through the busy-state gate.
+   *
+   * Args:
+   *   payload: Notification click payload.
+   *
+   * Returns:
+   *   void
+   */
+  const handleEmailNotificationPayload = (payload: EmailNotificationClickPayload) => {
+
+    if (!payload || !payload.messageId) return
+
+    if (!canOpenEmailNotificationRef.current) {
+      deferEmailNotificationPayload(payload)
+      return
+    }
+
+    openEmailNotificationPayload(payload)
   }
 
   /**
@@ -544,6 +651,17 @@ const HomePage = (): React.JSX.Element => {
   }, [])
 
   useEffect(() => {
+    const canOpenEmailNotification =
+      !isSending && !isSubmittingEmailAction && !emailActionOpen && !isEmailActionLoading
+
+    canOpenEmailNotificationRef.current = canOpenEmailNotification
+
+    if (canOpenEmailNotification) {
+      flushDeferredEmailNotificationPayload()
+    }
+  }, [isSending, isSubmittingEmailAction, emailActionOpen, isEmailActionLoading])
+
+  useEffect(() => {
     const watcher = createNewEmailWatcher({
       intervalMs: 20000,
       onNewEmail: async (email) => {
@@ -561,39 +679,30 @@ const HomePage = (): React.JSX.Element => {
     emailWatcherRef.current = watcher
     void watcher.start()
 
-    void window.systemNotificationsApi
-      ?.getPendingEmailNotificationClick?.()
-      .then((payload) => {
-        if (payload) {
-          openEmailNotificationPayload(payload)
-        }
-      })
-
     const unsubscribe = window.systemNotificationsApi?.onEmailNotificationClick?.((payload) => {
-      if (!payload || !payload.messageId) return
-
-      const email = pendingEmailsRef.current.get(payload.messageId)
-      if (email) {
-        openEmailActionModal(email)
-        return
-      }
-
-      setSelectedEmailForAction(null)
-      setIsEmailActionLoading(true)
-      setEmailActionOpen(true)
-
-      void readEmailById(payload.messageId)
-        .then((loadedEmail) => {
-          pendingEmailsRef.current.set(loadedEmail.id, loadedEmail)
-          setSelectedEmailForAction(loadedEmail)
-        })
-        .catch((error) => {
-          console.error('Error cargando correo tras pulsar notificación:', error)
-        })
-        .finally(() => {
-          setIsEmailActionLoading(false)
-        })
+      handleEmailNotificationPayload(payload)
     })
+
+    /**
+     * Drain notification clicks that happened before this view was ready.
+     *
+     * Args:
+     *   None.
+     *
+     * Returns:
+     *   Promise<void>
+     */
+    const openPendingEmailNotifications = async () => {
+
+      while (true) {
+        const payload = await window.systemNotificationsApi?.getPendingEmailNotificationClick?.()
+        if (!payload) break
+
+        handleEmailNotificationPayload(payload)
+      }
+    }
+
+    void openPendingEmailNotifications()
 
     return () => {
       watcher.stop()
@@ -665,12 +774,14 @@ const HomePage = (): React.JSX.Element => {
 
     if (!selectedEmailForAction?.id || isSubmittingEmailAction || isSending) return
 
+    const selectedMessageId = selectedEmailForAction.id
     let streamStarted = false
 
     try {
       setIsSubmittingEmailAction(true)
       setIsSending(true)
 
+      const fullEmail = await readEmailById(selectedMessageId)
       const newChatId = await createChat()
       streamStarted = true
 
@@ -688,11 +799,16 @@ const HomePage = (): React.JSX.Element => {
       setStreamingContent('')
 
       const fullInstruction = [
-        `Trabaja sobre el correo con ID ${selectedEmailForAction.id}.`,
-        'Debes operar sobre ese correo original.',
+        buildEmailActionContext(fullEmail),
+        '',
+        'INSTRUCCIÓN DEL USUARIO:',
+        userPrompt,
+        '',
+        'REGLAS PARA ESTA ACCIÓN:',
+        `Si el correo te pide que hagas uso de otras tools hazlo, enviar el correo SIEMPRE será lo ultimo que debes hacer, priorizar otras tools por delante`,
+        `Debes operar sobre el correo original con message_id ${fullEmail.id}.`,
         'Si la acción implica responder al correo, debes usar la herramienta reply_email y no send_email.',
-        'Si necesitas leer el contenido completo del correo, usa get_full_email con ese ID.',
-        `Acción solicitada por el usuario: ${userPrompt}`
+        'No pierdas coherencia: usa el contenido del correo incluido arriba como contexto principal.'
       ].join('\n')
 
       setEmailActionOpen(false)
