@@ -13,6 +13,15 @@ type AskResponse = {
   reply: string
 }
 
+const EMPTY_PROFILE_PREVIEW = {
+  name: '',
+  age: null,
+  study: '',
+  location: '',
+  interests: [],
+  goals: []
+}
+
 /**
  * Render the profile setup step and save the generated structured profile.
  *
@@ -175,14 +184,7 @@ const ProfileSetupSlide = ({ onNext, onPrev }: Props) => {
               <pre className="whitespace-pre-wrap break-words text-sm leading-6 text-slate-200">
                 {previewJson
                   ? JSON.stringify(previewJson, null, 2)
-                  : `{
-                    "name": "",
-                    "age": null,
-                    "study": "",
-                    "location": "",
-                    "interests": [],
-                    "goals": []
-                  }`}
+                  : JSON.stringify(EMPTY_PROFILE_PREVIEW, null, 2)}
               </pre>
             </div>
 
