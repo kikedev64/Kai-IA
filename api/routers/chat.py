@@ -1733,6 +1733,10 @@ def assistant_chat_stream(req: ChatStreamRequest) -> StreamingResponse:
                         f"La tool {tc.function.name} termina y su resultado vuelve al contexto.",
                         step=step + 1,
                         tool_name=tc.function.name,
+                        arguments=tc.function.arguments,
+                        parsed_arguments=safe_debug_value(
+                            parse_tool_arguments(tc.function.arguments)
+                        ),
                         status=result.get("status")
                         if isinstance(result, dict)
                         else None,

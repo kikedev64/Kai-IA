@@ -49,6 +49,7 @@ type FlowNode = {
 
 type ToolTrace = {
   name: string
+  step?: number
   arguments?: unknown
   result?: unknown
   durationMs?: number
@@ -532,6 +533,7 @@ function buildTools(events: DebugLabEvent[]): ToolTrace[] {
     if (event.stage === 'tool_selected') {
       traces.push({
         name: String(event.tool_name || `tool_${traces.length + 1}`),
+        step: typeof event.step === 'number' ? event.step : undefined,
         arguments: event.parsed_arguments ?? event.arguments
       })
     }
@@ -542,9 +544,11 @@ function buildTools(events: DebugLabEvent[]): ToolTrace[] {
         last.result = event.result
         last.durationMs = event.duration_ms
         last.status = typeof event.status === 'string' ? event.status : undefined
+        last.step = typeof event.step === 'number' ? event.step : last.step
       } else {
         traces.push({
           name: String(event.tool_name || `tool_${traces.length + 1}`),
+          step: typeof event.step === 'number' ? event.step : undefined,
           result: event.result,
           durationMs: event.duration_ms,
           status: typeof event.status === 'string' ? event.status : undefined
@@ -1917,9 +1921,20 @@ function NodeDetails({
   const config = STAGE_CONFIG[node.stage]
   const nodeMessage = getNodeMessage(node, latest)
   const matchingToolName = stringField(latest?.tool_name)
-  const matchingTools = matchingToolName
-    ? tools.filter((tool) => tool.name === matchingToolName)
-    : tools
+  const matchingToolStep = typeof latest?.step === 'number' ? latest.step : undefined
+  const matchingTools = tools.filter((tool) => {
+    const sameName = matchingToolName ? tool.name === matchingToolName : true
+    const sameStep = typeof matchingToolStep === 'number' ? tool.step === matchingToolStep : true
+    return sameName && sameStep
+  })
+  const matchingTool = matchingTools.at(-1)
+  const toolName = matchingToolName || matchingTool?.name || '-'
+  const inputPayload =
+    latest?.parsed_arguments ?? latest?.arguments ?? matchingTool?.arguments ?? '-'
+  const outputPayload = latest?.result ?? matchingTool?.result ?? '-'
+  const toolStatus = stringField(latest?.status) || matchingTool?.status || '-'
+  const toolDurationMs =
+    typeof latest?.duration_ms === 'number' ? latest.duration_ms : matchingTool?.durationMs
 
   if (node.stage === 'tool_selected' || node.stage === 'tool_result') {
     return (
@@ -1941,8 +1956,20 @@ function NodeDetails({
               </div>
 
               <div className="mt-3 grid gap-2">
-                <InfoLine label="Estado" value={tool.status || '-'} />
-                <InfoLine label="Duración" value={formatMs(tool.durationMs)} />
+                <InfoLine label="Tool" value={toolName} highlightColor={config.color} />
+                <InfoLine label="Estado" value={toolStatus} />
+                <InfoLine label="Duracion real" value={formatMs(toolDurationMs)} />
+                {node.stage === 'tool_selected' ? (
+                  <>
+                    <InfoLine label="Entrada parseada" value={compactJson(inputPayload)} multiline />
+                    <InfoLine label="Entrada raw" value={compactJson(latest?.arguments ?? '-')} multiline />
+                  </>
+                ) : (
+                  <>
+                    <InfoLine label="Entrada usada" value={compactJson(inputPayload)} multiline />
+                    <InfoLine label="Respuesta de la tool" value={compactJson(outputPayload)} multiline />
+                  </>
+                )}
               </div>
             </div>
           ))
