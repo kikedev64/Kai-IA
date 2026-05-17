@@ -356,6 +356,23 @@ function escapeHtml(value: string): string {
 }
 
 /**
+ * Convert escaped control sequences into readable multiline text.
+ *
+ * Args:
+ *   value: Text shown in debug message panels.
+ *
+ * Returns:
+ *   string
+ */
+function formatEscapedMessage(value: string): string {
+  return value
+    .replace(/\\r\\n/g, '\n')
+    .replace(/\\n/g, '\n')
+    .replace(/\\r/g, '\n')
+    .replace(/\\t/g, '  ')
+}
+
+/**
  * Read a string property from an unknown object.
  *
  * Args:
@@ -1833,8 +1850,8 @@ function DebugRoundNode({ data }: NodeProps<DebugGraphNode>) {
         {data.count > 1
           ? `${data.count} eventos`
           : data.branch === 'tool'
-            ? 'rama tool'
-            : 'flujo principal'}
+            ? 'Rama tool'
+            : 'Flujo principal'}
       </div>
       <Handle
         type="source"
@@ -1870,7 +1887,7 @@ function getNodeMessage(node: FlowNode, latest?: DebugLabEvent): string | null {
     return null
   }
 
-  return message
+  return formatEscapedMessage(message)
 }
 
 /**
