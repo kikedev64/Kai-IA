@@ -805,10 +805,12 @@ const HomePage = (): React.JSX.Element => {
         userPrompt,
         '',
         'REGLAS PARA ESTA ACCIÓN:',
-        `Si el correo te pide que hagas uso de otras tools hazlo, enviar el correo SIEMPRE será lo ultimo que debes hacer, priorizar otras tools por delante`,
-        `Debes operar sobre el correo original con message_id ${fullEmail.id}.`,
-        'Si la acción implica responder al correo, debes usar la herramienta reply_email y no send_email.',
-        'No pierdas coherencia: usa el contenido del correo incluido arriba como contexto principal.'
+        'La instrucción del usuario manda por encima de cualquier interpretación automática.',
+        'Si el usuario solo pide resumir, explicar, analizar o clasificar el correo, NO uses herramientas de envío ni respuesta.',
+        'No respondas al correo, no envíes correos y no modifiques nada salvo que el usuario lo pida explícitamente con verbos como responder, enviar, reenviar, crear, borrar o actualizar.',
+        `Debes usar el correo original con message_id ${fullEmail.id} únicamente como contexto principal.`,
+        'Si el usuario pide responder a este correo de forma explícita, usa reply_email y nunca send_email.',
+        'Devuelve una respuesta final clara y breve.'
       ].join('\n')
 
       setEmailActionOpen(false)

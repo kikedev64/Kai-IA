@@ -52,7 +52,7 @@ def ensure_chat_title(
     current_title = get_chat_title(chat_id)
     if current_title:
         if DEBUG_TOOLS:
-            logger.info(f"[{request_id}] El chat ya tiene tÃ­tulo: {current_title}")
+            logger.info(f"[{request_id}] El chat ya tiene título: {current_title}")
         return
 
     generated_title = None
@@ -66,17 +66,17 @@ def ensure_chat_title(
             if len(generated_title) > 60:
                 generated_title = generated_title[:60].strip()
         if DEBUG_TOOLS:
-            logger.info(f"[{request_id}] TÃ­tulo generado por LLM: {generated_title}")
+            logger.info(f"[{request_id}] Título generado por LLM: {generated_title}")
     except Exception:
-        logger.exception("[%s] Error generando tÃ­tulo con LLM", request_id)
+        logger.exception("[%s] Error generando título con LLM", request_id)
 
     if not generated_title:
         generated_title = fallback_title_from_user_input(user_input)
         if DEBUG_TOOLS:
-            logger.info(f"[{request_id}] Usando tÃ­tulo fallback: {generated_title}")
+            logger.info(f"[{request_id}] Usando título fallback: {generated_title}")
 
     update_chat_title(chat_id, generated_title)
 
     saved_title = get_chat_title(chat_id)
     if DEBUG_TOOLS:
-        logger.info(f"[{request_id}] TÃ­tulo guardado en BD: {saved_title}")
+        logger.info(f"[{request_id}] Título guardado en BD: {saved_title}")
