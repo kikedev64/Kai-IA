@@ -41,6 +41,7 @@ logger = logging.getLogger("uvicorn")
 
 MAX_TOOL_STEPS = 12
 MAX_EMPTY_MODEL_RETRIES = 2
+MAX_COMPLETION_GATE_RETRIES = 3
 GMAIL_CONTEXT_KEY = "gmail_recent_refs"
 
 
@@ -87,19 +88,229 @@ def should_enable_tools(prompt: str) -> bool:
 def resolve_tool_choice(
     use_tools: bool,
     executed_tool_results: list[tuple[str, dict]],
+    force_required: bool = False,
 ) -> str | None:
     """Resolve the tool-choice policy for the next model call.
 
     Args:
         use_tools: Whether tools are enabled for this turn.
         executed_tool_results: Tool results already collected in the current turn.
+        force_required: Whether the next model call must produce a tool call.
 
     Returns:
         str | None
     """
     if not use_tools:
         return None
+    if force_required:
+        return "required"
     return "auto" if executed_tool_results else "required"
+
+
+def compact_tool_results_for_gate(tool_results: list[tuple[str, dict]]) -> str:
+    """Build a compact execution log for workflow completion checks.
+
+    Args:
+        tool_results: Tool results collected during the assistant flow.
+
+    Returns:
+        str
+    """
+    lines: list[str] = []
+
+    for index, (tool_name, result) in enumerate(tool_results, start=1):
+        status = result.get("status") if isinstance(result, dict) else None
+        data = result.get("data") if isinstance(result, dict) else None
+        message = result.get("message") if isinstance(result, dict) else None
+        detail: dict[str, object] = {}
+
+        if isinstance(data, dict):
+            for key in (
+                "count",
+                "sender",
+                "subject_text",
+                "found",
+                "sent",
+                "mode",
+                "query",
+            ):
+                if key in data:
+                    detail[key] = data[key]
+
+            if "emails" in data and isinstance(data["emails"], list):
+                detail["emails"] = [
+                    {
+                        "id": email.get("message_id") or email.get("id"),
+                        "thread_id": email.get("thread_id"),
+                        "sender": email.get("sender"),
+                        "subject": email.get("subject"),
+                    }
+                    for email in data["emails"][:5]
+                    if isinstance(email, dict)
+                ]
+
+            if "files" in data and isinstance(data["files"], list):
+                detail["files"] = [
+                    {
+                        "id": file.get("id"),
+                        "name": file.get("name"),
+                        "downloadUrl": file.get("downloadUrl"),
+                        "webViewLink": file.get("webViewLink"),
+                    }
+                    for file in data["files"][:5]
+                    if isinstance(file, dict)
+                ]
+
+            if "email" in data and isinstance(data["email"], dict):
+                email = data["email"]
+                detail["email"] = {
+                    "to": email.get("to"),
+                    "subject": email.get("subject"),
+                    "body": str(email.get("body") or "")[:2500],
+                }
+
+            if "reply" in data and isinstance(data["reply"], dict):
+                reply = data["reply"]
+                detail["reply"] = {
+                    "to": reply.get("to"),
+                    "subject": reply.get("subject"),
+                    "body": str(reply.get("body") or "")[:2500],
+                }
+
+            if "replied_to" in data and isinstance(data["replied_to"], dict):
+                replied_to = data["replied_to"]
+                detail["replied_to"] = {
+                    "message_id": replied_to.get("message_id"),
+                    "thread_id": replied_to.get("thread_id"),
+                    "original_sender": replied_to.get("original_sender"),
+                    "original_subject": replied_to.get("original_subject"),
+                }
+
+        lines.append(
+            json.dumps(
+                {
+                    "step": index,
+                    "tool": tool_name,
+                    "status": status,
+                    "message": message,
+                    "detail": detail,
+                },
+                ensure_ascii=False,
+            )
+        )
+
+    return "\n".join(lines)
+
+
+def parse_json_object(text: str) -> dict | None:
+    """Parse the first JSON object found in model text.
+
+    Args:
+        text: Model text.
+
+    Returns:
+        dict | None
+    """
+    if not text:
+        return None
+
+    stripped = text.strip()
+    candidates = [stripped]
+
+    start = stripped.find("{")
+    end = stripped.rfind("}")
+    if start != -1 and end != -1 and end > start:
+        candidates.append(stripped[start : end + 1])
+
+    for candidate in candidates:
+        try:
+            parsed = json.loads(candidate)
+        except json.JSONDecodeError:
+            continue
+
+        if isinstance(parsed, dict):
+            return parsed
+
+    return None
+
+
+def evaluate_workflow_completion(
+    user_input: str,
+    final_text: str,
+    tool_results: list[tuple[str, dict]],
+) -> tuple[bool, str]:
+    """Check whether a proposed final answer completes the requested workflow.
+
+    Args:
+        user_input: Original user request.
+        final_text: Proposed assistant response.
+        tool_results: Tool results collected during the assistant flow.
+
+    Returns:
+        tuple[bool, str]
+    """
+    if not tool_results:
+        return True, ""
+
+    judge_messages = [
+        {
+            "role": "system",
+            "content": (
+                "Eres un verificador de workflows. Evalua si la respuesta final "
+                "cumple todas las acciones pedidas por el usuario, usando el log de tools. "
+                "No propongas pasos innecesarios: solo marca incompleto si falta una accion "
+                "explicitamente requerida o condicionada por informacion ya descubierta. "
+                "Responde solo JSON: {\"complete\": boolean, \"missing\": string}."
+            ),
+        },
+        {
+            "role": "user",
+            "content": (
+                "PETICION ORIGINAL:\n"
+                f"{user_input}\n\n"
+                "TOOLS EJECUTADAS:\n"
+                f"{compact_tool_results_for_gate(tool_results)}\n\n"
+                "RESPUESTA FINAL PROPUESTA:\n"
+                f"{final_text}"
+            ),
+        },
+    ]
+
+    try:
+        judge = call_lm_studio(judge_messages, use_tools=False)
+    except Exception:
+        logger.exception("[WORKFLOW_GATE] Error evaluando finalizacion")
+        return True, ""
+
+    parsed = parse_json_object(clean_model_output(judge.content or ""))
+    if not parsed:
+        return True, ""
+
+    complete = bool(parsed.get("complete", True))
+    missing = str(parsed.get("missing") or "").strip()
+    return complete, missing
+
+
+def workflow_gate_message(user_input: str, missing: str) -> dict:
+    """Build a system message that keeps a workflow running.
+
+    Args:
+        user_input: Original user request.
+        missing: Missing work reported by the completion gate.
+
+    Returns:
+        dict
+    """
+    return {
+        "role": "system",
+        "content": (
+            "WORKFLOW AUN NO COMPLETADO:\n"
+            f"Peticion original: {user_input}\n"
+            f"Falta: {missing or 'continuar con las acciones pendientes'}\n"
+            "Continua ejecutando la siguiente herramienta necesaria. "
+            "No des una respuesta final hasta completar las acciones pendientes."
+        ),
+    }
 
 
 def is_legacy_tool_json(text: str) -> bool:
@@ -615,10 +826,17 @@ def chat_endpoint(
 
         executed_tool_results: list[tuple[str, dict]] = []
         empty_model_retries = 0
+        completion_gate_retries = 0
+        force_next_tool = False
         use_tools = should_enable_tools(user_input)
 
         for step in range(MAX_TOOL_STEPS):
-            tool_choice = resolve_tool_choice(use_tools, executed_tool_results)
+            tool_choice = resolve_tool_choice(
+                use_tools,
+                executed_tool_results,
+                force_required=force_next_tool,
+            )
+            force_next_tool = False
             msg = call_lm_studio(
                 messages,
                 use_tools=use_tools,
@@ -738,6 +956,19 @@ def chat_endpoint(
 
                     if not content or is_garbage_text(content):
                         content = fallback_text_from_tool_results(executed_tool_results)
+
+                if executed_tool_results and use_tools:
+                    complete, missing = evaluate_workflow_completion(
+                        user_input,
+                        content,
+                        executed_tool_results,
+                    )
+
+                    if not complete and completion_gate_retries < MAX_COMPLETION_GATE_RETRIES:
+                        completion_gate_retries += 1
+                        messages.append(workflow_gate_message(user_input, missing))
+                        force_next_tool = True
+                        continue
 
                 if should_store_assistant_message(content):
                     add_message(chat_id, "assistant", content)
@@ -1302,8 +1533,15 @@ def assistant_chat_stream(req: ChatStreamRequest) -> StreamingResponse:
 
             executed_tool_results: list[tuple[str, dict]] = []
             empty_model_retries = 0
+            completion_gate_retries = 0
+            force_next_tool = False
 
             for step in range(MAX_TOOL_STEPS):
+                tool_choice = resolve_tool_choice(
+                    use_tools,
+                    executed_tool_results,
+                    force_required=force_next_tool,
+                )
                 event = debug_event(
                     "lmstudio_request",
                     "Se envía una petición a LM Studio con el contexto y las tools disponibles.",
@@ -1318,10 +1556,7 @@ def assistant_chat_stream(req: ChatStreamRequest) -> StreamingResponse:
                             "temperature": get_temperature(),
                             "messages": messages,
                             "tools": TOOLS if use_tools else [],
-                            "tool_choice": resolve_tool_choice(
-                                use_tools,
-                                executed_tool_results,
-                            ),
+                            "tool_choice": tool_choice,
                         }
                     ),
                 )
@@ -1329,7 +1564,7 @@ def assistant_chat_stream(req: ChatStreamRequest) -> StreamingResponse:
                     yield event
 
                 lmstudio_started_at = time.perf_counter()
-                tool_choice = resolve_tool_choice(use_tools, executed_tool_results)
+                force_next_tool = False
                 msg = call_lm_studio(
                     messages,
                     use_tools=use_tools,
@@ -1377,6 +1612,22 @@ def assistant_chat_stream(req: ChatStreamRequest) -> StreamingResponse:
                     logger.info(f"[{request_id}] tool_calls: {len(tool_calls)}")
 
                 if not tool_calls and content and not is_garbage_text(content):
+                    if executed_tool_results and use_tools:
+                        complete, missing = evaluate_workflow_completion(
+                            prompt,
+                            content,
+                            executed_tool_results,
+                        )
+
+                        if (
+                            not complete
+                            and completion_gate_retries < MAX_COMPLETION_GATE_RETRIES
+                        ):
+                            completion_gate_retries += 1
+                            messages.append(workflow_gate_message(prompt, missing))
+                            force_next_tool = True
+                            continue
+
                     if should_store_assistant_message(content):
                         add_message(chat_id, "assistant", content)
 
