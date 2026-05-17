@@ -2,26 +2,51 @@ import json
 import logging
 import time
 import uuid
-from datetime import datetime, timezone, timedelta
+from datetime import datetime
 from typing import Iterator
 
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel, Field
-from services.chat_summary_service import generate_chat_summary_from_text
-from core.config import get_model_name, get_temperature, get_tool_activation_keywords
+from api.assistant.constants import (
+    DEBUG_TOOLS,
+    GMAIL_CONTEXT_KEY,
+    MAX_COMPLETION_GATE_RETRIES,
+    MAX_EMPTY_MODEL_RETRIES,
+    MAX_TOOL_STEPS,
+)
+from api.assistant.gmail_context import (
+    build_gmail_context_message,
+    persist_gmail_memory,
+)
+from api.assistant.messages import (
+    continue_after_empty_message,
+    final_after_tools_message,
+    now_context_system_message,
+    post_tool_instruction_message,
+    workflow_gate_message,
+)
+from api.assistant.model_text import (
+    clean_model_output,
+    extract_legacy_tool_call,
+    is_garbage_text,
+    is_legacy_tool_json,
+    parse_json_object,
+    should_store_assistant_message,
+)
+from api.assistant.titles import ensure_chat_title as _ensure_chat_title
+from api.assistant.workflow import (
+    evaluate_workflow_completion,
+    fallback_text_from_tool_results,
+    resolve_tool_choice,
+    should_enable_tools,
+)
+from core.config import get_model_name, get_temperature
 from tools.tools_definition import TOOLS
 
-try:
-    from zoneinfo import ZoneInfo
-except Exception:
-    ZoneInfo = None
-
-from api.schemas.chat import AskRequest
+from api.schemas.chat import AskRequest, ChatStreamRequest
 from core.config import get_system_prompt_default
 from llm.lmstudio_client import ask_without_context, call_lm_studio
 from tools.tools_handler import handle_tool_call
-from tools.gmail.email_response_builders import build_emails_context_block
 from services.chat_store import (
     ensure_session,
     add_message,
@@ -29,732 +54,12 @@ from services.chat_store import (
     get_full_chat_by_id,
     get_messages,
     get_system_prompt,
-    get_chat_title,
     list_chat_sessions,
-    set_chat_context,
-    update_chat_title,
     count_user_messages,
 )
 
 router = APIRouter(prefix="/assistant", tags=["Assistant"])
 logger = logging.getLogger("uvicorn")
-
-MAX_TOOL_STEPS = 12
-MAX_EMPTY_MODEL_RETRIES = 2
-MAX_COMPLETION_GATE_RETRIES = 3
-GMAIL_CONTEXT_KEY = "gmail_recent_refs"
-
-
-class ChatStreamRequest(BaseModel):
-    """Request payload used by the streaming assistant endpoint.
-
-    Includes the active chat id, prompt, history window and optional
-    debug flags used by the Debug Lab view.
-    """
-
-    chat_id: str = Field(..., min_length=1)
-    prompt: str = Field(..., min_length=1)
-    limit_history: int = Field(default=6, ge=1, le=20)
-    profile_context: str | None = None
-    debug: bool = False
-
-
-DEBUG_TOOLS = True
-
-GMAIL_CONTEXT_TOOLS = {
-    "read_last_emails_full",
-    "read_last_emails_from_sender",
-    "read_last_emails_by_subject",
-    "read_thread_from_message_id",
-    "get_full_email",
-}
-
-
-def should_enable_tools(prompt: str) -> bool:
-    """Decide whether to enable tools.
-
-    Args:
-        prompt: Prompt text sent to the model.
-
-    Returns:
-        bool
-    """
-    text = (prompt or "").lower()
-    keywords = get_tool_activation_keywords() or []
-
-    return any(keyword in text for keyword in keywords)
-
-
-def resolve_tool_choice(
-    use_tools: bool,
-    executed_tool_results: list[tuple[str, dict]],
-    force_required: bool = False,
-) -> str | None:
-    """Resolve the tool-choice policy for the next model call.
-
-    Args:
-        use_tools: Whether tools are enabled for this turn.
-        executed_tool_results: Tool results already collected in the current turn.
-        force_required: Whether the next model call must produce a tool call.
-
-    Returns:
-        str | None
-    """
-    if not use_tools:
-        return None
-    if force_required:
-        return "required"
-    return "auto" if executed_tool_results else "required"
-
-
-def compact_tool_results_for_gate(tool_results: list[tuple[str, dict]]) -> str:
-    """Build a compact execution log for workflow completion checks.
-
-    Args:
-        tool_results: Tool results collected during the assistant flow.
-
-    Returns:
-        str
-    """
-    lines: list[str] = []
-
-    for index, (tool_name, result) in enumerate(tool_results, start=1):
-        status = result.get("status") if isinstance(result, dict) else None
-        data = result.get("data") if isinstance(result, dict) else None
-        message = result.get("message") if isinstance(result, dict) else None
-        detail: dict[str, object] = {}
-
-        if isinstance(data, dict):
-            for key in (
-                "count",
-                "sender",
-                "subject_text",
-                "found",
-                "sent",
-                "mode",
-                "query",
-            ):
-                if key in data:
-                    detail[key] = data[key]
-
-            if "emails" in data and isinstance(data["emails"], list):
-                detail["emails"] = [
-                    {
-                        "id": email.get("message_id") or email.get("id"),
-                        "thread_id": email.get("thread_id"),
-                        "sender": email.get("sender"),
-                        "subject": email.get("subject"),
-                    }
-                    for email in data["emails"][:5]
-                    if isinstance(email, dict)
-                ]
-
-            if "files" in data and isinstance(data["files"], list):
-                detail["files"] = [
-                    {
-                        "id": file.get("id"),
-                        "name": file.get("name"),
-                        "downloadUrl": file.get("downloadUrl"),
-                        "webViewLink": file.get("webViewLink"),
-                    }
-                    for file in data["files"][:5]
-                    if isinstance(file, dict)
-                ]
-
-            if "email" in data and isinstance(data["email"], dict):
-                email = data["email"]
-                detail["email"] = {
-                    "to": email.get("to"),
-                    "subject": email.get("subject"),
-                    "body": str(email.get("body") or "")[:2500],
-                }
-
-            if "reply" in data and isinstance(data["reply"], dict):
-                reply = data["reply"]
-                detail["reply"] = {
-                    "to": reply.get("to"),
-                    "subject": reply.get("subject"),
-                    "body": str(reply.get("body") or "")[:2500],
-                }
-
-            if "replied_to" in data and isinstance(data["replied_to"], dict):
-                replied_to = data["replied_to"]
-                detail["replied_to"] = {
-                    "message_id": replied_to.get("message_id"),
-                    "thread_id": replied_to.get("thread_id"),
-                    "original_sender": replied_to.get("original_sender"),
-                    "original_subject": replied_to.get("original_subject"),
-                }
-
-        lines.append(
-            json.dumps(
-                {
-                    "step": index,
-                    "tool": tool_name,
-                    "status": status,
-                    "message": message,
-                    "detail": detail,
-                },
-                ensure_ascii=False,
-            )
-        )
-
-    return "\n".join(lines)
-
-
-def parse_json_object(text: str) -> dict | None:
-    """Parse the first JSON object found in model text.
-
-    Args:
-        text: Model text.
-
-    Returns:
-        dict | None
-    """
-    if not text:
-        return None
-
-    stripped = text.strip()
-    candidates = [stripped]
-
-    start = stripped.find("{")
-    end = stripped.rfind("}")
-    if start != -1 and end != -1 and end > start:
-        candidates.append(stripped[start : end + 1])
-
-    for candidate in candidates:
-        try:
-            parsed = json.loads(candidate)
-        except json.JSONDecodeError:
-            continue
-
-        if isinstance(parsed, dict):
-            return parsed
-
-    return None
-
-
-def evaluate_workflow_completion(
-    user_input: str,
-    final_text: str,
-    tool_results: list[tuple[str, dict]],
-) -> tuple[bool, str]:
-    """Check whether a proposed final answer completes the requested workflow.
-
-    Args:
-        user_input: Original user request.
-        final_text: Proposed assistant response.
-        tool_results: Tool results collected during the assistant flow.
-
-    Returns:
-        tuple[bool, str]
-    """
-    if not tool_results:
-        return True, ""
-
-    judge_messages = [
-        {
-            "role": "system",
-            "content": (
-                "Eres un verificador de workflows. Evalua si la respuesta final "
-                "cumple todas las acciones pedidas por el usuario, usando el log de tools. "
-                "No propongas pasos innecesarios: solo marca incompleto si falta una accion "
-                "explicitamente requerida o condicionada por informacion ya descubierta. "
-                "Responde solo JSON: {\"complete\": boolean, \"missing\": string}."
-            ),
-        },
-        {
-            "role": "user",
-            "content": (
-                "PETICION ORIGINAL:\n"
-                f"{user_input}\n\n"
-                "TOOLS EJECUTADAS:\n"
-                f"{compact_tool_results_for_gate(tool_results)}\n\n"
-                "RESPUESTA FINAL PROPUESTA:\n"
-                f"{final_text}"
-            ),
-        },
-    ]
-
-    try:
-        judge = call_lm_studio(judge_messages, use_tools=False)
-    except Exception:
-        logger.exception("[WORKFLOW_GATE] Error evaluando finalizacion")
-        return True, ""
-
-    parsed = parse_json_object(clean_model_output(judge.content or ""))
-    if not parsed:
-        return True, ""
-
-    complete = bool(parsed.get("complete", True))
-    missing = str(parsed.get("missing") or "").strip()
-    return complete, missing
-
-
-def workflow_gate_message(user_input: str, missing: str) -> dict:
-    """Build a system message that keeps a workflow running.
-
-    Args:
-        user_input: Original user request.
-        missing: Missing work reported by the completion gate.
-
-    Returns:
-        dict
-    """
-    return {
-        "role": "system",
-        "content": (
-            "WORKFLOW AUN NO COMPLETADO:\n"
-            f"Peticion original: {user_input}\n"
-            f"Falta: {missing or 'continuar con las acciones pendientes'}\n"
-            "Continua ejecutando la siguiente herramienta necesaria. "
-            "No des una respuesta final hasta completar las acciones pendientes."
-        ),
-    }
-
-
-def is_legacy_tool_json(text: str) -> bool:
-    """Check whether the value is legacy tool json.
-
-    Args:
-        text: Text to inspect or transform.
-
-    Returns:
-        bool
-    """
-    if not text:
-        return False
-    s = text.strip()
-    try:
-        obj = json.loads(s)
-    except Exception:
-        return False
-    return isinstance(obj, dict) and "tool_call" in obj
-
-
-def extract_legacy_tool_call(text: str) -> dict | None:
-    """Extract the legacy tool call.
-
-    Args:
-        text: Text to inspect or transform.
-
-    Returns:
-        dict | None
-    """
-    if not text:
-        return None
-    s = text.strip()
-    try:
-        obj = json.loads(s)
-    except Exception:
-        return None
-    if not (isinstance(obj, dict) and "tool_call" in obj):
-        return None
-    tc = obj.get("tool_call")
-    if not isinstance(tc, dict):
-        return None
-    if "name" not in tc or "arguments" not in tc:
-        return None
-    return tc
-
-
-def now_context_system_message() -> dict:
-    """Build the system message with the current Madrid time context.
-
-    Returns:
-        dict
-    """
-    if ZoneInfo is not None:
-        try:
-            tz = ZoneInfo("Europe/Madrid")
-            now = datetime.now(tz)
-            tz_name = "Europe/Madrid"
-            now_iso = now.isoformat(timespec="seconds")
-            return {
-                "role": "system",
-                "content": (
-                    "CONTEXTO TEMPORAL (OBLIGATORIO):\n"
-                    f"- Fecha y hora actual: {now_iso}\n"
-                    f"- Zona horaria: {tz_name}\n"
-                    "- Interpreta fechas relativas (hoy/mañana/pasado mañana/este viernes) respecto a esta fecha.\n"
-                    "- Si necesitas fechas RFC3339 para tools, calcúlalas a partir de este contexto.\n"
-                ),
-            }
-        except Exception:
-            pass
-
-    cet = timezone(timedelta(hours=1))
-    now = datetime.now(cet)
-    return {
-        "role": "system",
-        "content": (
-            "CONTEXTO TEMPORAL (OBLIGATORIO):\n"
-            f"- Fecha y hora actual: {now.isoformat(timespec='seconds')}\n"
-            "- Zona horaria: UTC+01:00\n"
-            "- Interpreta fechas relativas respecto a esta fecha.\n"
-            "- Si necesitas fechas RFC3339 para tools, calcúlalas a partir de este contexto.\n"
-        ),
-    }
-
-
-def clean_model_output(text: str) -> str:
-    """Clean the model output.
-
-    Args:
-        text: Text to inspect or transform.
-
-    Returns:
-        str
-    """
-    if not text:
-        return ""
-
-    cleaned = text
-
-    while "<think>" in cleaned and "</think>" in cleaned:
-        start = cleaned.find("<think>")
-        end = cleaned.find("</think>", start)
-
-        if end == -1:
-            break
-
-        cleaned = cleaned[:start] + cleaned[end + len("</think>") :]
-
-    if "<think>" in cleaned:
-        cleaned = cleaned.split("<think>", 1)[0]
-
-    return cleaned.strip()
-
-
-def should_store_assistant_message(text: str) -> bool:
-    """Decide whether to store assistant message.
-
-    Args:
-        text: Text to inspect or transform.
-
-    Returns:
-        bool
-    """
-    if not text:
-        return False
-
-    stripped = text.strip()
-    if not stripped:
-        return False
-
-    if stripped.startswith("<|start|>assistant<|channel|>commentary"):
-        return False
-
-    if set(stripped) == {"?"}:
-        return False
-
-    return True
-
-
-def is_garbage_text(text: str) -> bool:
-    """Check whether model text is unusable as a user-facing answer.
-
-    Args:
-        text: Model output text.
-
-    Returns:
-        bool
-    """
-    if not text:
-        return False
-
-    stripped = text.strip()
-    if not stripped:
-        return False
-
-    if set(stripped) == {"?"}:
-        return True
-
-    if stripped.startswith("<|start|>assistant<|channel|>commentary"):
-        return True
-
-    return False
-
-
-def post_tool_instruction_message(user_input: str) -> dict:
-    """Build the instruction message used after a tool call.
-
-    Args:
-        user_input: User message sent to the assistant.
-
-    Returns:
-        dict
-    """
-    compact = " ".join((user_input or "").strip().split())
-    if len(compact) > 220:
-        compact = compact[:220].rstrip() + "..."
-
-    return {
-        "role": "system",
-        "content": (
-            "INSTRUCCIONES POST-TOOL:\n"
-            f"- Tarea del usuario: {compact}\n"
-            "- Usa el resultado de la herramienta para continuar.\n"
-            "- No repitas la misma herramienta si ya tienes suficiente información.\n"
-            "- Si la tarea del usuario tiene varios puntos, no respondas hasta haberlos cubierto todos.\n"
-            "- Responde directamente solo cuando ya no queden acciones necesarias.\n"
-        ),
-    }
-
-
-def build_gmail_context_message(tool_name: str, result: dict) -> dict | None:
-    """Build the Gmail context message.
-
-    Args:
-        tool_name: Name of the tool that produced the result.
-        result: Tool or service result processed by the function.
-
-    Returns:
-        dict | None
-    """
-    if tool_name not in GMAIL_CONTEXT_TOOLS:
-        return None
-    if not isinstance(result, dict):
-        return None
-    if result.get("status") != "success":
-        return None
-
-    data = result.get("data")
-    if not isinstance(data, dict):
-        return None
-
-    try:
-        block = build_emails_context_block(data)
-    except Exception:
-        return None
-
-    if not block:
-        return None
-
-    return {
-        "role": "system",
-        "content": (
-            "CONTEXTO DE CORREOS RECIBIDO DESDE HERRAMIENTA:\n"
-            f"{block}\n"
-            "Trata este bloque como un resumen fiable de correos obtenidos por herramienta.\n"
-            "Si el usuario preguntó por correos, responde basándote en este bloque sin pedir pasos extra.\n"
-        ),
-    }
-
-
-def build_gmail_memory_context(tool_name: str, result: dict) -> str | None:
-    """Build the Gmail reference memory stored for future turns.
-
-    Args:
-        tool_name: Name of the tool that produced the result.
-        result: Tool or service result processed by the function.
-
-    Returns:
-        str | None
-    """
-    if tool_name not in GMAIL_CONTEXT_TOOLS:
-        return None
-    if not isinstance(result, dict) or result.get("status") != "success":
-        return None
-
-    data = result.get("data")
-    if not isinstance(data, dict):
-        return None
-
-    try:
-        block = build_emails_context_block(data)
-    except Exception:
-        return None
-
-    if not block:
-        return None
-
-    return (
-        "REFERENCIAS_GMAIL_RECIENTES:\n"
-        "Estas referencias son memoria operativa del chat, no texto visible del usuario.\n"
-        "Usalas para resolver referencias a correos o hilos ya obtenidos en la conversacion.\n"
-        "No inventes IDs: usa solo los id/message_id y thread_id presentes aqui.\n"
-        f"Origen: {tool_name}\n"
-        f"{block}"
-    )
-
-
-def persist_gmail_memory(chat_id: str, tool_name: str, result: dict) -> None:
-    """Persist Gmail references returned by a tool.
-
-    Args:
-        chat_id: Identifier of the chat session.
-        tool_name: Name of the executed tool.
-        result: Tool result.
-
-    Returns:
-        None
-    """
-    context = build_gmail_memory_context(tool_name, result)
-    if context:
-        set_chat_context(chat_id, GMAIL_CONTEXT_KEY, context)
-
-
-def continue_after_empty_message(user_input: str) -> dict:
-    """Build a generic continuation instruction after an empty model response.
-
-    Args:
-        user_input: Original user request.
-
-    Returns:
-        dict
-    """
-    compact = " ".join((user_input or "").strip().split())
-    if len(compact) > 500:
-        compact = compact[:500].rstrip() + "..."
-
-    return {
-        "role": "system",
-        "content": (
-            "La respuesta anterior del modelo vino vacia. Esto no es valido.\n"
-            f"Peticion original del usuario: {compact}\n"
-            "Si todavia quedan acciones por ejecutar, continua llamando a las tools "
-            "necesarias segun la peticion original. Si ya terminaste todas las acciones, "
-            "responde ahora con un informe final claro. No devuelvas contenido vacio."
-        ),
-    }
-
-
-def final_after_tools_message(user_input: str) -> dict:
-    """Build a generic final-response instruction after tool execution.
-
-    Args:
-        user_input: Original user request.
-
-    Returns:
-        dict
-    """
-    compact = " ".join((user_input or "").strip().split())
-    if len(compact) > 500:
-        compact = compact[:500].rstrip() + "..."
-
-    return {
-        "role": "system",
-        "content": (
-            "Genera la respuesta final para el usuario usando solo la peticion original "
-            "y los resultados de tools ya presentes en el contexto.\n"
-            f"Peticion original: {compact}\n"
-            "No llames mas tools en esta respuesta. No devuelvas contenido vacio. "
-            "Si alguna parte no pudo completarse, dilo brevemente y continua con lo demas."
-        ),
-    }
-
-
-def fallback_text_from_tool_results(tool_results: list[tuple[str, dict]]) -> str:
-    """Build a final fallback response from executed tool results.
-
-    Args:
-        tool_results: Tool results collected during the assistant flow.
-
-    Returns:
-        str
-    """
-    if not tool_results:
-        return "No he podido generar una respuesta valida."
-
-    lines = ["He ejecutado herramientas, pero el modelo no devolvio una respuesta final valida."]
-    lines.append("")
-    lines.append("Resumen de tools ejecutadas:")
-
-    for tool_name, result in tool_results:
-        status = result.get("status") if isinstance(result, dict) else None
-        data = result.get("data") if isinstance(result, dict) else None
-        detail = ""
-
-        if isinstance(data, dict):
-            if "count" in data:
-                detail = f" con {data.get('count')} resultado(s)"
-            elif "summary" in data:
-                detail = f": {data.get('summary')}"
-            elif "id" in data:
-                detail = f": {data.get('id')}"
-
-        lines.append(f"- {tool_name}: {status or 'sin estado'}{detail}.")
-
-    lines.append("")
-    lines.append(
-        "No devuelvo una respuesta vacia para no dejar el flujo colgado. "
-        "Revisa el Debug Lab o los logs para ver el detalle completo de cada resultado."
-    )
-
-    return "\n".join(lines)
-
-
-def _fallback_title_from_user_input(user_input: str) -> str:
-    """Create a short chat title from the first user message.
-
-    Args:
-        user_input: User message sent to the assistant.
-
-    Returns:
-        str
-    """
-    text = " ".join(user_input.strip().split())
-    if not text:
-        return "Nuevo chat"
-
-    words = text.split()
-    title = " ".join(words[:4]).strip()
-
-    if len(title) > 60:
-        title = title[:60].strip()
-
-    return title or "Nuevo chat"
-
-
-def _ensure_chat_title(
-    chat_id: str, user_input: str, is_first_user_message: bool, request_id: str
-) -> None:
-    """Ensure the chat title exists.
-
-    Args:
-        chat_id: Identifier of the chat session.
-        user_input: User message sent to the assistant.
-        is_first_user_message: Whether this message is the first user message in the chat.
-        request_id: Identifier of the request.
-
-    Returns:
-        None
-    """
-    if not is_first_user_message:
-        return
-
-    current_title = get_chat_title(chat_id)
-    if current_title:
-        if DEBUG_TOOLS:
-            logger.info(f"[{request_id}] El chat ya tiene título: {current_title}")
-        return
-
-    generated_title = None
-
-    try:
-        generated_title = clean_model_output(
-            generate_chat_summary_from_text(user_input) or ""
-        )
-        if generated_title:
-            generated_title = " ".join(generated_title.split())
-            if len(generated_title) > 60:
-                generated_title = generated_title[:60].strip()
-        if DEBUG_TOOLS:
-            logger.info(f"[{request_id}] Título generado por LLM: {generated_title}")
-    except Exception:
-        logger.exception("[%s] Error generando título con LLM", request_id)
-
-    if not generated_title:
-        generated_title = _fallback_title_from_user_input(user_input)
-        if DEBUG_TOOLS:
-            logger.info(f"[{request_id}] Usando título fallback: {generated_title}")
-
-    update_chat_title(chat_id, generated_title)
-
-    saved_title = get_chat_title(chat_id)
-    if DEBUG_TOOLS:
-        logger.info(f"[{request_id}] Título guardado en BD: {saved_title}")
 
 
 @router.post("/start")
@@ -1024,7 +329,7 @@ def chat_endpoint(
 
                 if isinstance(result, dict) and result.get("status") == "auth_expired":
                     final_auth_reply = result.get("message") or (
-                        "No puedo acceder a tus servicios de Google porque la sesión ha expirado."
+                        "No puedo acceder a tus servicios de Google porque la sesiÃ³n ha expirado."
                     )
 
                     add_message(chat_id, "assistant", final_auth_reply)
@@ -1067,7 +372,7 @@ def chat_endpoint(
         logger.exception("[%s] ERROR EN /chat", request_id)
         if "No models loaded" in str(e):
             return {
-                "reply": "Ahora mismo no tengo ningún modelo cargado para responder. Carga un modelo en LM Studio.",
+                "reply": "Ahora mismo no tengo ningÃºn modelo cargado para responder. Carga un modelo en LM Studio.",
                 "chat_id": chat_id,
             }
         raise HTTPException(status_code=500, detail=str(e))
@@ -1092,7 +397,7 @@ def ask_llm(req: AskRequest) -> dict[str, str]:
     except Exception as e:
         if "No models loaded" in str(e):
             raise HTTPException(
-                status_code=503, detail="No hay ningún modelo cargado en LM Studio."
+                status_code=503, detail="No hay ningÃºn modelo cargado en LM Studio."
             )
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -1337,13 +642,13 @@ def assistant_chat_stream(req: ChatStreamRequest) -> StreamingResponse:
             str
         """
         if not tool_results:
-            return "He completado la operación."
+            return "He completado la operaciÃ³n."
 
         last_tool_name, last_result = tool_results[-1]
 
         if isinstance(last_result, dict) and last_result.get("status") == "error":
             return (
-                "He intentado completar la acción, pero ha ocurrido un error: "
+                "He intentado completar la acciÃ³n, pero ha ocurrido un error: "
                 f"{last_result.get('message', 'Error desconocido')}"
             )
 
@@ -1353,13 +658,13 @@ def assistant_chat_stream(req: ChatStreamRequest) -> StreamingResponse:
             primary = calendars.get("primary", {})
             busy = primary.get("busy", [])
             if not busy:
-                return "Sí, esa fecha y hora aparecen libres en tu calendario."
+                return "SÃ­, esa fecha y hora aparecen libres en tu calendario."
             return "No, en ese intervalo tienes ocupaciones en el calendario."
 
         if last_tool_name == "create_meet_invitation":
             data = last_result.get("data", {}) if isinstance(last_result, dict) else {}
             meet_link = data.get("meet_link")
-            summary = data.get("summary", "la reunión")
+            summary = data.get("summary", "la reuniÃ³n")
             if meet_link:
                 return (
                     f"Listo, he creado {summary} con Google Meet. Enlace: {meet_link}"
@@ -1417,7 +722,7 @@ def assistant_chat_stream(req: ChatStreamRequest) -> StreamingResponse:
             if summary:
                 return str(summary)
 
-        return "He completado la operación correctamente."
+        return "He completado la operaciÃ³n correctamente."
 
     def event_generator() -> Iterator[str]:
         """Generate the streaming response events.
@@ -1544,7 +849,7 @@ def assistant_chat_stream(req: ChatStreamRequest) -> StreamingResponse:
                 )
                 event = debug_event(
                     "lmstudio_request",
-                    "Se envía una petición a LM Studio con el contexto y las tools disponibles.",
+                    "Se envÃ­a una peticiÃ³n a LM Studio con el contexto y las tools disponibles.",
                     step=step + 1,
                     tools_enabled=use_tools,
                     messages_count=len(messages),
@@ -1678,7 +983,7 @@ def assistant_chat_stream(req: ChatStreamRequest) -> StreamingResponse:
                         yield done_event()
                         return
 
-                    message = "No he podido generar una respuesta válida."
+                    message = "No he podido generar una respuesta vÃ¡lida."
 
                     if should_store_assistant_message(message):
                         add_message(chat_id, "assistant", message)
@@ -1757,7 +1062,7 @@ def assistant_chat_stream(req: ChatStreamRequest) -> StreamingResponse:
                         and result.get("status") == "auth_expired"
                     ):
                         final_auth_reply = result.get("message") or (
-                            "No puedo acceder a tus servicios de Google porque la sesión ha expirado."
+                            "No puedo acceder a tus servicios de Google porque la sesiÃ³n ha expirado."
                         )
 
                         if should_store_assistant_message(final_auth_reply):
