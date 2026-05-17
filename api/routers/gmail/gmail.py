@@ -48,6 +48,8 @@ def api_send_email(req: GmailSendRequest) -> dict:
 
     except HttpError as e:
         raise HTTPException(status_code=e.resp.status, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.post(
@@ -127,6 +129,8 @@ async def send_email_with_attachment(
 
     except HttpError as e:
         raise HTTPException(status_code=e.resp.status, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 def _email_to_api(e: Email) -> dict:

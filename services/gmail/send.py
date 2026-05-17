@@ -2,6 +2,7 @@ import base64
 import mimetypes
 from email.message import EmailMessage
 from core.models.email import Email
+from services.gmail.addressing import format_address_header
 from services.gmail.utils import _get_service, _apply_thread_headers
 from core.config import get_email_max_total_size_attachment
 
@@ -19,9 +20,25 @@ def send_email(email: Email, as_html: bool = False) -> dict:
     service = _get_service()
 
     message = EmailMessage()
-    message["To"] = email.to
+    message["To"] = format_address_header(email.to, "to")
     message["From"] = "me"
     message["Subject"] = email.subject
+    if getattr(email, "cc", None):
+        cc_header = format_address_header(email.cc, "cc", required=False)
+        if cc_header:
+            message["Cc"] = cc_header
+    if getattr(email, "bcc", None):
+        bcc_header = format_address_header(email.bcc, "bcc", required=False)
+        if bcc_header:
+            message["Bcc"] = bcc_header
+    if getattr(email, "reply_to", None):
+        reply_to_header = format_address_header(
+            email.reply_to,
+            "reply_to",
+            required=False,
+        )
+        if reply_to_header:
+            message["Reply-To"] = reply_to_header
 
     if getattr(email, "thread_id", None):
         _apply_thread_headers(message, email)
@@ -58,9 +75,25 @@ def send_email_with_attachments(
     service = _get_service()
 
     message = EmailMessage()
-    message["To"] = email.to
+    message["To"] = format_address_header(email.to, "to")
     message["From"] = "me"
     message["Subject"] = email.subject
+    if getattr(email, "cc", None):
+        cc_header = format_address_header(email.cc, "cc", required=False)
+        if cc_header:
+            message["Cc"] = cc_header
+    if getattr(email, "bcc", None):
+        bcc_header = format_address_header(email.bcc, "bcc", required=False)
+        if bcc_header:
+            message["Bcc"] = bcc_header
+    if getattr(email, "reply_to", None):
+        reply_to_header = format_address_header(
+            email.reply_to,
+            "reply_to",
+            required=False,
+        )
+        if reply_to_header:
+            message["Reply-To"] = reply_to_header
 
     if getattr(email, "thread_id", None):
         _apply_thread_headers(message, email)

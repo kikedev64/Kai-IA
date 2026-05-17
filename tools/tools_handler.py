@@ -16,6 +16,7 @@ from services.calendar.calendar_service import (
     freebusy_query,
 )
 from core.auth import get_google_auth_url
+from services.gmail.addressing import normalize_email_addresses
 from services.drive.files import (
     get_public_download_link,
     list_drive_files,
@@ -365,11 +366,22 @@ def handle_tool_call(tool_call: object) -> dict:
                     "message": "Falta el cuerpo del correo 'body'",
                 }
 
-            to_field = (
-                ", ".join(to_value) if isinstance(to_value, list) else str(to_value)
-            )
-            cc_field = cc_value if isinstance(cc_value, list) else [cc_value]
-            bcc_field = bcc_value if isinstance(bcc_value, list) else [bcc_value]
+            try:
+                to_recipients = normalize_email_addresses(to_value, "to")
+                cc_field = normalize_email_addresses(
+                    cc_value,
+                    "cc",
+                    required=False,
+                )
+                bcc_field = normalize_email_addresses(
+                    bcc_value,
+                    "bcc",
+                    required=False,
+                )
+            except ValueError as exc:
+                return {"status": "error", "message": str(exc)}
+
+            to_field = ", ".join(to_recipients)
 
             email_obj = Email(
                 id="",
@@ -444,6 +456,18 @@ def handle_tool_call(tool_call: object) -> dict:
                     if isinstance(original_email.cc, list)
                     else [original_email.cc]
                 )
+
+            try:
+                to_recipients = normalize_email_addresses(to_field, "to")
+                cc_field = normalize_email_addresses(
+                    cc_field,
+                    "cc",
+                    required=False,
+                )
+            except ValueError as exc:
+                return {"status": "error", "message": str(exc)}
+
+            to_field = ", ".join(to_recipients)
 
             reply_email_obj = Email(
                 id="",
