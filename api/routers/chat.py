@@ -25,11 +25,13 @@ from tools.gmail.email_response_builders import build_emails_context_block
 from services.chat_store import (
     ensure_session,
     add_message,
+    get_chat_context,
     get_full_chat_by_id,
     get_messages,
     get_system_prompt,
     get_chat_title,
     list_chat_sessions,
+    set_chat_context,
     update_chat_title,
     count_user_messages,
 )
@@ -39,6 +41,7 @@ logger = logging.getLogger("uvicorn")
 
 MAX_TOOL_STEPS = 12
 MAX_EMPTY_MODEL_RETRIES = 2
+GMAIL_CONTEXT_KEY = "gmail_recent_refs"
 
 
 class ChatStreamRequest(BaseModel):
@@ -76,12 +79,27 @@ def should_enable_tools(prompt: str) -> bool:
         bool
     """
     text = (prompt or "").lower()
-    keywords = get_tool_activation_keywords()
-
-    if not keywords:
-        return False
+    keywords = get_tool_activation_keywords() or []
 
     return any(keyword in text for keyword in keywords)
+
+
+def resolve_tool_choice(
+    use_tools: bool,
+    executed_tool_results: list[tuple[str, dict]],
+) -> str | None:
+    """Resolve the tool-choice policy for the next model call.
+
+    Args:
+        use_tools: Whether tools are enabled for this turn.
+        executed_tool_results: Tool results already collected in the current turn.
+
+    Returns:
+        str | None
+    """
+    if not use_tools:
+        return None
+    return "auto" if executed_tool_results else "required"
 
 
 def is_legacy_tool_json(text: str) -> bool:
@@ -268,7 +286,6 @@ def post_tool_instruction_message(user_input: str) -> dict:
             "- Usa el resultado de la herramienta para continuar.\n"
             "- No repitas la misma herramienta si ya tienes suficiente información.\n"
             "- Si la tarea del usuario tiene varios puntos, no respondas hasta haberlos cubierto todos.\n"
-            "- Al final, resume qué herramientas has usado y qué resultado devolvió cada una.\n"
             "- Responde directamente solo cuando ya no queden acciones necesarias.\n"
         ),
     }
@@ -312,6 +329,59 @@ def build_gmail_context_message(tool_name: str, result: dict) -> dict | None:
             "Si el usuario preguntó por correos, responde basándote en este bloque sin pedir pasos extra.\n"
         ),
     }
+
+
+def build_gmail_memory_context(tool_name: str, result: dict) -> str | None:
+    """Build the Gmail reference memory stored for future turns.
+
+    Args:
+        tool_name: Name of the tool that produced the result.
+        result: Tool or service result processed by the function.
+
+    Returns:
+        str | None
+    """
+    if tool_name not in GMAIL_CONTEXT_TOOLS:
+        return None
+    if not isinstance(result, dict) or result.get("status") != "success":
+        return None
+
+    data = result.get("data")
+    if not isinstance(data, dict):
+        return None
+
+    try:
+        block = build_emails_context_block(data)
+    except Exception:
+        return None
+
+    if not block:
+        return None
+
+    return (
+        "REFERENCIAS_GMAIL_RECIENTES:\n"
+        "Estas referencias son memoria operativa del chat, no texto visible del usuario.\n"
+        "Usalas para resolver referencias a correos o hilos ya obtenidos en la conversacion.\n"
+        "No inventes IDs: usa solo los id/message_id y thread_id presentes aqui.\n"
+        f"Origen: {tool_name}\n"
+        f"{block}"
+    )
+
+
+def persist_gmail_memory(chat_id: str, tool_name: str, result: dict) -> None:
+    """Persist Gmail references returned by a tool.
+
+    Args:
+        chat_id: Identifier of the chat session.
+        tool_name: Name of the executed tool.
+        result: Tool result.
+
+    Returns:
+        None
+    """
+    context = build_gmail_memory_context(tool_name, result)
+    if context:
+        set_chat_context(chat_id, GMAIL_CONTEXT_KEY, context)
 
 
 def continue_after_empty_message(user_input: str) -> dict:
@@ -529,6 +599,11 @@ def chat_endpoint(
             {"role": "system", "content": system_prompt},
             now_context_system_message(),
         ]
+
+        gmail_memory_context = get_chat_context(chat_id, GMAIL_CONTEXT_KEY)
+        if gmail_memory_context:
+            messages.append({"role": "system", "content": gmail_memory_context})
+
         messages += sanitized
 
         if DEBUG_TOOLS:
@@ -540,9 +615,15 @@ def chat_endpoint(
 
         executed_tool_results: list[tuple[str, dict]] = []
         empty_model_retries = 0
+        use_tools = should_enable_tools(user_input)
 
         for step in range(MAX_TOOL_STEPS):
-            msg = call_lm_studio(messages)
+            tool_choice = resolve_tool_choice(use_tools, executed_tool_results)
+            msg = call_lm_studio(
+                messages,
+                use_tools=use_tools,
+                tool_choice=tool_choice,
+            )
             tool_calls = getattr(msg, "tool_calls", None)
 
             if DEBUG_TOOLS:
@@ -609,6 +690,8 @@ def chat_endpoint(
 
                     fake_tc = _TC(name, args)
                     result = handle_tool_call(fake_tc)
+                    persist_gmail_memory(chat_id, name, result)
+                    gmail_memory_context = get_chat_context(chat_id, GMAIL_CONTEXT_KEY)
 
                     messages.append({"role": "assistant", "content": None})
                     messages.append(
@@ -625,7 +708,7 @@ def chat_endpoint(
 
                     messages.append(post_tool_instruction_message(user_input))
 
-                    msg2 = call_lm_studio(messages)
+                    msg2 = call_lm_studio(messages, use_tools=True, tool_choice="auto")
                     final2 = (msg2.content or "").strip()
 
                     if should_store_assistant_message(final2):
@@ -698,6 +781,8 @@ def chat_endpoint(
             for tc in tool_calls:
                 result = handle_tool_call(tc)
                 executed_tool_results.append((tc.function.name, result))
+                persist_gmail_memory(chat_id, tc.function.name, result)
+                gmail_memory_context = get_chat_context(chat_id, GMAIL_CONTEXT_KEY)
 
                 if DEBUG_TOOLS:
                     logger.info(f"\n[{request_id}] TOOL RESULT <- {tc.function.name}")
@@ -1071,6 +1156,30 @@ def assistant_chat_stream(req: ChatStreamRequest) -> StreamingResponse:
                 )
             return "Listo, he respondido el correo. Gracias."
 
+        if last_tool_name == "read_thread_from_message_id":
+            data = last_result.get("data", {}) if isinstance(last_result, dict) else {}
+            thread = data.get("thread", {}) if isinstance(data, dict) else {}
+            emails = thread.get("emails", []) if isinstance(thread, dict) else []
+            if isinstance(emails, list) and emails:
+                lines = [f"He leido el hilo completo ({len(emails)} mensajes).", ""]
+                for index, email in enumerate(emails[:6], start=1):
+                    if not isinstance(email, dict):
+                        continue
+                    subject = email.get("subject") or "Sin asunto"
+                    sender = email.get("sender") or "Sin remitente"
+                    date = email.get("date") or "Sin fecha"
+                    body = " ".join(
+                        str(email.get("body") or email.get("snippet") or "").split()
+                    )
+                    if len(body) > 700:
+                        body = body[:700].rstrip() + "..."
+                    lines.append(f"{index}. **{subject}**")
+                    lines.append(f"   - De: {sender}")
+                    lines.append(f"   - Fecha: {date}")
+                    if body:
+                        lines.append(f"   - Contenido: {body}")
+                return "\n".join(lines)
+
         if last_tool_name == "get_full_email":
             data = last_result.get("data", {}) if isinstance(last_result, dict) else {}
             summary = data.get("summary")
@@ -1157,6 +1266,10 @@ def assistant_chat_stream(req: ChatStreamRequest) -> StreamingResponse:
                     }
                 )
 
+            gmail_memory_context = get_chat_context(chat_id, GMAIL_CONTEXT_KEY)
+            if gmail_memory_context:
+                messages.append({"role": "system", "content": gmail_memory_context})
+
             messages += sanitized
 
             use_tools = should_enable_tools(prompt)
@@ -1205,7 +1318,10 @@ def assistant_chat_stream(req: ChatStreamRequest) -> StreamingResponse:
                             "temperature": get_temperature(),
                             "messages": messages,
                             "tools": TOOLS if use_tools else [],
-                            "tool_choice": "auto" if use_tools else None,
+                            "tool_choice": resolve_tool_choice(
+                                use_tools,
+                                executed_tool_results,
+                            ),
                         }
                     ),
                 )
@@ -1213,7 +1329,12 @@ def assistant_chat_stream(req: ChatStreamRequest) -> StreamingResponse:
                     yield event
 
                 lmstudio_started_at = time.perf_counter()
-                msg = call_lm_studio(messages, use_tools=use_tools)
+                tool_choice = resolve_tool_choice(use_tools, executed_tool_results)
+                msg = call_lm_studio(
+                    messages,
+                    use_tools=use_tools,
+                    tool_choice=tool_choice,
+                )
                 lmstudio_ms = round(
                     (time.perf_counter() - lmstudio_started_at) * 1000, 2
                 )
@@ -1354,6 +1475,8 @@ def assistant_chat_stream(req: ChatStreamRequest) -> StreamingResponse:
                     result = handle_tool_call(tc)
                     tool_ms = round((time.perf_counter() - tool_started_at) * 1000, 2)
                     executed_tool_results.append((tc.function.name, result))
+                    persist_gmail_memory(chat_id, tc.function.name, result)
+                    gmail_memory_context = get_chat_context(chat_id, GMAIL_CONTEXT_KEY)
                     event = debug_event(
                         "tool_result",
                         f"La tool {tc.function.name} termina y su resultado vuelve al contexto.",

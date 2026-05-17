@@ -69,6 +69,75 @@ def add_message(chat_id: str, role: str, content: str) -> None:
     conn.close()
 
 
+def set_chat_context(chat_id: str, key: str, content: str) -> None:
+    """Persist auxiliary context for a chat session.
+
+    Args:
+        chat_id: Identifier of the chat session.
+        key: Context namespace.
+        content: Context text stored for later turns.
+
+    Returns:
+        None
+    """
+    if not chat_id or not key or not content.strip():
+        return
+
+    conn = get_connection()
+    cur = conn.cursor()
+
+    cur.execute(
+        """
+        INSERT INTO chat_context (chat_id, key, content, updated_at)
+        VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+        ON CONFLICT(chat_id, key) DO UPDATE SET
+            content = excluded.content,
+            updated_at = CURRENT_TIMESTAMP
+        """,
+        (chat_id, key, content),
+    )
+
+    cur.execute(
+        """
+        UPDATE chat_sessions
+        SET updated_at = CURRENT_TIMESTAMP
+        WHERE chat_id = ?
+        """,
+        (chat_id,),
+    )
+
+    conn.commit()
+    conn.close()
+
+
+def get_chat_context(chat_id: str, key: str) -> Optional[str]:
+    """Return auxiliary context for a chat session.
+
+    Args:
+        chat_id: Identifier of the chat session.
+        key: Context namespace.
+
+    Returns:
+        Optional[str]
+    """
+    conn = get_connection()
+    cur = conn.cursor()
+
+    cur.execute(
+        """
+        SELECT content
+        FROM chat_context
+        WHERE chat_id = ? AND key = ?
+        """,
+        (chat_id, key),
+    )
+
+    row = cur.fetchone()
+    conn.close()
+
+    return row["content"] if row else None
+
+
 def get_messages(chat_id: str, limit: int = 50) -> list[dict]:
     """Return the messages.
 

@@ -303,12 +303,13 @@ def handle_tool_call(tool_call: object) -> dict:
                 "status": "success",
                 "data": {
                     "found": True,
-                    "thread": _thread_to_dict(thread),
+                    "thread": _thread_to_dict(thread, include_body=True),
                 },
             }
 
         if name == "get_full_email":
-            email = read_email_by_id(args.get("id"), clean_body=True)
+            message_id = args.get("message_id") or args.get("id")
+            email = read_email_by_id(message_id, clean_body=True)
 
             if not email:
                 return {"status": "error", "message": "Email no encontrado"}
@@ -335,10 +336,12 @@ def handle_tool_call(tool_call: object) -> dict:
             return {
                 "status": "success",
                 "data": {
-                    "email": email.model_dump()
-                    if hasattr(email, "model_dump")
-                    else email.__dict__,
-                    "summary": summary if summary is not None else "",
+                    "email": _email_to_dict(email, include_body=True),
+                    "summary": (
+                        summary.get("reply", "")
+                        if isinstance(summary, dict)
+                        else summary or ""
+                    ),
                 },
             }
 
