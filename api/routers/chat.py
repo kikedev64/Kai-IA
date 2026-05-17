@@ -1,4 +1,4 @@
-import json
+﻿import json
 import logging
 import time
 import uuid
@@ -30,9 +30,9 @@ from api.assistant.model_text import (
     extract_legacy_tool_call,
     is_garbage_text,
     is_legacy_tool_json,
-    parse_json_object,
     should_store_assistant_message,
 )
+from api.assistant.orchestrator import run_chat_orchestrator
 from api.assistant.titles import ensure_chat_title as _ensure_chat_title
 from api.assistant.workflow import (
     evaluate_workflow_completion,
@@ -90,294 +90,23 @@ def chat_endpoint(
     Returns:
         dict[str, str]
     """
-    request_id = str(uuid.uuid4())[:8]
-
     try:
-        start_ts = datetime.now().isoformat(timespec="seconds")
-
-        system_prompt = get_system_prompt(chat_id) or get_system_prompt_default()
-        ensure_session(chat_id, system_prompt)
-
-        add_message(chat_id, "user", user_input)
-
-        user_message_count = count_user_messages(chat_id)
-        is_first_user_message = user_message_count == 1
-
-        history = get_messages(chat_id, limit=limit_history)
-
-        sanitized: list[dict] = []
-        for m in history:
-            if m["role"] == "assistant" and is_legacy_tool_json(m["content"]):
-                continue
-            sanitized.append(m)
-
-        messages = [
-            {"role": "system", "content": system_prompt},
-            now_context_system_message(),
-        ]
-
-        gmail_memory_context = get_chat_context(chat_id, GMAIL_CONTEXT_KEY)
-        if gmail_memory_context:
-            messages.append({"role": "system", "content": gmail_memory_context})
-
-        messages += sanitized
-
-        if DEBUG_TOOLS:
-            logger.info(f"\n=== [{request_id}] CHAT START {start_ts} ===")
-            logger.info(f"[{request_id}] chat_id: {chat_id}")
-            logger.info(f"[{request_id}] USER: {user_input}")
-            logger.info(f"[{request_id}] user_message_count: {user_message_count}")
-            logger.info(f"[{request_id}] is_first_user_message: {is_first_user_message}")
-
-        executed_tool_results: list[tuple[str, dict]] = []
-        empty_model_retries = 0
-        completion_gate_retries = 0
-        force_next_tool = False
-        use_tools = should_enable_tools(user_input)
-
-        for step in range(MAX_TOOL_STEPS):
-            tool_choice = resolve_tool_choice(
-                use_tools,
-                executed_tool_results,
-                force_required=force_next_tool,
-            )
-            force_next_tool = False
-            msg = call_lm_studio(
-                messages,
-                use_tools=use_tools,
-                tool_choice=tool_choice,
-            )
-            tool_calls = getattr(msg, "tool_calls", None)
-
-            if DEBUG_TOOLS:
-                logger.info(f"\n[{request_id}] STEP {step} - MODEL MESSAGE")
-                logger.info(f"[{request_id}] content: {repr(msg.content)}")
-                logger.info(
-                    f"[{request_id}] tool_calls: {len(tool_calls) if tool_calls else 0}"
-                )
-
-            if not tool_calls:
-                content = clean_model_output(msg.content or "")
-
-                legacy_tc = extract_legacy_tool_call(content)
-                if legacy_tc:
-                    if DEBUG_TOOLS:
-                        logger.info(f"\n[{request_id}] LEGACY TOOL JSON DETECTED (content)")
-                        logger.info(f"[{request_id}] legacy tool: {legacy_tc.get('name')}")
-                        logger.info(
-                            f"[{request_id}] legacy args: {json.dumps(legacy_tc.get('arguments'), ensure_ascii=False)}"
-                        )
-
-                    name = legacy_tc["name"]
-                    args = legacy_tc.get("arguments") or {}
-
-                    class _Fn:
-                        """Small adapter for legacy tool-call function data.
-
-                        Converts an old JSON tool payload into the shape
-                        expected by the shared tool handler.
-                        """
-
-                        def __init__(self, n: str, a: dict) -> None:
-                            """Store a legacy tool-call function payload.
-
-                            Args:
-                                n: Tool name used by the test double.
-                                a: Tool arguments used by the test double.
-
-                            Returns:
-                                None
-                            """
-                            self.name = n
-                            self.arguments = json.dumps(a, ensure_ascii=False)
-
-                    class _TC:
-                        """Small adapter for a legacy tool-call wrapper.
-
-                        Provides the id and function attributes consumed by
-                        the current tool execution path.
-                        """
-
-                        def __init__(self, n: str, a: dict) -> None:
-                            """Store a legacy tool-call wrapper payload.
-
-                            Args:
-                                n: Tool name used by the test double.
-                                a: Tool arguments used by the test double.
-
-                            Returns:
-                                None
-                            """
-                            self.id = "legacy"
-                            self.function = _Fn(n, a)
-
-                    fake_tc = _TC(name, args)
-                    result = handle_tool_call(fake_tc)
-                    persist_gmail_memory(chat_id, name, result)
-                    gmail_memory_context = get_chat_context(chat_id, GMAIL_CONTEXT_KEY)
-
-                    messages.append({"role": "assistant", "content": None})
-                    messages.append(
-                        {
-                            "role": "tool",
-                            "tool_call_id": "legacy",
-                            "content": json.dumps(result, ensure_ascii=False),
-                        }
-                    )
-
-                    gmail_context_msg = build_gmail_context_message(name, result)
-                    if gmail_context_msg:
-                        messages.append(gmail_context_msg)
-
-                    messages.append(post_tool_instruction_message(user_input))
-
-                    msg2 = call_lm_studio(messages, use_tools=True, tool_choice="auto")
-                    final2 = (msg2.content or "").strip()
-
-                    if should_store_assistant_message(final2):
-                        add_message(chat_id, "assistant", final2)
-                        _ensure_chat_title(
-                            chat_id, user_input, is_first_user_message, request_id
-                        )
-
-                    if DEBUG_TOOLS:
-                        logger.info(
-                            f"\n[{request_id}] FINAL (after legacy tool exec): {final2}"
-                        )
-                        logger.info(f"=== [{request_id}] CHAT END ===\n")
-
-                    return {"reply": final2, "chat_id": chat_id}
-
-                if not content or is_garbage_text(content):
-                    if executed_tool_results and empty_model_retries < MAX_EMPTY_MODEL_RETRIES:
-                        empty_model_retries += 1
-                        messages.append(continue_after_empty_message(user_input))
-                        continue
-
-                    if executed_tool_results:
-                        messages.append(final_after_tools_message(user_input))
-                        forced_final = call_lm_studio(messages, use_tools=False)
-                        content = clean_model_output(forced_final.content or "")
-
-                    if not content or is_garbage_text(content):
-                        content = fallback_text_from_tool_results(executed_tool_results)
-
-                if executed_tool_results and use_tools:
-                    complete, missing = evaluate_workflow_completion(
-                        user_input,
-                        content,
-                        executed_tool_results,
-                    )
-
-                    if not complete and completion_gate_retries < MAX_COMPLETION_GATE_RETRIES:
-                        completion_gate_retries += 1
-                        messages.append(workflow_gate_message(user_input, missing))
-                        force_next_tool = True
-                        continue
-
-                if should_store_assistant_message(content):
-                    add_message(chat_id, "assistant", content)
-                    _ensure_chat_title(
-                        chat_id, user_input, is_first_user_message, request_id
-                    )
-
-                if DEBUG_TOOLS:
-                    logger.info(f"\n[{request_id}] FINAL: {content}")
-                    logger.info(f"=== [{request_id}] CHAT END ===\n")
-
-                return {"reply": content, "chat_id": chat_id}
-
-            assistant_payload = {
-                "role": "assistant",
-                "content": msg.content,
-                "tool_calls": [],
-            }
-
-            for tc in tool_calls:
-                assistant_payload["tool_calls"].append(
-                    {
-                        "id": tc.id,
-                        "type": "function",
-                        "function": {
-                            "name": tc.function.name,
-                            "arguments": tc.function.arguments,
-                        },
-                    }
-                )
-
-                if DEBUG_TOOLS:
-                    logger.info(f"\n[{request_id}] TOOL CALL -> {tc.function.name}")
-                    logger.info(f"[{request_id}] tool_call_id: {tc.id}")
-                    logger.info(f"[{request_id}] raw arguments: {tc.function.arguments}")
-
-            messages.append(assistant_payload)
-
-            empty_model_retries = 0
-
-            for tc in tool_calls:
-                result = handle_tool_call(tc)
-                executed_tool_results.append((tc.function.name, result))
-                persist_gmail_memory(chat_id, tc.function.name, result)
-                gmail_memory_context = get_chat_context(chat_id, GMAIL_CONTEXT_KEY)
-
-                if DEBUG_TOOLS:
-                    logger.info(f"\n[{request_id}] TOOL RESULT <- {tc.function.name}")
-                    logger.info(f"[{request_id}] tool_call_id: {tc.id}")
-                    logger.info(
-                        f"[{request_id}] result: {json.dumps(result, ensure_ascii=False, indent=2)}"
-                    )
-
-                if isinstance(result, dict) and result.get("status") == "auth_expired":
-                    final_auth_reply = result.get("message") or (
-                        "No puedo acceder a tus servicios de Google porque la sesiÃ³n ha expirado."
-                    )
-
-                    add_message(chat_id, "assistant", final_auth_reply)
-
-                    if DEBUG_TOOLS:
-                        logger.info(f"\n[{request_id}] AUTH EXPIRED DETECTED")
-                        logger.info(f"[{request_id}] message: {final_auth_reply}")
-                        logger.info(f"=== [{request_id}] CHAT END ===\n")
-
-                    return {"reply": final_auth_reply, "chat_id": chat_id}
-
-                tool_msg = {
-                    "role": "tool",
-                    "tool_call_id": tc.id,
-                    "content": json.dumps(result, ensure_ascii=False),
-                }
-
-                messages.append(tool_msg)
-
-                gmail_context_msg = build_gmail_context_message(
-                    tc.function.name, result
-                )
-                if gmail_context_msg:
-                    messages.append(gmail_context_msg)
-
-                messages.append(post_tool_instruction_message(user_input))
-
-        if executed_tool_results:
-            fallback_reply = fallback_text_from_tool_results(executed_tool_results)
-            add_message(chat_id, "assistant", fallback_reply)
-            _ensure_chat_title(chat_id, user_input, is_first_user_message, request_id)
-            return {"reply": fallback_reply, "chat_id": chat_id}
-
-        raise HTTPException(
-            status_code=500,
-            detail="Demasiadas llamadas a herramientas seguidas (posible bucle).",
+        return run_chat_orchestrator(
+            user_input=user_input,
+            chat_id=chat_id,
+            limit_history=limit_history,
         )
-
     except Exception as e:
-        logger.exception("[%s] ERROR EN /chat", request_id)
+        logger.exception("ERROR EN /chat")
+
         if "No models loaded" in str(e):
             return {
-                "reply": "Ahora mismo no tengo ningÃºn modelo cargado para responder. Carga un modelo en LM Studio.",
+                "reply": "Ahora mismo no tengo ningún modelo cargado para responder. Carga un modelo en LM Studio.",
                 "chat_id": chat_id,
             }
+
         raise HTTPException(status_code=500, detail=str(e))
-
-
+    
 @router.post("/ask")
 def ask_llm(req: AskRequest) -> dict[str, str]:
     """Send a prompt to the LLM.
@@ -397,7 +126,7 @@ def ask_llm(req: AskRequest) -> dict[str, str]:
     except Exception as e:
         if "No models loaded" in str(e):
             raise HTTPException(
-                status_code=503, detail="No hay ningÃºn modelo cargado en LM Studio."
+                status_code=503, detail="No hay ningúnmodelo cargado en LM Studio."
             )
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -642,13 +371,13 @@ def assistant_chat_stream(req: ChatStreamRequest) -> StreamingResponse:
             str
         """
         if not tool_results:
-            return "He completado la operaciÃ³n."
+            return "He completado la operación"
 
         last_tool_name, last_result = tool_results[-1]
 
         if isinstance(last_result, dict) and last_result.get("status") == "error":
             return (
-                "He intentado completar la acciÃ³n, pero ha ocurrido un error: "
+                "He intentado completar la acción, pero ha ocurrido un error: "
                 f"{last_result.get('message', 'Error desconocido')}"
             )
 
@@ -658,13 +387,13 @@ def assistant_chat_stream(req: ChatStreamRequest) -> StreamingResponse:
             primary = calendars.get("primary", {})
             busy = primary.get("busy", [])
             if not busy:
-                return "SÃ­, esa fecha y hora aparecen libres en tu calendario."
+                return "Sí, esa fecha y hora aparecen libres en tu calendario."
             return "No, en ese intervalo tienes ocupaciones en el calendario."
 
         if last_tool_name == "create_meet_invitation":
             data = last_result.get("data", {}) if isinstance(last_result, dict) else {}
             meet_link = data.get("meet_link")
-            summary = data.get("summary", "la reuniÃ³n")
+            summary = data.get("summary", "la reunión")
             if meet_link:
                 return (
                     f"Listo, he creado {summary} con Google Meet. Enlace: {meet_link}"
@@ -722,7 +451,7 @@ def assistant_chat_stream(req: ChatStreamRequest) -> StreamingResponse:
             if summary:
                 return str(summary)
 
-        return "He completado la operaciÃ³n correctamente."
+        return "He completado la operación correctamente."
 
     def event_generator() -> Iterator[str]:
         """Generate the streaming response events.
@@ -849,7 +578,7 @@ def assistant_chat_stream(req: ChatStreamRequest) -> StreamingResponse:
                 )
                 event = debug_event(
                     "lmstudio_request",
-                    "Se envÃ­a una peticiÃ³n a LM Studio con el contexto y las tools disponibles.",
+                    "Se envía una petición a LM Studio con el contexto y las tools disponibles.",
                     step=step + 1,
                     tools_enabled=use_tools,
                     messages_count=len(messages),
@@ -983,7 +712,7 @@ def assistant_chat_stream(req: ChatStreamRequest) -> StreamingResponse:
                         yield done_event()
                         return
 
-                    message = "No he podido generar una respuesta vÃ¡lida."
+                    message = "No he podido generar una respuesta válida."
 
                     if should_store_assistant_message(message):
                         add_message(chat_id, "assistant", message)
@@ -1062,7 +791,7 @@ def assistant_chat_stream(req: ChatStreamRequest) -> StreamingResponse:
                         and result.get("status") == "auth_expired"
                     ):
                         final_auth_reply = result.get("message") or (
-                            "No puedo acceder a tus servicios de Google porque la sesiÃ³n ha expirado."
+                            "No puedo acceder a tus servicios de Google porque la sesión ha expirado."
                         )
 
                         if should_store_assistant_message(final_auth_reply):
