@@ -6,6 +6,7 @@ import WhoamiSlide from './Slides/Whoami/WhoamiSlide'
 import HowItWorksSlide from './Slides/HowItWorksSlide/HowItWorksSlide'
 import ConnectServicesSlide from './Slides/ConnectServicesSlide/ConnectServiceSlide'
 import BasicConfigSlide from './Slides/BasicConfigSlide/BasicConfigSlide'
+import ModelConfigSlide from './Slides/ModelConfigSlide/ModelConfigSlide'
 import ProfileSetupSlide from './Slides/ProfileSetupSlide/ProfileSetupSlide'
 import ConnectGoogleSlide from './Slides/ConnectGoogleSlide/ConnectGoogleSlide'
 
@@ -38,6 +39,7 @@ const OnboardingFlow = ({ onFinish }: OnboardingFlowProps) => {
     HowItWorksSlide,
     ConnectServicesSlide,
     BasicConfigSlide,
+    ModelConfigSlide,
     ProfileSetupSlide,
     ConnectGoogleSlide
   ]
