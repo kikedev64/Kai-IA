@@ -18,6 +18,9 @@ export type BackendSettings = {
   'default_prompts.resume_mail': string
   'default_prompts.basic_user_information_json': string
   'default_prompts.chat_summary': string
+  lmstudio_timeout: string
+  tool_approval_timeout: string
+  shell_command_timeout: string
 }
 export type LocalSettings = {
   server_url: string

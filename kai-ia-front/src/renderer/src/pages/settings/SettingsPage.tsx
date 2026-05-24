@@ -12,6 +12,7 @@ import {
   Search,
   UserRound,
   Link2,
+  Timer,
   Wrench
 } from 'lucide-react'
 import {
@@ -32,6 +33,7 @@ type SettingsSectionId =
   | 'google'
   | 'gmail'
   | 'prompts'
+  | 'timeouts'
 
 type SettingsForm = {
   server_url: string
@@ -95,6 +97,12 @@ const SECTION_ITEMS: SectionItem[] = [
     label: 'Tools',
     description: 'Activación automática de herramientas',
     icon: <Wrench size={16} />
+  },
+  {
+    id: 'timeouts',
+    label: 'Timeouts',
+    description: 'Tiempos límite del sistema',
+    icon: <Timer size={16} />
   }
 ]
 
@@ -116,7 +124,10 @@ const EMPTY_FORM: SettingsForm = {
   tool_activation_keywords: '[]',
   'default_prompts.resume_mail': '',
   'default_prompts.basic_user_information_json': '',
-  'default_prompts.chat_summary': ''
+  'default_prompts.chat_summary': '',
+  lmstudio_timeout: '600',
+  tool_approval_timeout: '120',
+  shell_command_timeout: '10'
 }
 
 /**
@@ -497,6 +508,21 @@ const SettingsPage = (): React.JSX.Element => {
         )
       }
 
+      const parsedLmstudioTimeout = Number(form.lmstudio_timeout)
+      if (!Number.isInteger(parsedLmstudioTimeout) || parsedLmstudioTimeout < 30 || parsedLmstudioTimeout > 3600) {
+        throw new Error('El timeout de LM Studio debe ser un entero entre 30 y 3600')
+      }
+
+      const parsedToolApprovalTimeout = Number(form.tool_approval_timeout)
+      if (!Number.isInteger(parsedToolApprovalTimeout) || parsedToolApprovalTimeout < 10 || parsedToolApprovalTimeout > 600) {
+        throw new Error('El timeout de aprobación de herramientas debe ser un entero entre 10 y 600')
+      }
+
+      const parsedShellCommandTimeout = Number(form.shell_command_timeout)
+      if (!Number.isInteger(parsedShellCommandTimeout) || parsedShellCommandTimeout < 1 || parsedShellCommandTimeout > 300) {
+        throw new Error('El timeout de comandos shell debe ser un entero entre 1 y 300')
+      }
+
       const backendPayload: BackendSettings = {
         google_redirect_uri: form.google_redirect_uri,
         google_scopes: form.google_scopes,
@@ -512,7 +538,10 @@ const SettingsPage = (): React.JSX.Element => {
         'default_prompts.resume_mail': form['default_prompts.resume_mail'],
         'default_prompts.basic_user_information_json':
           form['default_prompts.basic_user_information_json'],
-        'default_prompts.chat_summary': form['default_prompts.chat_summary']
+        'default_prompts.chat_summary': form['default_prompts.chat_summary'],
+        lmstudio_timeout: form.lmstudio_timeout,
+        tool_approval_timeout: form.tool_approval_timeout,
+        shell_command_timeout: form.shell_command_timeout
       }
 
       setSaving(true)
@@ -831,6 +860,50 @@ const SettingsPage = (): React.JSX.Element => {
             </div>
           </SectionCard>
         )
+      case 'timeouts':
+        return (
+          <SectionCard
+            title="Tiempos límite"
+            description="Controla cuánto tiempo espera el sistema en cada operación antes de cancelarla."
+          >
+            <div>
+              <FieldLabel
+                title="Timeout de LM Studio (segundos)"
+                subtitle="Tiempo máximo para que el modelo genere una respuesta. Entre 30 y 3600."
+              />
+              <TextInput
+                value={form.lmstudio_timeout}
+                onChange={(value) => updateField('lmstudio_timeout', value)}
+                placeholder="600"
+              />
+            </div>
+
+            <div>
+              <FieldLabel
+                title="Timeout de aprobación de herramienta (segundos)"
+                subtitle="Tiempo que tienes para aprobar o rechazar un comando antes de que se cancele automáticamente. Entre 10 y 600."
+              />
+              <TextInput
+                value={form.tool_approval_timeout}
+                onChange={(value) => updateField('tool_approval_timeout', value)}
+                placeholder="120"
+              />
+            </div>
+
+            <div>
+              <FieldLabel
+                title="Timeout de comandos shell (segundos)"
+                subtitle="Tiempo máximo de ejecución para cada comando de shell. Entre 1 y 300."
+              />
+              <TextInput
+                value={form.shell_command_timeout}
+                onChange={(value) => updateField('shell_command_timeout', value)}
+                placeholder="10"
+              />
+            </div>
+          </SectionCard>
+        )
+
       default:
         return null
     }

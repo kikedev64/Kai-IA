@@ -41,7 +41,7 @@ from api.assistant.workflow import (
     resolve_tool_choice,
     should_enable_tools,
 )
-from core.config import get_model_name, get_temperature
+from core.config import get_model_name, get_temperature, get_tool_approval_timeout
 from tools.tools_definition import TOOLS
 
 from api.schemas.chat import AskRequest, ChatStreamRequest
@@ -804,7 +804,7 @@ def assistant_chat_stream(req: ChatStreamRequest) -> StreamingResponse:
                         yield f"data: {json.dumps(approval_payload, ensure_ascii=False)}\n\n"
 
                         evt = register_approval(approval_id)
-                        evt_set = evt.wait(timeout=120.0)
+                        evt_set = evt.wait(timeout=float(get_tool_approval_timeout()))
                         approved_by_user = consume_approval(approval_id)
 
                         if evt_set and approved_by_user:

@@ -162,6 +162,9 @@ def _build_initial_config() -> dict[str, str]:
         "tool_activation_keywords": json.dumps(
             tool_activation_keywords, ensure_ascii=False
         ),
+        "lmstudio_timeout": "600",
+        "tool_approval_timeout": "120",
+        "shell_command_timeout": "10",
     }
 
 

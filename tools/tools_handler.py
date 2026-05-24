@@ -2,6 +2,7 @@ import json
 import logging
 from api.routers.tasks import find_reminders_by_conditions
 from api.schemas.chat import AskRequest
+from core.config import get_shell_command_timeout
 from core.google_auth_utils import is_google_token_expired_error
 from core.models.email import Email
 from llm.lmstudio_client import ask_without_context
@@ -734,7 +735,7 @@ def handle_tool_call(tool_call: object) -> dict:
             result = _run_shell_command(
                 command=command,
                 working_dir=args.get("working_dir"),
-                timeout=args.get("timeout", 10),
+                timeout=args.get("timeout", get_shell_command_timeout()),
             )
             return result
 

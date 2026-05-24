@@ -206,6 +206,33 @@ def get_llm_context_length() -> int:
     return get_config_int("llm_context_length", 8192)
 
 
+def get_lmstudio_timeout() -> int:
+    """Return the LM Studio API call timeout in seconds.
+
+    Returns:
+        int
+    """
+    return get_config_int("lmstudio_timeout", 600)
+
+
+def get_tool_approval_timeout() -> int:
+    """Return the seconds the backend waits for the user to approve a tool call.
+
+    Returns:
+        int
+    """
+    return get_config_int("tool_approval_timeout", 120)
+
+
+def get_shell_command_timeout() -> int:
+    """Return the default shell command execution timeout in seconds.
+
+    Returns:
+        int
+    """
+    return get_config_int("shell_command_timeout", 10)
+
+
 def get_tool_activation_keywords() -> list[str]:
     """Return the keywords that enable tools.
 

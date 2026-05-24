@@ -5,6 +5,7 @@ from typing import Iterator
 import openai
 from api.schemas.chat import AskRequest
 from core.config import (
+    get_lmstudio_timeout,
     get_model_name,
     get_temperature,
     get_prompt_map,
@@ -41,7 +42,7 @@ def call_lm_studio(
         "model": get_model_name(),
         "messages": messages,
         "temperature": get_temperature(),
-        "timeout": 600,
+        "timeout": get_lmstudio_timeout(),
     }
 
     if use_tools:
@@ -69,7 +70,7 @@ def call_lm_studio_stream(
         model=get_model_name(),
         messages=messages,
         temperature=get_temperature(),
-        timeout=600,
+        timeout=get_lmstudio_timeout(),
         stream=True,
     )
 

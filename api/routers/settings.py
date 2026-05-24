@@ -11,12 +11,15 @@ from core.config import (
     get_google_redirect_uri,
     get_google_scopes,
     get_google_token_file,
+    get_lmstudio_timeout,
     get_model_name,
     get_expose_service_endpoints,
+    get_shell_command_timeout,
     get_system_prompt_default,
     get_temperature,
     get_llm_context_length,
     get_tool_activation_keywords,
+    get_tool_approval_timeout,
 )
 from core.runtime_config import set_runtime_config_values
 
@@ -37,6 +40,9 @@ ALLOWED_KEYS = {
     "default_prompts.resume_mail",
     "default_prompts.basic_user_information_json",
     "default_prompts.chat_summary",
+    "lmstudio_timeout",
+    "tool_approval_timeout",
+    "shell_command_timeout",
 }
 
 
@@ -77,6 +83,9 @@ def _build_settings_response() -> dict[str, str]:
             ensure_ascii=False,
             indent=2,
         ),
+        "lmstudio_timeout": str(get_lmstudio_timeout()),
+        "tool_approval_timeout": str(get_tool_approval_timeout()),
+        "shell_command_timeout": str(get_shell_command_timeout()),
     }
 
 
@@ -191,6 +200,46 @@ def _normalize_and_validate(values: dict[str, Any]) -> dict[str, str]:
                 )
 
             normalized[key] = str(context_length)
+            continue
+
+        if key == "lmstudio_timeout":
+            try:
+                v = int(value)
+            except (TypeError, ValueError):
+                raise HTTPException(status_code=400, detail="lmstudio_timeout debe ser entero")
+            if v < 30 or v > 3600:
+                raise HTTPException(
+                    status_code=400, detail="lmstudio_timeout debe estar entre 30 y 3600"
+                )
+            normalized[key] = str(v)
+            continue
+
+        if key == "tool_approval_timeout":
+            try:
+                v = int(value)
+            except (TypeError, ValueError):
+                raise HTTPException(
+                    status_code=400, detail="tool_approval_timeout debe ser entero"
+                )
+            if v < 10 or v > 600:
+                raise HTTPException(
+                    status_code=400, detail="tool_approval_timeout debe estar entre 10 y 600"
+                )
+            normalized[key] = str(v)
+            continue
+
+        if key == "shell_command_timeout":
+            try:
+                v = int(value)
+            except (TypeError, ValueError):
+                raise HTTPException(
+                    status_code=400, detail="shell_command_timeout debe ser entero"
+                )
+            if v < 1 or v > 300:
+                raise HTTPException(
+                    status_code=400, detail="shell_command_timeout debe estar entre 1 y 300"
+                )
+            normalized[key] = str(v)
             continue
 
         normalized[key] = "" if value is None else str(value)
