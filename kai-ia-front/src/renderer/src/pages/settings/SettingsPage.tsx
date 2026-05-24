@@ -122,7 +122,6 @@ const EMPTY_FORM: SettingsForm = {
   model_name: '',
   expose_service_endpoints: 'true',
   temperature: '0',
-  llm_context_length: '8192',
   tool_activation_keywords: '[]',
   'default_prompts.resume_mail': '',
   'default_prompts.basic_user_information_json': '',
@@ -495,12 +494,6 @@ const SettingsPage = (): React.JSX.Element => {
       } catch {
         throw new Error('El user profile JSON no es válido')
       }
-      const parsedContextLength = Number(form.llm_context_length)
-
-      if (!Number.isFinite(parsedContextLength) || parsedContextLength < 1024) {
-        throw new Error('El context length debe ser un número válido mayor o igual que 1024')
-      }
-
       try {
         const parsedKeywords = JSON.parse(form.tool_activation_keywords || '[]')
 
@@ -544,7 +537,6 @@ const SettingsPage = (): React.JSX.Element => {
         model_name: form.model_name,
         expose_service_endpoints: form.expose_service_endpoints,
         temperature: form.temperature,
-        llm_context_length: form.llm_context_length,
         tool_activation_keywords: form.tool_activation_keywords,
         'default_prompts.resume_mail': form['default_prompts.resume_mail'],
         'default_prompts.basic_user_information_json':
@@ -707,17 +699,6 @@ const SettingsPage = (): React.JSX.Element => {
                 onChange={(value) => updateField('system_prompt_default', value)}
                 rows={18}
                 placeholder="Escribe aquí el prompt principal..."
-              />
-            </div>
-            <div>
-              <FieldLabel
-                title="Context length"
-                subtitle="Tamaño máximo de contexto enviado al modelo. Ejemplo: 8192 o 16384."
-              />
-              <TextInput
-                value={form.llm_context_length}
-                onChange={(value) => updateField('llm_context_length', value)}
-                placeholder="8192"
               />
             </div>
           </SectionCard>

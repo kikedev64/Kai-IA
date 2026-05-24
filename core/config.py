@@ -197,15 +197,6 @@ def get_temperature() -> float:
     return get_config_float("temperature", 0.0)
 
 
-def get_llm_context_length() -> int:
-    """Return the configured LLM context length.
-
-    Returns:
-        int
-    """
-    return get_config_int("llm_context_length", 8192)
-
-
 def get_lmstudio_timeout() -> int:
     """Return the LM Studio API call timeout in seconds.
 

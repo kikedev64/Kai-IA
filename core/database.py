@@ -32,7 +32,6 @@ def _build_initial_config() -> dict[str, str]:
         "https://www.googleapis.com/auth/tasks",
         "https://www.googleapis.com/auth/calendar",
     ]
-    llm_context_length = 8192
     tool_activation_keywords = [
         "correo",
         "correos",
@@ -158,7 +157,6 @@ def _build_initial_config() -> dict[str, str]:
         "system_prompt_default": system_prompt_default,
         "model_name": model_name,
         "temperature": str(temperature),
-        "llm_context_length": str(llm_context_length),
         "tool_activation_keywords": json.dumps(
             tool_activation_keywords, ensure_ascii=False
         ),
@@ -280,6 +278,7 @@ def init_db() -> None:
     """)
 
     _seed_initial_config(cur)
+    cur.execute("DELETE FROM app_config WHERE key = ?", ("llm_context_length",))
 
     conn.commit()
     conn.close()

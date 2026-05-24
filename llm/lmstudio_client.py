@@ -25,7 +25,6 @@ def call_lm_studio(
     messages: list,
     use_tools: bool = True,
     tool_choice: str | dict | None = None,
-    context_length: int | None = None,
 ) -> object:
     """Call LM Studio chat completions.
 
@@ -33,7 +32,6 @@ def call_lm_studio(
         messages: Messages included in the operation.
         use_tools: Whether tool calling is enabled.
         tool_choice: Optional tool-choice policy sent to the chat completion API.
-        context_length: Optional model context length.
 
     Returns:
         object
@@ -53,15 +51,11 @@ def call_lm_studio(
     return response.choices[0].message
 
 
-def call_lm_studio_stream(
-    messages: list,
-    context_length: int | None = None,
-) -> Iterator[str]:
+def call_lm_studio_stream(messages: list) -> Iterator[str]:
     """Stream text chunks from LM Studio.
 
     Args:
         messages: Messages included in the operation.
-        context_length: Optional model context length.
 
     Returns:
         Iterator[str]

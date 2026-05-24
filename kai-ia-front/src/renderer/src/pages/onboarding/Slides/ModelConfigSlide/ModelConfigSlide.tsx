@@ -13,9 +13,6 @@ type Props = {
 
 type SaveStatus = 'idle' | 'loading' | 'saving' | 'error'
 
-const CONTEXT_LENGTH_MIN = 1024
-const CONTEXT_LENGTH_MAX = 131072
-
 /**
  * Render the model runtime configuration step used before profile generation.
  *
@@ -31,7 +28,6 @@ const ModelConfigSlide = ({ onNext, onPrev }: Props) => {
   const [settings, setSettings] = useState<BackendSettings | null>(null)
   const [modelName, setModelName] = useState('')
   const [temperature, setTemperature] = useState('0')
-  const [contextLength, setContextLength] = useState('8192')
   const [status, setStatus] = useState<SaveStatus>('loading')
   const [message, setMessage] = useState('')
 
@@ -56,7 +52,6 @@ const ModelConfigSlide = ({ onNext, onPrev }: Props) => {
         setSettings(backendSettings)
         setModelName(backendSettings.model_name)
         setTemperature(backendSettings.temperature)
-        setContextLength(backendSettings.llm_context_length)
         setStatus('idle')
       } catch (error) {
         setStatus('error')
@@ -89,7 +84,6 @@ const ModelConfigSlide = ({ onNext, onPrev }: Props) => {
 
       const cleanModelName = modelName.trim()
       const parsedTemperature = Number(temperature)
-      const parsedContextLength = Number(contextLength)
 
       if (!cleanModelName) {
         throw new Error('Introduce el nombre del modelo cargado en LM Studio')
@@ -99,24 +93,13 @@ const ModelConfigSlide = ({ onNext, onPrev }: Props) => {
         throw new Error('La temperatura debe ser un numero valido')
       }
 
-      if (
-        !Number.isInteger(parsedContextLength) ||
-        parsedContextLength < CONTEXT_LENGTH_MIN ||
-        parsedContextLength > CONTEXT_LENGTH_MAX
-      ) {
-        throw new Error(
-          `El context length debe ser un entero entre ${CONTEXT_LENGTH_MIN} y ${CONTEXT_LENGTH_MAX}`
-        )
-      }
-
       setStatus('saving')
       setMessage('Guardando configuracion del modelo...')
 
       await saveBackendSettings({
         ...settings,
         model_name: cleanModelName,
-        temperature: String(parsedTemperature),
-        llm_context_length: String(parsedContextLength)
+        temperature: String(parsedTemperature)
       })
 
       setStatus('idle')
@@ -192,24 +175,6 @@ const ModelConfigSlide = ({ onNext, onPrev }: Props) => {
             </p>
           </div>
 
-          <div>
-            <label className="text-xs uppercase tracking-wide text-slate-500">
-              Context length
-            </label>
-            <input
-              value={contextLength}
-              onChange={(event) => {
-                setContextLength(event.target.value)
-                setMessage('')
-                setStatus('idle')
-              }}
-              placeholder="8192"
-              className="mt-2 w-full rounded-lg border border-white/10 bg-slate-900/60 p-3 text-sm outline-none transition placeholder:text-slate-500 focus:border-white/30"
-            />
-            <p className="mt-2 text-xs leading-5 text-slate-500">
-              Usa el limite que soporte el modelo cargado.
-            </p>
-          </div>
         </div>
 
         {message ? (
