@@ -804,7 +804,7 @@ def assistant_chat_stream(req: ChatStreamRequest) -> StreamingResponse:
                         yield f"data: {json.dumps(approval_payload, ensure_ascii=False)}\n\n"
 
                         evt = register_approval(approval_id)
-                        evt_set = evt.wait(timeout=30.0)
+                        evt_set = evt.wait(timeout=120.0)
                         approved_by_user = consume_approval(approval_id)
 
                         if evt_set and approved_by_user:
