@@ -757,7 +757,53 @@ def assistant_chat_stream(req: ChatStreamRequest) -> StreamingResponse:
 
                     empty_model_retries = 0
                     tool_started_at = time.perf_counter()
-                    result = handle_tool_call(tc)
+
+                    if tc.function.name == "run_shell_command":
+                        from api.routers.tool_approval import (
+                            consume_approval,
+                            register_approval,
+                        )
+                        approval_id = str(uuid.uuid4())[:16]
+                        parsed_args = parse_tool_arguments(tc.function.arguments)
+                        approval_payload = {
+                            "type": "tool_approval_request",
+                            "approval_id": approval_id,
+                            "tool_name": tc.function.name,
+                            "command": parsed_args.get("command", "")
+                            if isinstance(parsed_args, dict)
+                            else "",
+                            "args": parsed_args,
+                            "chat_id": chat_id,
+                            "request_id": request_id,
+                            "elapsed_ms": round(
+                                (time.perf_counter() - stream_started_at) * 1000, 2
+                            ),
+                        }
+                        yield f"data: {json.dumps(approval_payload, ensure_ascii=False)}\n\n"
+
+                        evt = register_approval(approval_id)
+                        evt_set = evt.wait(timeout=30.0)
+                        approved_by_user = consume_approval(approval_id)
+
+                        if evt_set and approved_by_user:
+                            result = handle_tool_call(tc)
+                        else:
+                            final_text = (
+                                "Entendido, he cancelado la operación."
+                                if evt_set
+                                else "No recibí respuesta a tiempo. He cancelado la operación."
+                            )
+                            if should_store_assistant_message(final_text):
+                                add_message(chat_id, "assistant", final_text)
+                            _ensure_chat_title(
+                                chat_id, prompt, is_first_user_message, request_id
+                            )
+                            yield from stream_text(final_text)
+                            yield done_event()
+                            return
+                    else:
+                        result = handle_tool_call(tc)
+
                     tool_ms = round((time.perf_counter() - tool_started_at) * 1000, 2)
                     executed_tool_results.append((tc.function.name, result))
                     persist_gmail_memory(chat_id, tc.function.name, result)

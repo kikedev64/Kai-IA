@@ -50,6 +50,7 @@ from tools.compact_handlers import (
 )
 from tools.gmail.email_response_builders import markdown_to_html
 from tools.tasks.tasks_tools import _compact_task, _resolve_tasklist
+from cli.shell_tool import run_shell_command as _run_shell_command
 
 
 logger = logging.getLogger("uvicorn")
@@ -725,6 +726,17 @@ def handle_tool_call(tool_call: object) -> dict:
                 "status": "success",
                 "data": {"file": result},
             }
+
+        if name == "run_shell_command":
+            command = args.get("command")
+            if not command:
+                return {"status": "error", "message": "Falta 'command'"}
+            result = _run_shell_command(
+                command=command,
+                working_dir=args.get("working_dir"),
+                timeout=args.get("timeout", 10),
+            )
+            return result
 
         return {"status": "warning", "message": f"Tool no encontrada: {name}"}
     except Exception as e:
