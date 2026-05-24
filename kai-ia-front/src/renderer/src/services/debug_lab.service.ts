@@ -11,7 +11,7 @@ export type DebugStage =
   | 'token'
 
 export type DebugLabEvent = {
-  type: 'debug' | 'token' | 'done' | 'error'
+  type: 'debug' | 'token' | 'done' | 'error' | 'tool_approval_request'
   chat_id?: string
   request_id?: string
   stage?: DebugStage

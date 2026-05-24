@@ -738,4 +738,38 @@ TOOLS = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "run_shell_command",
+            "description": (
+                "Ejecuta un comando de shell en el sistema local y devuelve stdout, stderr "
+                "y el código de retorno. Útil para listar ficheros, leer archivos, buscar "
+                "texto, comprobar procesos o variables de entorno. "
+                "Requiere aprobación explícita del usuario antes de ejecutarse."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "command": {
+                        "type": "string",
+                        "description": (
+                            "Comando a ejecutar. En Windows usa sintaxis cmd/PowerShell "
+                            "(ej: 'dir', 'type archivo.txt'). "
+                            "En Linux/macOS usa bash (ej: 'ls -la', 'cat archivo.txt')."
+                        ),
+                    },
+                    "working_dir": {
+                        "type": "string",
+                        "description": "Directorio de trabajo opcional (ruta absoluta o relativa).",
+                    },
+                    "timeout": {
+                        "type": "integer",
+                        "description": "Segundos máximos de espera, entre 1 y 30. Por defecto 10.",
+                    },
+                },
+                "required": ["command"],
+            },
+        },
+    },
 ]
