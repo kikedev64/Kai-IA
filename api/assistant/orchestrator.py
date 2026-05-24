@@ -251,17 +251,18 @@ def _handle_model_text_response(
         if not content or is_garbage_text(content):
             content = fallback_text_from_tool_results(executed_tool_results)
 
-    if executed_tool_results and use_tools:
+    if (
+        executed_tool_results
+        and use_tools
+        and completion_gate_retries < MAX_COMPLETION_GATE_RETRIES
+    ):
         complete, missing = evaluate_workflow_completion(
             user_input,
             content,
             executed_tool_results,
         )
 
-        if (
-            not complete
-            and completion_gate_retries < MAX_COMPLETION_GATE_RETRIES
-        ):
+        if not complete:
             messages.append(workflow_gate_message(user_input, missing))
             return {"action": "continue_gate", "content": ""}
 

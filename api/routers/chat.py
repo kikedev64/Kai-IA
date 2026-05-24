@@ -23,6 +23,7 @@ from api.assistant.messages import (
     final_after_tools_message,
     now_context_system_message,
     post_tool_instruction_message,
+    tool_capabilities_system_message,
     workflow_gate_message,
 )
 from api.assistant.model_text import (
@@ -521,6 +522,7 @@ def assistant_chat_stream(req: ChatStreamRequest) -> StreamingResponse:
             messages = [
                 {"role": "system", "content": system_prompt},
                 now_context_system_message(),
+                tool_capabilities_system_message(),
             ]
 
             if profile_context:
@@ -646,17 +648,18 @@ def assistant_chat_stream(req: ChatStreamRequest) -> StreamingResponse:
                     logger.info(f"[{request_id}] tool_calls: {len(tool_calls)}")
 
                 if not tool_calls and content and not is_garbage_text(content):
-                    if executed_tool_results and use_tools:
+                    if (
+                        executed_tool_results
+                        and use_tools
+                        and completion_gate_retries < MAX_COMPLETION_GATE_RETRIES
+                    ):
                         complete, missing = evaluate_workflow_completion(
                             prompt,
                             content,
                             executed_tool_results,
                         )
 
-                        if (
-                            not complete
-                            and completion_gate_retries < MAX_COMPLETION_GATE_RETRIES
-                        ):
+                        if not complete:
                             completion_gate_retries += 1
                             messages.append(workflow_gate_message(prompt, missing))
                             force_next_tool = True

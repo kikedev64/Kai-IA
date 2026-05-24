@@ -1,11 +1,45 @@
 """System-message builders used by assistant chat flows."""
 
+import platform
 from datetime import datetime, timezone, timedelta
 
 try:
     from zoneinfo import ZoneInfo
 except Exception:
     ZoneInfo = None
+
+_OS = platform.system()  # "Windows" | "Linux" | "Darwin"
+
+
+def tool_capabilities_system_message() -> dict:
+    """Build the system message that tells the model what tools it can use and when.
+
+    Injected on every request so the model always knows to call run_shell_command
+    for local system queries, regardless of the per-chat system prompt.
+
+    Returns:
+        dict
+    """
+    if _OS == "Windows":
+        shell_hint = "En Windows usa comandos cmd/PowerShell: 'dir', 'type archivo.txt', 'Get-ChildItem', 'git config', 'where', ..."
+    else:
+        shell_hint = "En Linux/macOS usa bash: 'ls', 'cat', 'grep', 'git config', 'which', ..."
+
+    return {
+        "role": "system",
+        "content": (
+            "HERRAMIENTAS DISPONIBLES (úsalas directamente, sin pedir permiso):\n"
+            "- run_shell_command: ejecuta comandos de shell para obtener información del sistema, "
+            "listar ficheros, leer archivos, comprobar configuración de git, variables de entorno, "
+            "procesos en ejecución, etc.\n"
+            f"  {shell_hint}\n"
+            "  Nunca ejecutes comandos destructivos (rm -rf, format, del /s, shutdown, ...).\n"
+            "- Gmail, Google Calendar, Google Drive, Google Tasks: úsalas cuando el usuario "
+            "pida gestionar correos, eventos, tareas o archivos de Drive.\n"
+            "IMPORTANTE: cuando el usuario pida información de su equipo, LLAMA DIRECTAMENTE "
+            "a run_shell_command con el comando adecuado. No pidas confirmación previa."
+        ),
+    }
 
 
 def workflow_gate_message(user_input: str, missing: str) -> dict:

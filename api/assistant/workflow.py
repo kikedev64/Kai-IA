@@ -19,10 +19,7 @@ def should_enable_tools(prompt: str) -> bool:
     Returns:
         bool
     """
-    text = (prompt or "").lower()
-    keywords = get_tool_activation_keywords() or []
-
-    return any(keyword in text for keyword in keywords)
+    return True
 
 
 def resolve_tool_choice(
@@ -42,9 +39,7 @@ def resolve_tool_choice(
     """
     if not use_tools:
         return None
-    if force_required:
-        return "required"
-    return "auto" if executed_tool_results else "required"
+    return "auto"
 
 
 def compact_tool_results_for_gate(tool_results: list[tuple[str, dict]]) -> str:

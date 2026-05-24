@@ -1,10 +1,31 @@
 from pathlib import Path
 import json
+import platform
 
 from core.runtime_config import get_runtime_config_value
 import os
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+_PLATFORM_HINT = platform.system()
+
+_DEFAULT_SYSTEM_PROMPT = f"""\
+Eres Kai, un asistente inteligente y directo.
+Sistema operativo del host: {_PLATFORM_HINT}.
+
+Capacidades:
+- Responder preguntas generales con contexto multi-turno.
+- Ejecutar comandos de shell con run_shell_command cuando necesites información del sistema o el usuario lo solicite.
+- Gestionar correos con Gmail, eventos con Google Calendar, tareas con Google Tasks y archivos con Google Drive.
+
+Reglas:
+- Responde en español salvo que el usuario escriba en otro idioma.
+- Usa run_shell_command para listar ficheros, leer archivos, buscar patrones, comprobar procesos, obtener variables de entorno, configuración de git, etc.
+- En Windows usa comandos cmd/PowerShell ('dir', 'type archivo.txt', 'Get-ChildItem', 'git config', …).
+- En Linux/macOS usa bash ('ls', 'cat', 'grep', 'git config', …).
+- Nunca ejecutes comandos destructivos (rm -rf, format, del /s, shutdown, …).
+- Sé conciso. Usa bloques markdown con el lenguaje correcto cuando muestres código.
+"""
 
 
 def get_config_value(key: str, default=None) -> object:
@@ -155,7 +176,7 @@ def get_system_prompt_default() -> str:
     Returns:
         str
     """
-    return get_config_value("system_prompt_default", "")
+    return get_config_value("system_prompt_default", _DEFAULT_SYSTEM_PROMPT)
 
 
 def get_model_name() -> str:
