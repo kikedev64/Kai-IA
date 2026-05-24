@@ -765,6 +765,25 @@ def assistant_chat_stream(req: ChatStreamRequest) -> StreamingResponse:
                         )
                         approval_id = str(uuid.uuid4())[:16]
                         parsed_args = parse_tool_arguments(tc.function.arguments)
+
+                        if isinstance(parsed_args, dict) and parsed_args.get("parse_error"):
+                            result = {
+                                "status": "error",
+                                "message": (
+                                    "Los argumentos del tool call contienen JSON malformado. "
+                                    "Reformula el comando usando JSON válido, "
+                                    "evitando comillas anidadas sin escapar."
+                                ),
+                            }
+                            tool_msg = {
+                                "role": "tool",
+                                "tool_call_id": tc.id,
+                                "content": json.dumps(result, ensure_ascii=False),
+                            }
+                            messages.append(tool_msg)
+                            executed_tool_results.append((tc.function.name, result))
+                            continue
+
                         approval_payload = {
                             "type": "tool_approval_request",
                             "approval_id": approval_id,

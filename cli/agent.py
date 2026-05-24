@@ -85,7 +85,31 @@ def _run_turn(messages: list[dict]) -> tuple[str, list[dict]]:
             if tc.function.name != "run_shell_command":
                 continue
 
-            args: dict = json.loads(tc.function.arguments)
+            try:
+                args: dict = json.loads(tc.function.arguments)
+            except json.JSONDecodeError:
+                console.print(
+                    "[yellow]⚠[/yellow]  JSON inválido en el tool call. "
+                    "Pidiendo al modelo que reformule…\n"
+                )
+                client_messages.append(
+                    {
+                        "role": "tool",
+                        "tool_call_id": tc.id,
+                        "content": json.dumps(
+                            {
+                                "status": "error",
+                                "message": (
+                                    "Los argumentos del tool call contienen JSON malformado. "
+                                    "Reformula el comando usando JSON válido, "
+                                    "evitando comillas anidadas sin escapar."
+                                ),
+                            },
+                            ensure_ascii=False,
+                        ),
+                    }
+                )
+                continue
 
             # Show what the model wants to run and ask for confirmation.
             print_tool_call(tc.function.name, args)

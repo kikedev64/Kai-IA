@@ -1,4 +1,4 @@
-import { Terminal, X, Check, Ban } from 'lucide-react'
+import { Terminal, X, Check, Ban, AlertTriangle } from 'lucide-react'
 import React from 'react'
 
 export type ShellApprovalRequest = {
@@ -6,6 +6,7 @@ export type ShellApprovalRequest = {
   toolName: string
   command: string
   args: Record<string, unknown>
+  parseError?: boolean
 }
 
 type Props = {
@@ -39,6 +40,8 @@ export default function ShellCommandApprovalModal({
     ? request.args.timeout
     : null
 
+  const hasParseError = request.parseError === true || request.args.parse_error === true
+
   return (
     <div className="fixed inset-0 z-[9999] flex items-end justify-center bg-black/50 p-4 backdrop-blur-sm sm:items-center">
       <div className="flex w-full max-w-xl flex-col overflow-hidden rounded-2xl border border-white/10 bg-slate-900 shadow-2xl">
@@ -63,13 +66,23 @@ export default function ShellCommandApprovalModal({
           </button>
         </div>
 
+        {hasParseError && (
+          <div className="flex items-start gap-2 border-b border-red-500/20 bg-red-500/10 px-5 py-3">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-red-400" />
+            <p className="text-xs text-red-300">
+              El modelo generó JSON inválido en los argumentos del comando. No se puede ejecutar.
+              El error ha sido notificado al modelo para que reformule la petición.
+            </p>
+          </div>
+        )}
+
         {/* Command preview */}
         <div className="px-5 py-4">
           <p className="mb-2 text-xs font-medium uppercase tracking-wider text-slate-400">
             Comando
           </p>
           <pre className="overflow-x-auto rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-sm font-mono text-cyan-300 whitespace-pre-wrap break-all">
-            {request.command}
+            {request.command || <span className="text-slate-500 italic">— sin comando —</span>}
           </pre>
 
           {(workingDir || timeout) && (
@@ -105,7 +118,8 @@ export default function ShellCommandApprovalModal({
           </button>
           <button
             onClick={onApprove}
-            className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-500 active:bg-emerald-700"
+            disabled={hasParseError}
+            className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-500 active:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-40"
           >
             <Check className="h-4 w-4" />
             Ejecutar

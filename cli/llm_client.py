@@ -53,7 +53,7 @@ def get_cli_model() -> str:
     """Return the model name to use for CLI inference.
 
     Priority: CLI_MODEL_NAME env var → MODEL_NAME env var → hardcoded default.
-    A 20 B – 35 B quantised model is recommended (e.g. Qwen2.5-32B-Instruct-Q4).
+    A 20 B - 35 B quantised model is recommended (e.g. Qwen2.5-32B-Instruct-Q4).
     """
     return (
         os.getenv("CLI_MODEL_NAME")
