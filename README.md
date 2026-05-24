@@ -49,6 +49,7 @@ observability. The current implementation includes:
 | `services/` | Google Workspace and application service logic. |
 | `tools/` | LLM tool definitions and execution handlers. |
 | `llm/` | LM Studio client integration. |
+| `cli/` | Standalone terminal agent with shell tool support. |
 | `kai-ia-front/` | Electron, React and TypeScript desktop app. |
 | `assets/` | Shared project images and branding assets. |
 
@@ -119,6 +120,7 @@ GOOGLE_REDIRECT_URI=http://127.0.0.1:8000/auth/google/callback
 - [Backend README](api/README.md)
 - [Router Reference](api/routers/README.md)
 - [Frontend README](kai-ia-front/README.md)
+- [CLI Agent README](cli/README.md)
 
 ## Core Capabilities
 
@@ -131,16 +133,51 @@ GOOGLE_REDIRECT_URI=http://127.0.0.1:8000/auth/google/callback
 | Tasks | Create, update, list and delete Google Tasks. |
 | Debug Lab | Visualize backend execution stages and tool calls. |
 | Reports | Export PDF and CSV data for later analysis. |
+| CLI Agent | Standalone terminal agent with `run_shell_command` tool support. |
 
 ## Development Commands
 
 | Command | Location | Purpose |
 | --- | --- | --- |
 | `uvicorn main:app --reload --port 8000` | repository root | Run the backend API. |
+| `python -m cli` | repository root | Run the terminal CLI agent. |
 | `npm run dev` | `kai-ia-front/` | Run the Electron app in development. |
 | `npm run typecheck` | `kai-ia-front/` | Validate TypeScript projects. |
 | `npm run build` | `kai-ia-front/` | Build the frontend output. |
 | `npm run build:win` | `kai-ia-front/` | Create a Windows desktop build. |
+
+## CLI Agent
+
+Kai includes a standalone terminal agent that runs without the backend server.
+It connects directly to LM Studio and exposes a `run_shell_command` tool so
+the model can list files, read content, search patterns and inspect the local
+environment on demand.
+
+### Launch
+
+```powershell
+# From the repository root with the virtual environment active:
+python -m cli
+```
+
+### Shell tool
+
+The LLM can call `run_shell_command` autonomously to answer questions that
+require local context. Commands run in an isolated `subprocess` call with a
+configurable timeout (default 10 s, max 30 s). A blocklist prevents destructive
+operations such as `rm -rf`, `format`, `shutdown`, and similar patterns.
+
+### Recommended model size
+
+A quantised model in the **20 B – 35 B** range provides the best balance of
+reasoning quality and inference speed on consumer hardware. Set the model in
+`.env`:
+
+```env
+CLI_MODEL_NAME=lmstudio-community/Qwen2.5-32B-Instruct-Q4_K_M
+```
+
+See [CLI Agent README](cli/README.md) for full configuration details.
 
 ## Security Notes
 

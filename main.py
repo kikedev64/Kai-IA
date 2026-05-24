@@ -16,6 +16,7 @@ from api.routers.config import router as config_router
 from api.routers.health import router as health_router
 from api.routers.app import router as app_router
 from api.routers.settings import router as settings_router
+from api.routers.tool_approval import router as tool_approval_router
 
 from core.database import init_db
 
@@ -51,3 +52,4 @@ app.include_router(config_router)
 app.include_router(health_router)
 app.include_router(app_router)
 app.include_router(settings_router)
+app.include_router(tool_approval_router)

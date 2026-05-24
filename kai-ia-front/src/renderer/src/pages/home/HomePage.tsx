@@ -11,6 +11,9 @@ import 'katex/dist/katex.min.css'
 import { createNewEmailWatcher } from '@renderer/services/new_email_watcher.service'
 import { readEmailById, type GmailApiEmail } from '@renderer/services/gmail_email.service'
 import EmailActionModal from '@renderer/components/email/EmailActionModal'
+import ShellCommandApprovalModal, {
+  type ShellApprovalRequest
+} from '@renderer/components/shell/ShellCommandApprovalModal'
 import {
   publishDebugLabEvent,
   type DebugLabEvent
@@ -284,6 +287,7 @@ const HomePage = (): React.JSX.Element => {
   const deferredEmailNotificationClicksRef = useRef<EmailNotificationClickPayload[]>([])
   const canOpenEmailNotificationRef = useRef(true)
   const [userProfileJson, setUserProfileJson] = useState<UserProfileJson | null>(null)
+  const [pendingApproval, setPendingApproval] = useState<ShellApprovalRequest | null>(null)
 
   const {
     chats,
@@ -499,6 +503,21 @@ const HomePage = (): React.JSX.Element => {
           setStreamingContent(accumulated)
         }
 
+        if (payload.type === 'tool_approval_request') {
+          const p = payload as unknown as {
+            approval_id: string
+            tool_name: string
+            command: string
+            args: Record<string, unknown>
+          }
+          setPendingApproval({
+            approvalId: p.approval_id,
+            toolName: p.tool_name,
+            command: p.command,
+            args: p.args,
+          })
+        }
+
         publishDebugLabEvent({
           chatId,
           event: payload,
@@ -507,10 +526,12 @@ const HomePage = (): React.JSX.Element => {
         })
 
         if (payload.type === 'done') {
+          setPendingApproval(null)
           return true
         }
 
         if (payload.type === 'error') {
+          setPendingApproval(null)
           throw new Error(payload.message || 'Error recibido desde el stream')
         }
       }
@@ -826,6 +847,33 @@ const HomePage = (): React.JSX.Element => {
         setStreamingContent('')
       }
       setIsSubmittingEmailAction(false)
+    }
+  }
+
+  /**
+   * Submit the user's approval or denial for a pending shell command.
+   *
+   * Args:
+   *   approved: True to allow the command to run, false to cancel it.
+   *
+   * Returns:
+   *   Promise<void>
+   */
+  const handleShellApproval = async (approved: boolean) => {
+
+    if (!pendingApproval) return
+    const { approvalId } = pendingApproval
+    setPendingApproval(null)
+
+    try {
+      const baseUrl = await window.configApi.getServerUrl()
+      const port = await window.configApi.getServerPort()
+      const url = `${baseUrl || 'http://localhost'}:${port || 8000}`
+      await fetch(`${url}/assistant/tool/approve/${approvalId}?approved=${approved}`, {
+        method: 'POST',
+      })
+    } catch (error) {
+      console.error('Error enviando respuesta de aprobación de herramienta:', error)
     }
   }
 
@@ -1240,6 +1288,14 @@ const HomePage = (): React.JSX.Element => {
         }}
         onSubmit={handleEmailActionSubmit}
       />
+
+      {pendingApproval && (
+        <ShellCommandApprovalModal
+          request={pendingApproval}
+          onApprove={() => void handleShellApproval(true)}
+          onDeny={() => void handleShellApproval(false)}
+        />
+      )}
     </div>
   )
 }
