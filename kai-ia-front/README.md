@@ -150,7 +150,8 @@ selected Electron Builder target.
 
 Copyright (c) 2026 Enrique Padilla Padilla.
 
-Licensed under the Apache License, Version 2.0. See [LICENSE](../LICENSE) for
-the full license text.
+Licensed under the Creative Commons Attribution-NonCommercial-ShareAlike 4.0
+International License (CC BY-NC-SA 4.0). See [LICENSE](../LICENSE) for the full
+license text.
 
 The Kai IA logo was generated with AI.

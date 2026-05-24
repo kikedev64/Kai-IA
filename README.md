@@ -9,7 +9,7 @@
   <img alt="Backend" src="https://img.shields.io/badge/backend-FastAPI-009688?logo=fastapi&logoColor=white" />
   <img alt="Frontend" src="https://img.shields.io/badge/frontend-Electron%20%2B%20React-47848f?logo=electron&logoColor=white" />
   <img alt="LLM" src="https://img.shields.io/badge/LLM-LM%20Studio-111827" />
-  <img alt="License" src="https://img.shields.io/badge/license-Apache%202.0-blue" />
+  <img alt="License" src="https://img.shields.io/badge/license-CC%20BY--NC--SA%204.0-blue" />
 </p>
 
 Kai IA is a desktop assistant built as a Final Degree Project (TFG). It combines
@@ -194,7 +194,8 @@ frontend email watcher remain available.
 
 Copyright (c) 2026 Enrique Padilla Padilla.
 
-Licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE) for the
-full license text.
+Licensed under the Creative Commons Attribution-NonCommercial-ShareAlike 4.0
+International License (CC BY-NC-SA 4.0). See [LICENSE](LICENSE) for the full
+license text.
 
 The logo in `assets/logo.png` was generated with AI.
