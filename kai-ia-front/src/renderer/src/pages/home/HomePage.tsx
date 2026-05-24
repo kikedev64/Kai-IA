@@ -137,6 +137,7 @@ const MarkdownContent = ({ content }: { content: string }) => {
 }
 
 const STREAM_LIMIT_HISTORY = 6
+const DEFAULT_EMAIL_WATCH_INTERVAL_MS = 20000
 type UserProfileJson = Record<string, unknown>
 type EmailNotificationClickPayload = { messageId: string }
 
@@ -287,6 +288,7 @@ const HomePage = (): React.JSX.Element => {
   const deferredEmailNotificationClicksRef = useRef<EmailNotificationClickPayload[]>([])
   const canOpenEmailNotificationRef = useRef(true)
   const [userProfileJson, setUserProfileJson] = useState<UserProfileJson | null>(null)
+  const [emailWatchIntervalMs, setEmailWatchIntervalMs] = useState(DEFAULT_EMAIL_WATCH_INTERVAL_MS)
   const [pendingApproval, setPendingApproval] = useState<ShellApprovalRequest | null>(null)
 
   const {
@@ -650,16 +652,25 @@ const HomePage = (): React.JSX.Element => {
     const loadUserProfile = async () => {
 
       try {
-        const profile = await window.configApi.getUserProfileJson()
+        const [profile, gmailWatchIntervalMs] = await Promise.all([
+          window.configApi.getUserProfileJson(),
+          window.configApi.getGmailWatchIntervalMs()
+        ])
 
         if (!cancelled) {
           setUserProfileJson(isNonEmptyPlainObject(profile) ? profile : null)
+          setEmailWatchIntervalMs(
+            Number.isFinite(gmailWatchIntervalMs) && gmailWatchIntervalMs >= 5000
+              ? gmailWatchIntervalMs
+              : DEFAULT_EMAIL_WATCH_INTERVAL_MS
+          )
         }
       } catch (error) {
         console.error('Error cargando perfil del usuario desde configApi:', error)
 
         if (!cancelled) {
           setUserProfileJson(null)
+          setEmailWatchIntervalMs(DEFAULT_EMAIL_WATCH_INTERVAL_MS)
         }
       }
     }
@@ -684,7 +695,7 @@ const HomePage = (): React.JSX.Element => {
 
   useEffect(() => {
     const watcher = createNewEmailWatcher({
-      intervalMs: 20000,
+      intervalMs: emailWatchIntervalMs,
       onNewEmail: async (email) => {
         console.log('Correo nuevo detectado:', email)
 
@@ -730,7 +741,7 @@ const HomePage = (): React.JSX.Element => {
       emailWatcherRef.current = null
       unsubscribe?.()
     }
-  }, [])
+  }, [emailWatchIntervalMs])
 
   /**
    * Load persisted messages for the selected chat into the conversation view.

@@ -21,7 +21,12 @@ def tool_capabilities_system_message() -> dict:
         dict
     """
     if _OS == "Windows":
-        shell_hint = "En Windows usa comandos cmd/PowerShell: 'dir', 'type archivo.txt', 'Get-ChildItem', 'git config', 'where', ..."
+        shell_hint = (
+            "En Windows usa comandos PowerShell que impriman salida por stdout: "
+            "'Get-ChildItem', 'Get-Content archivo.txt', 'git config --list', "
+            "'Get-ComputerInfo | Select-Object WindowsProductName, WindowsVersion, OsBuildNumber'. "
+            "No uses comandos gráficos o sin stdout como 'winver'."
+        )
     else:
         shell_hint = "En Linux/macOS usa bash: 'ls', 'cat', 'grep', 'git config', 'which', ..."
 
@@ -33,6 +38,7 @@ def tool_capabilities_system_message() -> dict:
             "listar ficheros, leer archivos, comprobar configuración de git, variables de entorno, "
             "procesos en ejecución, etc.\n"
             f"  {shell_hint}\n"
+            "  Si la tool devuelve stdout vacío, no inventes la respuesta: llama a otro comando que imprima datos.\n"
             "  Nunca ejecutes comandos destructivos (rm -rf, format, del /s, shutdown, ...).\n"
             "- Gmail, Google Calendar, Google Drive, Google Tasks: úsalas cuando el usuario "
             "pida gestionar correos, eventos, tareas o archivos de Drive.\n"

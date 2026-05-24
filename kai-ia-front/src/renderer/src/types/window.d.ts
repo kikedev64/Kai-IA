@@ -48,6 +48,9 @@ declare global {
       getServerPort: () => Promise<number | null>
       setServerPort: (port: number) => Promise<boolean>
 
+      getGmailWatchIntervalMs: () => Promise<number>
+      setGmailWatchIntervalMs: (intervalMs: number) => Promise<boolean>
+
       getUserProfileRaw: () => Promise<string | null>
       setUserProfileRaw: (raw: string) => Promise<boolean>
 

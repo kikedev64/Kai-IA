@@ -755,8 +755,11 @@ TOOLS = [
                     "command": {
                         "type": "string",
                         "description": (
-                            "Comando a ejecutar. En Windows usa sintaxis cmd/PowerShell "
-                            "(ej: 'dir', 'type archivo.txt'). "
+                            "Comando a ejecutar. En Windows usa sintaxis PowerShell "
+                            "(ej: 'Get-ChildItem', 'Get-Content archivo.txt', "
+                            "'Get-ComputerInfo | Select-Object WindowsProductName, WindowsVersion, OsBuildNumber', "
+                            "'[System.Environment]::OSVersion.VersionString'). "
+                            "No uses comandos que abren ventanas o no imprimen salida, como 'winver'. "
                             "En Linux/macOS usa bash (ej: 'ls -la', 'cat archivo.txt')."
                         ),
                     },

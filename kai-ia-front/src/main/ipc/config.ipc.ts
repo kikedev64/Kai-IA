@@ -40,6 +40,15 @@ export function registerConfigIpc(): void {
     return true
   })
 
+  ipcMain.handle('config:get-gmail-watch-interval-ms', () => {
+    return configRepository.getGmailWatchIntervalMs()
+  })
+
+  ipcMain.handle('config:set-gmail-watch-interval-ms', (_event, intervalMs: number) => {
+    configRepository.setGmailWatchIntervalMs(intervalMs)
+    return true
+  })
+
   ipcMain.handle('config:get-user-profile-raw', () => {
     return configRepository.getUserProfileRaw()
   })

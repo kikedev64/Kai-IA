@@ -34,6 +34,11 @@ if (process.contextIsolated) {
       setServerPort: (port: number): Promise<boolean> =>
         ipcRenderer.invoke('config:set-server-port', port),
 
+      getGmailWatchIntervalMs: (): Promise<number> =>
+        ipcRenderer.invoke('config:get-gmail-watch-interval-ms'),
+      setGmailWatchIntervalMs: (intervalMs: number): Promise<boolean> =>
+        ipcRenderer.invoke('config:set-gmail-watch-interval-ms', intervalMs),
+
       getUserProfileRaw: (): Promise<string | null> =>
         ipcRenderer.invoke('config:get-user-profile-raw'),
       setUserProfileRaw: (raw: string): Promise<boolean> =>

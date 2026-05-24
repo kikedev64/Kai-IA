@@ -136,6 +136,37 @@ export const configRepository = {
   },
 
   /**
+   * Read the Gmail watcher polling interval in milliseconds.
+   *
+   * Args:
+   *   None.
+   *
+   * Returns:
+   *   number
+   */
+  getGmailWatchIntervalMs(): number {
+
+    const value = getConfigValue('gmail_watch_interval_ms')
+    const intervalMs = value ? Number(value) : 20000
+
+    return Number.isFinite(intervalMs) ? intervalMs : 20000
+  },
+
+  /**
+   * Persist the Gmail watcher polling interval in milliseconds.
+   *
+   * Args:
+   *   intervalMs: Polling interval selected by the user.
+   *
+   * Returns:
+   *   void
+   */
+  setGmailWatchIntervalMs(intervalMs: number): void {
+
+    setConfigValue('gmail_watch_interval_ms', String(intervalMs))
+  },
+
+  /**
    * Read the raw user profile text.
    *
    * Args:

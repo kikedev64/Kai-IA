@@ -38,6 +38,7 @@ type SettingsSectionId =
 type SettingsForm = {
   server_url: string
   server_port: string
+  gmail_watch_interval_ms: string
   user_profile_raw: string
   user_profile_json: string
 } & BackendSettings
@@ -109,6 +110,7 @@ const SECTION_ITEMS: SectionItem[] = [
 const EMPTY_FORM: SettingsForm = {
   server_url: 'http://localhost',
   server_port: '8000',
+  gmail_watch_interval_ms: '20000',
   user_profile_raw: '',
   user_profile_json: '{}',
   google_redirect_uri: 'http://localhost:8000/auth/google/callback',
@@ -474,6 +476,15 @@ const SettingsPage = (): React.JSX.Element => {
         throw new Error('El puerto del backend no es válido')
       }
 
+      const parsedGmailWatchIntervalMs = Number(form.gmail_watch_interval_ms)
+      if (
+        !Number.isInteger(parsedGmailWatchIntervalMs) ||
+        parsedGmailWatchIntervalMs < 5000 ||
+        parsedGmailWatchIntervalMs > 3600000
+      ) {
+        throw new Error('El intervalo de escucha de Gmail debe ser un entero entre 5000 y 3600000 ms')
+      }
+
       let parsedUserProfile: Record<string, unknown> = {}
       try {
         const parsed = JSON.parse(form.user_profile_json || '{}')
@@ -554,6 +565,7 @@ const SettingsPage = (): React.JSX.Element => {
       await saveLocalSettings({
         server_url: form.server_url,
         server_port: form.server_port,
+        gmail_watch_interval_ms: form.gmail_watch_interval_ms,
         user_profile_raw: form.user_profile_raw,
         user_profile_json: parsedUserProfile
       })
@@ -561,6 +573,7 @@ const SettingsPage = (): React.JSX.Element => {
       const nextForm: SettingsForm = {
         server_url: form.server_url,
         server_port: form.server_port,
+        gmail_watch_interval_ms: String(parsedGmailWatchIntervalMs),
         user_profile_raw: form.user_profile_raw,
         user_profile_json: JSON.stringify(parsedUserProfile, null, 2),
         ...savedBackend
@@ -779,7 +792,7 @@ const SettingsPage = (): React.JSX.Element => {
         return (
           <SectionCard
             title="Configuración de Gmail"
-            description="Límite máximo total de adjuntos."
+            description="Límites del servicio de correo y escucha de nuevos mensajes."
           >
             <div>
               <FieldLabel
@@ -790,6 +803,18 @@ const SettingsPage = (): React.JSX.Element => {
                 value={form.email_max_total_size_attachment}
                 onChange={(value) => updateField('email_max_total_size_attachment', value)}
                 placeholder="18874368"
+              />
+            </div>
+
+            <div>
+              <FieldLabel
+                title="Intervalo de escucha de nuevos correos"
+                subtitle="Tiempo entre comprobaciones en milisegundos. Entre 5000 y 3600000. Ejemplo: 20000."
+              />
+              <TextInput
+                value={form.gmail_watch_interval_ms}
+                onChange={(value) => updateField('gmail_watch_interval_ms', value)}
+                placeholder="20000"
               />
             </div>
           </SectionCard>

@@ -27,9 +27,9 @@ SHELL_TOOL_DEFINITION = {
         "name": "run_shell_command",
         "description": (
             "Ejecuta un comando de shell en el sistema local y devuelve stdout, stderr "
-            "y el código de retorno. Ideal para listar ficheros, buscar texto, leer "
+            "y el codigo de retorno. Ideal para listar ficheros, buscar texto, leer "
             "archivos, comprobar procesos, ver variables de entorno, etc. "
-            "No usar para operaciones destructivas."
+            "No usar para operaciones destructivas ni para comandos graficos sin salida."
         ),
         "parameters": {
             "type": "object",
@@ -37,8 +37,11 @@ SHELL_TOOL_DEFINITION = {
                 "command": {
                     "type": "string",
                     "description": (
-                        "Comando a ejecutar. En Windows usa sintaxis cmd/PowerShell "
-                        "(ej: 'dir', 'type archivo.txt', 'Get-ChildItem'). "
+                        "Comando a ejecutar. En Windows usa sintaxis PowerShell que "
+                        "imprima salida por stdout (ej: 'Get-ChildItem', "
+                        "'Get-Content archivo.txt', "
+                        "'Get-ComputerInfo | Select-Object WindowsProductName, WindowsVersion, OsBuildNumber'). "
+                        "No uses comandos que abren ventanas o no imprimen salida, como 'winver'. "
                         "En Linux/macOS usa bash (ej: 'ls -la', 'cat archivo.txt')."
                     ),
                 },
@@ -48,7 +51,7 @@ SHELL_TOOL_DEFINITION = {
                 },
                 "timeout": {
                     "type": "integer",
-                    "description": "Segundos máximos de espera, entre 1 y 30. Por defecto 10.",
+                    "description": "Segundos maximos de espera, entre 1 y 30. Por defecto 10.",
                 },
             },
             "required": ["command"],
@@ -80,6 +83,8 @@ def run_shell_command(
         return {
             "status": "blocked",
             "message": f"Comando bloqueado por razones de seguridad: '{command}'",
+            "command": command,
+            "working_dir": str(Path(working_dir).resolve()) if working_dir else None,
             "stdout": "",
             "stderr": "",
             "returncode": -1,
@@ -99,17 +104,42 @@ def run_shell_command(
             return raw.decode(enc, errors="replace")
 
     try:
-        proc = subprocess.run(
-            command,
-            shell=True,
-            capture_output=True,  # bytes mode — no encoding forced
-            timeout=timeout,
-            cwd=cwd,
-        )
+        if platform.system() == "Windows":
+            args = ["powershell", "-NoProfile", "-NonInteractive", "-Command", command]
+            proc = subprocess.run(
+                args,
+                capture_output=True,
+                timeout=timeout,
+                cwd=cwd,
+            )
+        else:
+            proc = subprocess.run(
+                command,
+                shell=True,
+                capture_output=True,
+                timeout=timeout,
+                cwd=cwd,
+            )
         stdout = _decode(proc.stdout)[:4096]
         stderr = _decode(proc.stderr)[:1024]
+        if proc.returncode == 0 and not stdout.strip() and not stderr.strip():
+            return {
+                "status": "error",
+                "message": (
+                    "El comando terminó correctamente, pero no produjo salida. "
+                    "No hay datos fiables para responder. Ejecuta otro comando "
+                    "que imprima la información solicitada por stdout."
+                ),
+                "command": command,
+                "working_dir": str(cwd) if cwd else None,
+                "stdout": "",
+                "stderr": "",
+                "returncode": proc.returncode,
+            }
         return {
             "status": "success" if proc.returncode == 0 else "error",
+            "command": command,
+            "working_dir": str(cwd) if cwd else None,
             "stdout": stdout,
             "stderr": stderr,
             "returncode": proc.returncode,
@@ -118,6 +148,8 @@ def run_shell_command(
         return {
             "status": "timeout",
             "message": f"El comando superó el límite de {timeout}s.",
+            "command": command,
+            "working_dir": str(cwd) if cwd else None,
             "stdout": "",
             "stderr": "",
             "returncode": -1,
@@ -126,6 +158,8 @@ def run_shell_command(
         return {
             "status": "error",
             "message": str(exc),
+            "command": command,
+            "working_dir": str(cwd) if cwd else None,
             "stdout": "",
             "stderr": "",
             "returncode": -1,

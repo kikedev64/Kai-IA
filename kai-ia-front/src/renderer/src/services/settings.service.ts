@@ -25,6 +25,7 @@ export type BackendSettings = {
 export type LocalSettings = {
   server_url: string
   server_port: string
+  gmail_watch_interval_ms: string
   user_profile_raw: string
   user_profile_json: string
 }
@@ -78,9 +79,10 @@ async function resolveBaseUrl(target?: BackendTarget): Promise<string> {
  */
 export async function getLocalSettings(): Promise<LocalSettings> {
 
-  const [serverUrl, serverPort, userProfileRaw, userProfileJson] = await Promise.all([
+  const [serverUrl, serverPort, gmailWatchIntervalMs, userProfileRaw, userProfileJson] = await Promise.all([
     window.configApi.getServerUrl(),
     window.configApi.getServerPort(),
+    window.configApi.getGmailWatchIntervalMs(),
     window.configApi.getUserProfileRaw(),
     window.configApi.getUserProfileJson()
   ])
@@ -88,6 +90,7 @@ export async function getLocalSettings(): Promise<LocalSettings> {
   return {
     server_url: serverUrl ?? 'http://localhost',
     server_port: String(serverPort ?? 8000),
+    gmail_watch_interval_ms: String(gmailWatchIntervalMs ?? 20000),
     user_profile_raw: userProfileRaw ?? '',
     user_profile_json: userProfileJson ? JSON.stringify(userProfileJson, null, 2) : '{}'
   }
@@ -105,11 +108,13 @@ export async function getLocalSettings(): Promise<LocalSettings> {
 export async function saveLocalSettings(payload: {
   server_url: string
   server_port: string
+  gmail_watch_interval_ms: string
   user_profile_raw: string
   user_profile_json: Record<string, unknown>
 }): Promise<void> {
 
   const parsedPort = Number(payload.server_port)
+  const parsedGmailWatchIntervalMs = Number(payload.gmail_watch_interval_ms)
 
   if (!payload.server_url.trim()) {
     throw new Error('La URL no puede estar vacía')
@@ -119,8 +124,17 @@ export async function saveLocalSettings(payload: {
     throw new Error('El puerto no es válido')
   }
 
+  if (
+    !Number.isInteger(parsedGmailWatchIntervalMs) ||
+    parsedGmailWatchIntervalMs < 5000 ||
+    parsedGmailWatchIntervalMs > 3600000
+  ) {
+    throw new Error('El intervalo de escucha de Gmail debe estar entre 5000 y 3600000 ms')
+  }
+
   await window.configApi.setServerUrl(payload.server_url.trim())
   await window.configApi.setServerPort(parsedPort)
+  await window.configApi.setGmailWatchIntervalMs(parsedGmailWatchIntervalMs)
   await window.configApi.setUserProfileRaw(payload.user_profile_raw.trim())
   await window.configApi.setUserProfileJson(payload.user_profile_json)
 }
