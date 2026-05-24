@@ -1,6 +1,12 @@
 """Model text parsing and validation helpers for assistant flows."""
 
 import json
+import re
+
+_THINKING_TAG_RE = re.compile(
+    r"<(think|thinking|reasoning|reflection)>.*?</(think|thinking|reasoning|reflection)>",
+    re.DOTALL | re.IGNORECASE,
+)
 
 
 def parse_json_object(text: str) -> dict | None:
@@ -92,20 +98,14 @@ def clean_model_output(text: str) -> str:
     if not text:
         return ""
 
-    cleaned = text
-
-    while "<think>" in cleaned and "</think>" in cleaned:
-        start = cleaned.find("<think>")
-        end = cleaned.find("</think>", start)
-
-        if end == -1:
-            break
-
-        cleaned = cleaned[:start] + cleaned[end + len("</think>") :]
-
-    if "<think>" in cleaned:
-        cleaned = cleaned.split("<think>", 1)[0]
-
+    cleaned = _THINKING_TAG_RE.sub("", text)
+    # Strip unclosed opening tag and everything after it
+    cleaned = re.sub(
+        r"<(think|thinking|reasoning|reflection)>.*$",
+        "",
+        cleaned,
+        flags=re.DOTALL | re.IGNORECASE,
+    )
     return cleaned.strip()
 
 

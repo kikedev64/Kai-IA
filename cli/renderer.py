@@ -1,4 +1,5 @@
 import json
+import re
 
 from rich import box
 from rich.console import Console
@@ -9,6 +10,22 @@ from rich.syntax import Syntax
 from rich.text import Text
 
 console = Console(highlight=False)
+
+_THINKING_TAG_RE = re.compile(
+    r"<(think|thinking|reasoning|reflection)>.*?</(think|thinking|reasoning|reflection)>",
+    re.DOTALL | re.IGNORECASE,
+)
+
+
+def _strip_thinking_tags(text: str) -> str:
+    cleaned = _THINKING_TAG_RE.sub("", text)
+    cleaned = re.sub(
+        r"<(think|thinking|reasoning|reflection)>.*$",
+        "",
+        cleaned,
+        flags=re.DOTALL | re.IGNORECASE,
+    )
+    return cleaned.strip()
 
 _BANNER = """\
  ██╗  ██╗ █████╗ ██╗    ██╗  █████╗
@@ -59,6 +76,7 @@ def print_help() -> None:
 
 
 def print_assistant_message(content: str) -> None:
+    content = _strip_thinking_tags(content)
     console.print()
     console.print(
         Panel(
