@@ -204,6 +204,11 @@ def assistant_chat_stream(req: ChatStreamRequest) -> StreamingResponse:
     limit_history = req.limit_history
     profile_context = (req.profile_context or "").strip() or None
     debug_enabled = req.debug
+    inc_system_prompt = req.include_system_prompt
+    inc_datetime = req.include_datetime
+    inc_history = req.include_history
+    inc_profile = req.include_profile
+    inc_tools = req.include_tools
     stream_started_at = time.perf_counter()
 
     def stream_text(text: str) -> Iterator[str]:
@@ -519,32 +524,40 @@ def assistant_chat_stream(req: ChatStreamRequest) -> StreamingResponse:
 
                 sanitized.append(m)
 
-            messages = [
-                {"role": "system", "content": system_prompt},
-                now_context_system_message(),
-                tool_capabilities_system_message(),
-            ]
+            messages = []
 
-            if profile_context:
-                messages.append(
-                    {
-                        "role": "system",
-                        "content": profile_context,
-                    }
-                )
+            if inc_system_prompt:
+                messages.append({"role": "system", "content": system_prompt})
+            if inc_datetime:
+                messages.append(now_context_system_message())
+            if inc_tools:
+                messages.append(tool_capabilities_system_message())
+
+            if inc_profile and profile_context:
+                messages.append({"role": "system", "content": profile_context})
 
             gmail_memory_context = get_chat_context(chat_id, GMAIL_CONTEXT_KEY)
             if gmail_memory_context:
                 messages.append({"role": "system", "content": gmail_memory_context})
 
-            messages += sanitized
+            if inc_history:
+                messages += sanitized
+            else:
+                messages.append({"role": "user", "content": prompt})
 
-            use_tools = should_enable_tools(prompt)
+            use_tools = inc_tools and should_enable_tools(prompt)
             event = debug_event(
                 "context",
                 "Kai prepara el contexto: system prompt, hora actual, perfil y memoria reciente.",
                 messages_count=len(messages),
-                history_messages=len(sanitized),
+                history_messages=len(sanitized) if inc_history else 0,
+                context_flags={
+                    "system_prompt": inc_system_prompt,
+                    "datetime": inc_datetime,
+                    "history": inc_history,
+                    "profile": inc_profile,
+                    "tools": inc_tools,
+                },
                 tools_enabled=use_tools,
                 limit_history=limit_history,
                 profile_context=bool(profile_context),

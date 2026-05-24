@@ -13,6 +13,11 @@ class ChatStreamRequest(BaseModel):
     limit_history: int = Field(default=6, ge=1, le=20)
     profile_context: str | None = None
     debug: bool = False
+    include_system_prompt: bool = True
+    include_datetime: bool = True
+    include_history: bool = True
+    include_profile: bool = True
+    include_tools: bool = True
 
 
 class ChatResetRequest(BaseModel):

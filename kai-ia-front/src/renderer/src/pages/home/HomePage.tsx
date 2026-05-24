@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { Menu, Plus, Search, Settings, Send, Bot, User, Sparkles } from 'lucide-react'
+import { Menu, Plus, Search, Settings, Send, Bot, User, Sparkles, SlidersHorizontal } from 'lucide-react'
 import { createChat, getChatItemById, getChatMessages } from '../../services/assistant.services'
 import { useChatBootstrap } from '../../context/chat-bootstrap.context'
 import type { ChatItem, Message } from '../../types/assistant'
@@ -273,6 +273,23 @@ const HomePage = (): React.JSX.Element => {
   const [input, setInput] = useState('')
   const [search, setSearch] = useState('')
   const [isSending, setIsSending] = useState(false)
+  const [contextMenuOpen, setContextMenuOpen] = useState(false)
+  const contextMenuRef = useRef<HTMLDivElement>(null)
+  const [contextFlags, setContextFlags] = useState<Record<string, boolean>>(() => {
+    try {
+      const stored = localStorage.getItem('kai-context-flags')
+      if (stored) return JSON.parse(stored) as Record<string, boolean>
+    } catch { /* ignore */ }
+    return { systemPrompt: true, datetime: true, history: true, profile: true, tools: true }
+  })
+
+  const toggleContextFlag = (key: string) => {
+    setContextFlags((prev) => {
+      const next = { ...prev, [key]: !prev[key] }
+      try { localStorage.setItem('kai-context-flags', JSON.stringify(next)) } catch { /* ignore */ }
+      return next
+    })
+  }
   const [isCreatingChat, setIsCreatingChat] = useState(false)
   const [isLoadingMessages, setIsLoadingMessages] = useState(false)
   const [streamingContent, setStreamingContent] = useState<string>('')
@@ -454,7 +471,12 @@ const HomePage = (): React.JSX.Element => {
         prompt: promptText,
         limit_history: STREAM_LIMIT_HISTORY,
         profile_context: profileContext,
-        debug: true
+        debug: true,
+        include_system_prompt: contextFlags.systemPrompt ?? true,
+        include_datetime: contextFlags.datetime ?? true,
+        include_history: contextFlags.history ?? true,
+        include_profile: contextFlags.profile ?? true,
+        include_tools: contextFlags.tools ?? true,
       })
     })
 
@@ -632,6 +654,17 @@ const HomePage = (): React.JSX.Element => {
       setStreamingChatId((currentChatId) => (currentChatId === chatId ? null : currentChatId))
     }
   }
+
+  useEffect(() => {
+    if (!contextMenuOpen) return
+    const handleClickOutside = (e: MouseEvent) => {
+      if (contextMenuRef.current && !contextMenuRef.current.contains(e.target as Node)) {
+        setContextMenuOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [contextMenuOpen])
 
   useEffect(() => {
     setLocalChats(chats)
@@ -1275,6 +1308,68 @@ const HomePage = (): React.JSX.Element => {
                     }}
                   />
                 </div>
+
+                <div className="relative" ref={contextMenuRef}>
+                  <button
+                    onClick={() => setContextMenuOpen((prev) => !prev)}
+                    title="Contexto del prompt"
+                    className={`flex h-[54px] w-[54px] items-center justify-center rounded-[20px] border shadow-[0_12px_30px_rgba(0,0,0,0.2)] backdrop-blur-xl transition ${
+                      contextMenuOpen
+                        ? 'border-cyan-300/40 bg-cyan-400/15 text-cyan-200'
+                        : 'border-white/10 bg-white/[0.1] hover:bg-white hover:text-black'
+                    }`}
+                  >
+                    <SlidersHorizontal size={18} />
+                  </button>
+
+                  {contextMenuOpen && (
+                    <div className="absolute bottom-[64px] right-0 z-50 w-64 rounded-[20px] border border-white/10 bg-[#060f1e]/95 p-4 shadow-[0_20px_60px_rgba(0,0,0,0.5)] backdrop-blur-2xl">
+                      <div className="pointer-events-none absolute inset-x-0 top-0 h-px rounded-t-[20px] bg-gradient-to-r from-transparent via-white/20 to-transparent" />
+                      <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-400">
+                        Contexto del prompt
+                      </p>
+                      <div className="space-y-1">
+                        {([
+                          { key: 'systemPrompt', label: 'Prompt del sistema', desc: 'Personalidad y reglas de Kai' },
+                          { key: 'datetime',     label: 'Fecha y hora',       desc: 'Contexto temporal actual' },
+                          { key: 'history',      label: 'Historial',          desc: 'Mensajes previos del chat' },
+                          { key: 'profile',      label: 'Perfil de usuario',  desc: 'Datos personales configurados' },
+                          { key: 'tools',        label: 'Tools (function calling)', desc: 'Gmail, Calendar, Drive, Tasks...' },
+                        ] as const).map(({ key, label, desc }) => {
+                          const active = contextFlags[key] ?? true
+                          return (
+                            <button
+                              key={key}
+                              onClick={() => toggleContextFlag(key)}
+                              className={`flex w-full items-start gap-3 rounded-[14px] px-3 py-2.5 text-left transition ${
+                                active ? 'bg-white/[0.06]' : 'opacity-50 hover:opacity-70'
+                              } hover:bg-white/[0.1]`}
+                            >
+                              <span
+                                className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-md border transition ${
+                                  active
+                                    ? 'border-cyan-400/60 bg-cyan-400/20 text-cyan-300'
+                                    : 'border-white/20 bg-white/[0.04]'
+                                }`}
+                              >
+                                {active && (
+                                  <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
+                                    <path d="M1 4L3.5 6.5L9 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                                  </svg>
+                                )}
+                              </span>
+                              <div>
+                                <p className="text-sm font-medium text-white">{label}</p>
+                                <p className="text-xs text-slate-400">{desc}</p>
+                              </div>
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 <button
                   onClick={handleSend}
                   disabled={!input.trim() || !selectedChatId || isSending}
