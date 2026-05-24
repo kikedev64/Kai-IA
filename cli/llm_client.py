@@ -111,7 +111,7 @@ def run_cli_turn(
             tools=CLI_TOOLS,
             tool_choice="auto",
             temperature=0.0,
-            timeout=60,
+            timeout=600,
         )
 
         msg = response.choices[0].message

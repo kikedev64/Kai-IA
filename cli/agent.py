@@ -68,7 +68,7 @@ def _run_turn(messages: list[dict]) -> tuple[str, list[dict]]:
                 tools=CLI_TOOLS,
                 tool_choice="auto",
                 temperature=0.0,
-                timeout=60,
+                timeout=600,
             )
 
         msg = response.choices[0].message

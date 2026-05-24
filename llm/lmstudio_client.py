@@ -41,7 +41,7 @@ def call_lm_studio(
         "model": get_model_name(),
         "messages": messages,
         "temperature": get_temperature(),
-        "timeout": 60,
+        "timeout": 600,
     }
 
     if use_tools:
@@ -69,7 +69,7 @@ def call_lm_studio_stream(
         model=get_model_name(),
         messages=messages,
         temperature=get_temperature(),
-        timeout=60,
+        timeout=600,
         stream=True,
     )
 

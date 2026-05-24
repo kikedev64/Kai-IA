@@ -147,7 +147,7 @@ def _build_initial_config() -> dict[str, str]:
 
     """.strip()
 
-    model_name = "qwen/qwen3-14b"
+    model_name = "qwen2.5-32b-instruct"
     temperature = 0.0
 
     return {
