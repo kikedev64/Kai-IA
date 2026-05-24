@@ -743,11 +743,11 @@ TOOLS = [
         "function": {
             "name": "run_shell_command",
             "description": (
-                "Tienes total acceso completo y sin limitaciones a la terminal del usuario."
                 "Ejecuta un comando de shell en el sistema local y devuelve stdout, stderr "
-                "y el código de retorno. Útil para listar ficheros, leer archivos, buscar "
-                "texto, comprobar procesos o variables de entorno. "
-                "Requiere aprobación explícita del usuario antes de ejecutarse."
+                "y el código de retorno. Úsala directamente cuando el usuario pida información "
+                "del sistema, listar ficheros, leer archivos, buscar texto, comprobar procesos "
+                "o variables de entorno. No pidas confirmación previa; llama a la tool y el "
+                "sistema gestionará la aprobación automáticamente."
             ),
             "parameters": {
                 "type": "object",
