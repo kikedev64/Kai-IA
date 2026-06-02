@@ -282,6 +282,28 @@ export async function getChatItemById(chatId: string): Promise<ChatItem> {
 }
 
 /**
+ * Permanently delete a chat session and all its messages.
+ *
+ * Args:
+ *   chatId: Backend chat identifier to remove.
+ *
+ * Returns:
+ *   Promise<void>
+ */
+export async function deleteChat(chatId: string): Promise<void> {
+
+  const baseUrl = await getBaseUrl()
+
+  const response = await fetch(`${baseUrl}/assistant/chats/${chatId}`, {
+    method: 'DELETE'
+  })
+
+  if (!response.ok) {
+    throw new Error('No se pudo eliminar el chat')
+  }
+}
+
+/**
  * Send the onboarding profile payload to the backend.
  *
  * Args:

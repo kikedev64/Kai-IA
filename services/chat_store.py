@@ -304,6 +304,29 @@ def list_chat_sessions() -> list[dict]:
     return [dict(row) for row in rows]
 
 
+def delete_chat(chat_id: str) -> bool:
+    """Delete a chat session and all its associated data.
+
+    Args:
+        chat_id: Identifier of the chat session to delete.
+
+    Returns:
+        bool: True if the session existed and was deleted, False otherwise.
+    """
+    conn = get_connection()
+    cur = conn.cursor()
+
+    cur.execute("DELETE FROM chat_messages WHERE chat_id = ?", (chat_id,))
+    cur.execute("DELETE FROM chat_context WHERE chat_id = ?", (chat_id,))
+    cur.execute("DELETE FROM chat_sessions WHERE chat_id = ?", (chat_id,))
+
+    deleted = cur.rowcount > 0
+    conn.commit()
+    conn.close()
+
+    return deleted
+
+
 def get_full_chat_by_id(chat_id: str) -> dict | None:
     """Return the full chat by id.
 

@@ -40,12 +40,11 @@ def latest_history_id() -> dict[str, object]:
     Returns:
         dict[str, object]
     """
-    history_id = get_latest_history_id()
-
-    return {
-        "ok": True,
-        "history_id": history_id,
-    }
+    try:
+        history_id = get_latest_history_id()
+        return {"ok": True, "history_id": history_id}
+    except Exception as e:
+        raise HTTPException(status_code=401, detail=str(e))
 
 
 @router.post("/check")

@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { Menu, Plus, Search, Settings, Send, Bot, User, Sparkles, SlidersHorizontal } from 'lucide-react'
-import { createChat, getChatItemById, getChatMessages } from '../../services/assistant.services'
+import { Menu, Plus, Search, Settings, Send, Bot, User, Sparkles, SlidersHorizontal, Trash2 } from 'lucide-react'
+import { createChat, deleteChat, getChatItemById, getChatMessages } from '../../services/assistant.services'
 import { useChatBootstrap } from '../../context/chat-bootstrap.context'
 import type { ChatItem, Message } from '../../types/assistant'
 import ReactMarkdown from 'react-markdown'
@@ -968,6 +968,29 @@ const HomePage = (): React.JSX.Element => {
   }
 
   /**
+   * Permanently delete a chat and update local state.
+   *
+   * Args:
+   *   chatId: Identifier of the chat to remove.
+   *
+   * Returns:
+   *   Promise<void>
+   */
+  const handleDeleteChat = async (chatId: string) => {
+
+    try {
+      await deleteChat(chatId)
+      const remaining = localChats.filter((chat) => chat.id !== chatId)
+      setLocalChats(remaining)
+      if (selectedChatId === chatId) {
+        setSelectedChatId(remaining[0]?.id ?? null)
+      }
+    } catch (error) {
+      console.error('Error eliminando chat:', error)
+    }
+  }
+
+  /**
    * Send the text currently written in the chat composer.
    *
    * Args:
@@ -1126,25 +1149,34 @@ const HomePage = (): React.JSX.Element => {
                 {filteredChats.map((chat) => {
                   const isActive = chat.id === selectedChatId
                   return (
-                    <button
+                    <div
                       key={chat.id}
                       onClick={() => handleSelectChat(chat.id)}
-                      className={`group w-full rounded-2xl border p-4 text-left transition ${
+                      className={`group cursor-pointer rounded-2xl border p-4 transition ${
                         isActive
                           ? 'border-cyan-300/20 bg-white/[0.12] shadow-[0_8px_30px_rgba(34,211,238,0.08)]'
                           : 'border-white/5 bg-white/[0.04] hover:border-white/15 hover:bg-white/[0.08]'
                       }`}
                     >
-                      <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center justify-between gap-2">
                         <h3 className="line-clamp-1 text-sm font-medium text-white">
                           {chat.title}
                         </h3>
-                        <span className="shrink-0 text-xs text-slate-400">{chat.updatedAt}</span>
+                        <div className="flex shrink-0 items-center gap-1">
+                          <button
+                            onClick={(e) => { e.stopPropagation(); void handleDeleteChat(chat.id) }}
+                            className="rounded p-0.5 text-slate-500 opacity-0 transition-opacity hover:bg-red-500/10 hover:text-red-400 group-hover:opacity-100"
+                            title="Eliminar chat"
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                          <span className="text-xs text-slate-400">{chat.updatedAt}</span>
+                        </div>
                       </div>
                       <p className="mt-2 line-clamp-2 text-sm text-slate-300/80">
                         {chat.lastMessage}
                       </p>
-                    </button>
+                    </div>
                   )
                 })}
               </div>

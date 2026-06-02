@@ -1044,6 +1044,12 @@ async function runStartupFlow(): Promise<void> {
   })
 }
 
+// Prevents Chromium from locking the cookie database when OS-level DPAPI
+// decryption of the Local State key fails (Windows-specific 0x8009000B error).
+if (process.platform === 'win32') {
+  app.commandLine.appendSwitch('disable-features', 'LockProfileCookieDatabase')
+}
+
 app.whenReady().then(() => {
   electronApp.setAppUserModelId('com.kai.ia')
 

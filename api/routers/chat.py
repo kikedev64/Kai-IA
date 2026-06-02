@@ -51,6 +51,7 @@ from tools.tools_handler import handle_tool_call
 from services.chat_store import (
     ensure_session,
     add_message,
+    delete_chat,
     get_chat_context,
     get_full_chat_by_id,
     get_messages,
@@ -163,6 +164,29 @@ def get_chat_by_id(chat_id: str) -> dict:
             raise HTTPException(status_code=404, detail="Chat no encontrado")
 
         return chat
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete("/chats/{chat_id}")
+def delete_chat_endpoint(chat_id: str) -> dict[str, str]:
+    """Delete a chat session and all its messages.
+
+    Args:
+        chat_id: Identifier of the chat session to delete.
+
+    Returns:
+        dict[str, str]
+    """
+    try:
+        found = delete_chat(chat_id)
+
+        if not found:
+            raise HTTPException(status_code=404, detail="Chat no encontrado")
+
+        return {"status": "deleted", "chat_id": chat_id}
     except HTTPException:
         raise
     except Exception as e:

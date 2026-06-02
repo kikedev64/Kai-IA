@@ -3,6 +3,7 @@ import json
 import secrets
 from pathlib import Path
 
+from google.auth.exceptions import RefreshError
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import Flow
@@ -75,10 +76,13 @@ def get_creds() -> dict:
             return {"creds": creds}
 
         if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-            with open(get_google_token_file(), "w", encoding="utf-8") as f:
-                f.write(creds.to_json())
-            return {"creds": creds}
+            try:
+                creds.refresh(Request())
+                with open(get_google_token_file(), "w", encoding="utf-8") as f:
+                    f.write(creds.to_json())
+                return {"creds": creds}
+            except RefreshError:
+                Path(get_google_token_file()).unlink(missing_ok=True)
 
     if not os.path.exists(str(get_google_credentials_file())):
         return {
