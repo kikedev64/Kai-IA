@@ -23,6 +23,7 @@ type NewEmailWatcherController = {
 
 const STORAGE_PROCESSED_IDS_KEY = 'kai_processed_email_ids'
 const MAX_PROCESSED_IDS = 300
+const MAX_NOTIFICATION_PREVIEW_LENGTH = 220
 
 /**
  * Load message ids that have already triggered notifications.
@@ -66,6 +67,112 @@ function saveProcessedIds(ids: Set<string>): void {
 }
 
 /**
+ * Decode HTML entities into readable text.
+ *
+ * Args:
+ *   value: Text that may contain escaped HTML entities.
+ *
+ * Returns:
+ *   string
+ */
+function decodeHtmlEntities(value: string): string {
+
+  const textarea = document.createElement('textarea')
+  textarea.innerHTML = value
+  return textarea.value
+}
+
+/**
+ * Convert HTML fragments into notification-friendly plain text.
+ *
+ * Args:
+ *   value: Email body or snippet that may contain HTML markup.
+ *
+ * Returns:
+ *   string
+ */
+function htmlToPreviewText(value: string): string {
+
+  return decodeHtmlEntities(
+    value
+      .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, ' ')
+      .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, ' ')
+      .replace(/<(br|hr)\s*\/?>/gi, '\n')
+      .replace(/<\/(p|div|li|tr|td|th|h[1-6]|section|article|blockquote)>/gi, '\n')
+      .replace(/<li\b[^>]*>/gi, '\n')
+      .replace(/<[^>]+>/g, ' ')
+  )
+}
+
+/**
+ * Convert common Markdown syntax into readable plain text.
+ *
+ * Args:
+ *   value: Email body or snippet that may contain Markdown.
+ *
+ * Returns:
+ *   string
+ */
+function markdownToPreviewText(value: string): string {
+
+  return value
+    .replace(/```[\s\S]*?```/g, (match) => match.replace(/```[a-zA-Z0-9_-]*\s?|```/g, ' '))
+    .replace(/!\[([^\]]*)\]\([^)]+\)/g, '$1')
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    .replace(/^#{1,6}\s+/gm, '')
+    .replace(/^>\s?/gm, '')
+    .replace(/^\s*[-*+]\s+/gm, '')
+    .replace(/^\s*\d+\.\s+/gm, '')
+    .replace(/[*_~`]+/g, '')
+}
+
+/**
+ * Normalize text spacing and trim it for native desktop notifications.
+ *
+ * Args:
+ *   value: Raw preview text.
+ *
+ * Returns:
+ *   string
+ */
+function compactNotificationPreview(value: string): string {
+
+  const compacted = value
+    .replace(/\r\n?/g, '\n')
+    .replace(/[ \t\f\v]+/g, ' ')
+    .replace(/\n\s*\n+/g, '\n')
+    .replace(/[ \t]*\n[ \t]*/g, ' - ')
+    .trim()
+
+  if (compacted.length <= MAX_NOTIFICATION_PREVIEW_LENGTH) return compacted
+
+  return `${compacted.slice(0, MAX_NOTIFICATION_PREVIEW_LENGTH - 3).trimEnd()}...`
+}
+
+/**
+ * Build a plain-text preview from HTML, Markdown or raw email text.
+ *
+ * Args:
+ *   email: Gmail message used by the notification.
+ *
+ * Returns:
+ *   string
+ */
+function buildNotificationPreview(email: GmailApiEmail): string {
+
+  const source = [email.body, email.snippet]
+    .map((value) => value?.trim())
+    .find((value): value is string => Boolean(value))
+
+  if (!source) return ''
+
+  const textFromHtml = htmlToPreviewText(source)
+  const textFromMarkdown = markdownToPreviewText(textFromHtml)
+
+  return compactNotificationPreview(textFromMarkdown)
+}
+
+/**
  * Build the body text for a new email desktop notification.
  *
  * Args:
@@ -78,7 +185,8 @@ function buildNotificationBody(email: GmailApiEmail): string {
 
   const sender = email.sender?.trim() || 'Remitente desconocido'
   const subject = email.subject?.trim() || '(sin asunto)'
-  return `${sender}\n${subject}`
+  const preview = buildNotificationPreview(email)
+  return [sender, subject, preview].filter(Boolean).join('\n')
 }
 
 /**
