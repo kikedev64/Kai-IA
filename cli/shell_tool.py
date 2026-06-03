@@ -4,14 +4,13 @@ import re
 import subprocess
 from pathlib import Path
 
-# Commands that are never allowed regardless of context.
 _BLOCKED_PATTERNS = [
-    r"rm\s+-[^\s]*r",       # rm -r, rm -rf, rm -fr …
-    r"\bformat\s+[a-z]:",   # format C:
-    r"\brd\s+/[sq]",        # rd /s /q
-    r"\brmdir\s+/[sq]",     # rmdir /s /q
-    r"\bdel\s+/[sf]",       # del /s /f
-    r":()\{.*\|.*\&",       # fork bomb
+    r"rm\s+-[^\s]*r",
+    r"\bformat\s+[a-z]:",
+    r"\brd\s+/[sq]",
+    r"\brmdir\s+/[sq]",
+    r"\bdel\s+/[sf]",
+    r":()\{.*\|.*\&",
     r"\bmkfs\b",
     r"\bshutdown\b",
     r"\breboot\b",
@@ -166,4 +165,4 @@ def run_shell_command(
         }
 
 
-PLATFORM_HINT = platform.system()  # "Windows" | "Linux" | "Darwin"
+PLATFORM_HINT = platform.system()

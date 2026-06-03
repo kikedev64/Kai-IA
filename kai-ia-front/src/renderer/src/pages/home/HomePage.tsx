@@ -279,14 +279,14 @@ const HomePage = (): React.JSX.Element => {
     try {
       const stored = localStorage.getItem('kai-context-flags')
       if (stored) return JSON.parse(stored) as Record<string, boolean>
-    } catch { /* ignore */ }
+    } catch {}
     return { systemPrompt: true, datetime: true, history: true, profile: true, tools: true }
   })
 
   const toggleContextFlag = (key: string) => {
     setContextFlags((prev) => {
       const next = { ...prev, [key]: !prev[key] }
-      try { localStorage.setItem('kai-context-flags', JSON.stringify(next)) } catch { /* ignore */ }
+      try { localStorage.setItem('kai-context-flags', JSON.stringify(next)) } catch {}
       return next
     })
   }

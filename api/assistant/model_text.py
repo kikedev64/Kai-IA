@@ -99,7 +99,6 @@ def clean_model_output(text: str) -> str:
         return ""
 
     cleaned = _THINKING_TAG_RE.sub("", text)
-    # Strip unclosed opening tag and everything after it
     cleaned = re.sub(
         r"<(think|thinking|reasoning|reflection)>.*$",
         "",

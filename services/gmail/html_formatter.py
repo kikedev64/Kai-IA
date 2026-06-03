@@ -94,15 +94,15 @@ def clean_email_body(raw_body: str) -> str:
         text = parser.get_text()
 
     invisible_chars = [
-        "\u2007",  # figure space
-        "\u2009",  # thin space
-        "\u200a",  # hair space
-        "\u200b",  # zero width space
-        "\u200c",  # zero width non-joiner
-        "\u200d",  # zero width joiner
-        "\u2060",  # word joiner
-        "\ufeff",  # zero width no-break space
-        "\u00ad",  # soft hyphen,
+        "\u2007",
+        "\u2009",
+        "\u200a",
+        "\u200b",
+        "\u200c",
+        "\u200d",
+        "\u2060",
+        "\ufeff",
+        "\u00ad",
         "\xa0",
     ]
 

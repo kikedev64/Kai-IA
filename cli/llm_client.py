@@ -7,7 +7,6 @@ from dotenv import load_dotenv
 
 from cli.shell_tool import PLATFORM_HINT, SHELL_TOOL_DEFINITION, run_shell_command
 
-# Load .env from the project root (two levels up from this file).
 load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
 CLI_TOOLS = [SHELL_TOOL_DEFINITION]

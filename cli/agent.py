@@ -8,7 +8,6 @@ Run from the project root:
 import sys
 from pathlib import Path
 
-# Ensure the project root is importable when the file is executed directly.
 _ROOT = Path(__file__).resolve().parent.parent
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
@@ -17,15 +16,15 @@ from dotenv import load_dotenv
 
 load_dotenv(_ROOT / ".env")
 
-from rich.prompt import Confirm, Prompt  # noqa: E402 (after path setup)
+from rich.prompt import Confirm, Prompt
 
-from cli.llm_client import (  # noqa: E402
+from cli.llm_client import (
     CLI_SYSTEM_PROMPT,
     check_service,
     get_cli_model,
     run_cli_turn,
 )
-from cli.renderer import (  # noqa: E402
+from cli.renderer import (
     console,
     print_assistant_message,
     print_banner,
@@ -49,8 +48,6 @@ def _run_turn(messages: list[dict]) -> tuple[str, list[dict]]:
     """
     client_messages = messages
 
-    # We drive the loop here so we can interleave status spinners with
-    # tool-call panels without nesting them inside a live context.
     from cli.llm_client import CLI_TOOLS, _serialize_tool_calls, get_client, get_cli_model
     import json
     from cli.shell_tool import run_shell_command
@@ -111,7 +108,6 @@ def _run_turn(messages: list[dict]) -> tuple[str, list[dict]]:
                 )
                 continue
 
-            # Show what the model wants to run and ask for confirmation.
             print_tool_call(tc.function.name, args)
             confirmed = Confirm.ask(
                 "[bold yellow]¿Ejecutar este comando?[/bold yellow]",
@@ -165,7 +161,6 @@ def main() -> None:
         if not user_input:
             continue
 
-        # ── Built-in slash commands ────────────────────────────────────────
         if user_input == "/exit":
             console.print("[dim]Hasta luego.[/dim]")
             break
@@ -185,14 +180,13 @@ def main() -> None:
             console.print(f"[cyan]Modelo activo:[/cyan] {get_cli_model()}\n")
             continue
 
-        # ── LLM turn ──────────────────────────────────────────────────────
         messages.append({"role": "user", "content": user_input})
 
         try:
             reply, messages = _run_turn(messages)
         except Exception as exc:
             print_error(str(exc))
-            messages.pop()  # remove the failed user message
+            messages.pop()
             continue
 
         print_assistant_message(reply)

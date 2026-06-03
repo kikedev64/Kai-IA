@@ -1,7 +1,3 @@
-/*
- * Global renderer styles for Tailwind and shared markdown/math rendering.
- */
-
 @import "tailwindcss";
 
 .katex {

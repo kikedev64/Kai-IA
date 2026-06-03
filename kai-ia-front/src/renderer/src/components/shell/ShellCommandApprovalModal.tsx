@@ -46,7 +46,6 @@ export default function ShellCommandApprovalModal({
     <div className="fixed inset-0 z-[9999] flex items-end justify-center bg-black/50 p-4 backdrop-blur-sm sm:items-center">
       <div className="flex w-full max-w-xl flex-col overflow-hidden rounded-2xl border border-white/10 bg-slate-900 shadow-2xl">
 
-        {/* Header */}
         <div className="flex items-center gap-3 border-b border-white/10 px-5 py-4">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-yellow-500/15">
             <Terminal className="h-4 w-4 text-yellow-400" />
@@ -76,7 +75,6 @@ export default function ShellCommandApprovalModal({
           </div>
         )}
 
-        {/* Command preview */}
         <div className="px-5 py-4">
           <p className="mb-2 text-xs font-medium uppercase tracking-wider text-slate-400">
             Comando
@@ -107,7 +105,6 @@ export default function ShellCommandApprovalModal({
           </p>
         </div>
 
-        {/* Actions */}
         <div className="flex gap-3 border-t border-white/10 px-5 py-4">
           <button
             onClick={onDeny}

@@ -9,6 +9,7 @@ declare global {
       openDebugLabWindow: (chatId?: string) => Promise<boolean>
       exportDebugLabReport: (payload: {
         html: string
+        dashboardHtml: string
         csvFiles: Array<{ filename: string; content: string }>
       }) => Promise<{ ok: boolean; path?: string; cancelled?: boolean; error?: string }>
       getDebugLabSystemSnapshot: () => Promise<{

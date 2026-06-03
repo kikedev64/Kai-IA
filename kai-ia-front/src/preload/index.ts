@@ -127,8 +127,11 @@ if (process.contextIsolated) {
     console.error(error)
   }
 } else {
-  // @ts-ignore
-  window.electron = electronAPI
-  // @ts-ignore
-  window.api = api
+  const nonIsolatedWindow = window as unknown as Window & {
+    electron: typeof electronAPI
+    api: typeof api
+  }
+
+  nonIsolatedWindow.electron = electronAPI
+  nonIsolatedWindow.api = api
 }

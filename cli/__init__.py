@@ -1,1 +1,0 @@
-# Kai CLI agent package.

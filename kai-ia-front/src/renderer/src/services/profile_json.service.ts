@@ -126,9 +126,7 @@ export function parseProfileJsonReply(reply: string): Record<string, unknown> {
       }
 
       if (isPlainObject(parsed)) return parsed
-    } catch {
-      // Try the next candidate.
-    }
+    } catch {}
   }
 
   throw new Error('El modelo no devolvio un JSON valido')

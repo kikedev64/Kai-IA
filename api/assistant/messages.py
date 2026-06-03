@@ -8,7 +8,7 @@ try:
 except Exception:
     ZoneInfo = None
 
-_OS = platform.system()  # "Windows" | "Linux" | "Darwin"
+_OS = platform.system()
 
 
 def tool_capabilities_system_message() -> dict:

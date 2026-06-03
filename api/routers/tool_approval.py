@@ -4,8 +4,6 @@ from fastapi import APIRouter, HTTPException
 
 router = APIRouter(prefix="/assistant/tool", tags=["Tool Approval"])
 
-# Module-level dicts are safe here because we only write/read under the GIL
-# and each approval_id is unique per request.
 _pending: dict[str, threading.Event] = {}
 _decisions: dict[str, bool] = {}
 
