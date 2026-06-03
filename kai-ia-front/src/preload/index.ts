@@ -16,6 +16,7 @@ if (process.contextIsolated) {
       openDebugLabWindow: (chatId?: string) => ipcRenderer.invoke('window:open-debug-lab', chatId),
       exportDebugLabReport: (payload: {
         html: string
+        dashboardHtml: string
         csvFiles: Array<{ filename: string; content: string }>
       }) => ipcRenderer.invoke('debug-lab:export-report', payload),
       getDebugLabSystemSnapshot: () => ipcRenderer.invoke('debug-lab:get-system-snapshot')

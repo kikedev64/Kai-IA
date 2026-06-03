@@ -65,6 +65,7 @@ type DebugLabCsvFile = {
 
 type DebugLabReportExportPayload = {
   html: string
+  dashboardHtml: string
   csvFiles: DebugLabCsvFile[]
 }
 
@@ -1111,6 +1112,7 @@ app.whenReady().then(() => {
         reportWindow.close()
         const archive = createZipArchive([
           { filename: 'informe-debug-lab.pdf', content: pdf },
+          { filename: 'dashboard.html', content: payload.dashboardHtml },
           ...payload.csvFiles.map((file) => ({
             filename: `csv/${file.filename}`,
             content: file.content
