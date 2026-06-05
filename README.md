@@ -121,6 +121,40 @@ GOOGLE_REDIRECT_URI=http://127.0.0.1:8000/auth/google/callback
 - [Router Reference](api/routers/README.md)
 - [Frontend README](kai-ia-front/README.md)
 - [CLI Agent README](cli/README.md)
+- [Backend Tests README](tests/README.md)
+- [Frontend Tests README](kai-ia-front/src/__tests__/README.md)
+
+## Testing
+
+The project ships two independent test suites: one for the Python backend and
+one for the TypeScript frontend. Neither suite requires an active LM Studio
+instance, Google credentials or a running backend server.
+
+### Backend (pytest)
+
+64 tests across unit and integration layers. Each test gets an isolated
+in-memory SQLite database through the `isolated_db` fixture so production data
+is never touched.
+
+```powershell
+pip install -r requirements-test.txt
+python -m pytest tests/ -v
+```
+
+See [tests/README.md](tests/README.md) for the full reference.
+
+### Frontend (Vitest)
+
+49 tests for the renderer services. Electron globals (`window.configApi`,
+`window.electronAPI`) and `fetch` are mocked so tests run entirely in jsdom
+without Electron.
+
+```powershell
+cd kai-ia-front
+npm test
+```
+
+See [kai-ia-front/src/__tests__/README.md](kai-ia-front/src/__tests__/README.md) for the full reference.
 
 ## Core Capabilities
 
@@ -156,7 +190,6 @@ environment on demand.
 ### Launch
 
 ```powershell
-# From the repository root with the virtual environment active:
 python -m cli
 ```
 
@@ -169,7 +202,7 @@ operations such as `rm -rf`, `format`, `shutdown`, and similar patterns.
 
 ### Recommended model size
 
-A quantised model in the **20 B – 35 B** range provides the best balance of
+A quantised model in the **20 B - 35 B** range provides the best balance of
 reasoning quality and inference speed on consumer hardware. Set the model in
 `.env`:
 
