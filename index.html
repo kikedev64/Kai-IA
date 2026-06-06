@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Kai IA — Tu asistente personal inteligente, local y privado. Integra Gmail, Calendar, Drive y Tasks con IA que corre 100% en tu máquina." />
+  <title>Kai IA — Asistente Personal Inteligente</title>
+  <link rel="icon" type="image/png" href="assets/icon.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <nav id="navbar">
+    <div class="nav-inner">
+      <a href="#" class="nav-logo">
+        <img src="assets/logo.png" alt="Kai IA logo" />
+        <span>Kai IA</span>
+      </a>
+      <ul class="nav-links">
+        <li><a href="#features">Funciones</a></li>
+        <li><a href="#how-it-works">Cómo funciona</a></li>
+        <li><a href="#screenshots">Capturas</a></li>
+        <li><a href="#downloads">Descargas</a></li>
+      </ul>
+      <div class="nav-actions">
+        <a href="https://github.com/kikedev64/Kai-IA" target="_blank" rel="noopener" class="btn btn-ghost">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.164 6.839 9.489.5.09.682-.218.682-.482 0-.237-.009-.868-.014-1.703-2.782.605-3.369-1.342-3.369-1.342-.454-1.155-1.11-1.462-1.11-1.462-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0112 6.836c.85.004 1.705.115 2.504.337 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.202 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.741 0 .267.18.577.688.48C19.138 20.16 22 16.416 22 12c0-5.523-4.477-10-10-10z"/></svg>
+          GitHub
+        </a>
+        <a href="#downloads" class="btn btn-primary">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Descargar
+        </a>
+      </div>
+      <button class="nav-hamburger" id="hamburger" aria-label="Abrir menú">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+    <div class="nav-mobile" id="nav-mobile">
+      <a href="#features">Funciones</a>
+      <a href="#how-it-works">Cómo funciona</a>
+      <a href="#screenshots">Capturas</a>
+      <a href="#downloads">Descargas</a>
+      <a href="https://github.com/kikedev64/Kai-IA" target="_blank" rel="noopener">GitHub</a>
+    </div>
+  </nav>
+  <section id="hero">
+    <div class="hero-bg">
+      <div class="hero-orb hero-orb-1"></div>
+      <div class="hero-orb hero-orb-2"></div>
+      <div class="hero-grid"></div>
+    </div>
+    <div class="container hero-inner">
+      <div class="hero-content" data-animate>
+        <div class="hero-badge">
+          <span class="badge-dot"></span>
+          IA Local · 100% Privado · Open Source
+        </div>
+        <h1 class="hero-title">
+          Tu asistente personal,<br />
+          <span class="gradient-text">inteligente y privado</span>
+        </h1>
+        <p class="hero-desc">
+          Kai IA integra tu correo, calendario, archivos y tareas de Google
+          con un modelo de lenguaje que corre completamente en tu máquina.
+          Sin enviar datos a terceros.
+        </p>
+        <div class="hero-cta">
+          <a href="#downloads" class="btn btn-primary btn-lg">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Descargar gratis
+          </a>
+          <a href="https://github.com/kikedev64/Kai-IA" target="_blank" rel="noopener" class="btn btn-ghost btn-lg">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.164 6.839 9.489.5.09.682-.218.682-.482 0-.237-.009-.868-.014-1.703-2.782.605-3.369-1.342-3.369-1.342-.454-1.155-1.11-1.462-1.11-1.462-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0112 6.836c.85.004 1.705.115 2.504.337 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.202 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.741 0 .267.18.577.688.48C19.138 20.16 22 16.416 22 12c0-5.523-4.477-10-10-10z"/></svg>
+            Ver en GitHub
+          </a>
+        </div>
+        <div class="hero-meta">
+          <span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+            Gratis y open source
+          </span>
+          <span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+            No requiere suscripción
+          </span>
+          <span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+            Datos en tu máquina
+          </span>
+        </div>
+      </div>
+
+      <div class="hero-visual" data-animate data-delay="150">
+        <div class="hero-mockup">
+          <div class="mockup-bar">
+            <span class="mockup-dot red"></span>
+            <span class="mockup-dot yellow"></span>
+            <span class="mockup-dot green"></span>
+            <span class="mockup-title">Kai IA</span>
+          </div>
+          <div class="mockup-body">
+            <div class="chat-msg assistant">
+              <div class="chat-avatar">K</div>
+              <div class="chat-bubble">
+                Hola! Tienes 3 reuniones hoy. La primera es a las 10:00 con el equipo de desarrollo.<br/>
+                <span class="chat-time">10:02</span>
+              </div>
+            </div>
+            <div class="chat-msg user">
+              <div class="chat-bubble">
+                ¿Algún correo importante sin leer?
+                <span class="chat-time">10:03</span>
+              </div>
+            </div>
+            <div class="chat-msg assistant">
+              <div class="chat-avatar">K</div>
+              <div class="chat-bubble">
+                Sí, tienes 2 correos importantes de tu tutor sobre el TFG. ¿Quieres que los abra?
+                <span class="chat-time">10:03</span>
+              </div>
+            </div>
+            <div class="chat-typing">
+              <div class="chat-avatar">K</div>
+              <div class="typing-dots"><span></span><span></span><span></span></div>
+            </div>
+          </div>
+          <div class="mockup-input">
+            <input type="text" placeholder="Escríbele a Kai..." readonly />
+            <button>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="hero-scroll-hint">
+      <span>Descubre más</span>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+    </div>
+  </section>
+  <section id="features">
+    <div class="container">
+      <div class="section-header" data-animate>
+        <p class="section-label">Funciones</p>
+        <h2 class="section-title">Todo lo que necesitas,<br/>en un solo asistente</h2>
+        <p class="section-desc">Kai IA conecta tus herramientas del día a día con un modelo de lenguaje local para que puedas gestionarlo todo con lenguaje natural.</p>
+      </div>
+      <div class="features-grid">
+
+        <div class="feature-card feature-card-large" data-animate>
+          <div class="feature-icon purple">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+          </div>
+          <h3>Chat con IA local</h3>
+          <p>Conversa con un modelo de lenguaje que corre íntegramente en tu máquina a través de LM Studio. Sin latencia de red, sin límites de uso.</p>
+          <div class="feature-tag">Streaming en tiempo real</div>
+        </div>
+
+        <div class="feature-card" data-animate data-delay="50">
+          <div class="feature-icon blue">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="4" width="20" height="16" rx="2"/><polyline points="22,6 12,13 2,6"/></svg>
+          </div>
+          <h3>Gmail integrado</h3>
+          <p>Lee, responde y envía correos con lenguaje natural. El asistente entiende el contexto de tus conversaciones.</p>
+        </div>
+
+        <div class="feature-card" data-animate data-delay="100">
+          <div class="feature-icon green">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          </div>
+          <h3>Google Calendar</h3>
+          <p>Crea eventos, consulta disponibilidad y gestiona tu agenda. Incluso puede crear videollamadas de Google Meet.</p>
+        </div>
+
+        <div class="feature-card" data-animate data-delay="150">
+          <div class="feature-icon yellow">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
+          </div>
+          <h3>Google Drive</h3>
+          <p>Sube, busca, comparte y elimina archivos de tu Drive directamente desde el chat.</p>
+        </div>
+
+        <div class="feature-card" data-animate data-delay="200">
+          <div class="feature-icon red">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+          </div>
+          <h3>Google Tasks</h3>
+          <p>Crea y gestiona tareas con fechas de vencimiento. El asistente recuerda tus pendientes y te ayuda a organizarlos.</p>
+        </div>
+
+        <div class="feature-card" data-animate data-delay="250">
+          <div class="feature-icon purple">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+          </div>
+          <h3>Privacidad total</h3>
+          <p>Todo el procesamiento ocurre localmente. Tus datos de Google nunca salen de tu red. OAuth 2.0 con PKCE para máxima seguridad.</p>
+        </div>
+
+      </div>
+    </div>
+  </section>
+  <section id="how-it-works">
+    <div class="container">
+      <div class="section-header" data-animate>
+        <p class="section-label">Instalación</p>
+        <h2 class="section-title">En marcha en minutos</h2>
+        <p class="section-desc">Tres pasos para tener tu asistente personal funcionando completamente en local.</p>
+      </div>
+      <div class="steps-container">
+        <div class="step" data-animate>
+          <div class="step-number">01</div>
+          <div class="step-content">
+            <h3>Descarga e instala</h3>
+            <p>Descarga el paquete de Kai IA e instala <a href="https://lmstudio.ai" target="_blank" rel="noopener">LM Studio</a> para ejecutar el modelo de lenguaje localmente en tu máquina.</p>
+          </div>
+        </div>
+        <div class="step-connector" aria-hidden="true"></div>
+        <div class="step" data-animate data-delay="100">
+          <div class="step-number">02</div>
+          <div class="step-content">
+            <h3>Conecta tu cuenta Google</h3>
+            <p>Autoriza el acceso a tus servicios de Google mediante OAuth 2.0. El token se guarda localmente y nunca se comparte.</p>
+          </div>
+        </div>
+        <div class="step-connector" aria-hidden="true"></div>
+        <div class="step" data-animate data-delay="200">
+          <div class="step-number">03</div>
+          <div class="step-content">
+            <h3>Empieza a chatear</h3>
+            <p>Habla con Kai en lenguaje natural. Pídele que revise tu correo, cree reuniones o suba archivos a Drive.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+  <section id="screenshots">
+    <div class="container">
+      <div class="section-header" data-animate>
+        <p class="section-label">Capturas de pantalla</p>
+        <h2 class="section-title">Míralo en acción</h2>
+        <p class="section-desc">Una interfaz limpia diseñada para que la IA sea lo más útil posible.</p>
+      </div>
+
+      <div class="screenshots-tabs" data-animate>
+        <button class="tab-btn active" data-tab="chat">Chat</button>
+        <button class="tab-btn" data-tab="debug">Debug Lab</button>
+        <button class="tab-btn" data-tab="settings">Configuración</button>
+        <button class="tab-btn" data-tab="cli">CLI</button>
+      </div>
+
+      <div class="screenshots-viewer" data-animate data-delay="100">
+        <div class="screenshot-panel active" data-panel="chat">
+          <div class="screenshot-frame">
+            <img src="assets/screenshots/frontend-chat.png" alt="Interfaz de chat de Kai IA" loading="lazy" />
+          </div>
+          <p class="screenshot-caption">Interfaz de chat principal con historial de conversaciones y respuestas en tiempo real.</p>
+        </div>
+        <div class="screenshot-panel" data-panel="debug">
+          <div class="screenshot-frame">
+            <img src="assets/screenshots/frontend-debug-lab.png" alt="Debug Lab de Kai IA" loading="lazy" />
+          </div>
+          <p class="screenshot-caption">Debug Lab para inspeccionar el flujo completo del modelo: contexto, herramientas y tiempos de respuesta.</p>
+        </div>
+        <div class="screenshot-panel" data-panel="settings">
+          <div class="screenshot-frame">
+            <img src="assets/screenshots/frontend-settings.png" alt="Configuración de Kai IA" loading="lazy" />
+          </div>
+          <p class="screenshot-caption">Panel de configuración para ajustar el modelo, system prompt, integraciones y más.</p>
+        </div>
+        <div class="screenshot-panel" data-panel="cli">
+          <div class="screenshot-frame">
+            <img src="assets/screenshots/cli-working.png" alt="CLI de Kai IA" loading="lazy" />
+          </div>
+          <p class="screenshot-caption">Interfaz de línea de comandos para uso avanzado y scripting.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+  <section id="tech">
+    <div class="container">
+      <div class="section-header" data-animate>
+        <p class="section-label">Tecnología</p>
+        <h2 class="section-title">Construido con lo mejor</h2>
+      </div>
+      <div class="tech-grid" data-animate>
+        <div class="tech-item">
+          <div class="tech-logo">
+            <img src="assets/FastAPI.svg" alt="FastAPI" />
+          </div>
+          <span>FastAPI</span>
+        </div>
+        <div class="tech-item">
+          <div class="tech-logo">
+            <img src="assets/electron.svg" alt="Electron" />
+          </div>
+          <span>Electron</span>
+        </div>
+        <div class="tech-item">
+          <div class="tech-logo">
+            <img src="assets/lmstudio.svg" alt="LM Studio" />
+          </div>
+          <span>LM Studio</span>
+        </div>
+        <div class="tech-item">
+          <div class="tech-logo">
+            <img src="assets/google.svg" alt="Google APIs" />
+          </div>
+          <span>Google APIs</span>
+        </div>
+        <div class="tech-item">
+          <div class="tech-logo">
+            <img src="assets/python.svg" alt="Python" />
+          </div>
+          <span>Python</span>
+        </div>
+        <div class="tech-item">
+          <div class="tech-logo">
+            <img src="assets/sqlite.svg" alt="SQLite" />
+          </div>
+          <span>SQLite</span>
+        </div>
+      </div>
+    </div>
+  </section>
+  <section id="downloads">
+    <div class="container">
+      <div class="section-header" data-animate>
+        <p class="section-label">Descargas</p>
+        <h2 class="section-title">Descarga Kai IA</h2>
+        <p class="section-desc">Todas las versiones disponibles. Las releases se sincronizan automáticamente con el repositorio de GitHub.</p>
+      </div>
+
+      <div id="releases-container" data-animate>
+        <div class="releases-loading" id="releases-loading">
+          <div class="spinner"></div>
+          <p>Cargando versiones disponibles...</p>
+        </div>
+        <div class="releases-warn" id="releases-warn" hidden>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          <span>No se pudo establecer conexión con GitHub. Mostrando versiones locales.</span>
+          <a href="https://github.com/kikedev64/Kai-IA/releases" target="_blank" rel="noopener">
+            Ver más versiones
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+          </a>
+        </div>
+        <div id="releases-list"></div>
+      </div>
+
+      <div class="downloads-cta" id="downloads-cta" hidden>
+        <p>¿Buscas una versión anterior?</p>
+        <a href="https://github.com/kikedev64/Kai-IA/releases" target="_blank" rel="noopener" class="btn btn-ghost">
+          Ver todas las releases en GitHub
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        </a>
+      </div>
+    </div>
+  </section>
+  <footer id="footer">
+    <div class="container footer-inner">
+      <div class="footer-brand">
+        <a href="#" class="nav-logo">
+          <img src="assets/logo.png" alt="Kai IA logo" />
+          <span>Kai IA</span>
+        </a>
+        <p>Asistente personal inteligente,<br/>local y de código abierto.</p>
+        <p class="footer-tfg">Trabajo de Fin de Grado · Ingeniería Informática<br/>Universidad de Burgos</p>
+      </div>
+      <div class="footer-links">
+        <div class="footer-col">
+          <h4>Proyecto</h4>
+          <a href="#features">Funciones</a>
+          <a href="#how-it-works">Cómo funciona</a>
+          <a href="#screenshots">Capturas</a>
+          <a href="#downloads">Descargas</a>
+        </div>
+        <div class="footer-col">
+          <h4>Recursos</h4>
+          <a href="https://github.com/kikedev64/Kai-IA" target="_blank" rel="noopener">Repositorio</a>
+          <a href="https://github.com/kikedev64/Kai-IA/releases" target="_blank" rel="noopener">Releases</a>
+          <a href="https://github.com/kikedev64/Kai-IA/issues" target="_blank" rel="noopener">Issues</a>
+          <a href="https://lmstudio.ai" target="_blank" rel="noopener">LM Studio</a>
+        </div>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p>© <span id="footer-year"></span> Kai IA · Desarrollado como TFG por <a href="https://github.com/kikedev64" target="_blank" rel="noopener">kikedev64</a></p>
+      <p>Distribuido bajo licencia <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank" rel="noopener">CC BY-NC-SA 4.0</a></p>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
