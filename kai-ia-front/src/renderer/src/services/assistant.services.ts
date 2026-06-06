@@ -82,6 +82,30 @@ function formatUpdatedAt(dateString?: string | null): string {
 }
 
 /**
+ * Return a readable sidebar preview from raw message content.
+ *
+ * Mermaid fenced blocks are replaced with a concise label so the sidebar
+ * never shows raw diagram syntax. Other fenced code blocks are collapsed
+ * to a generic label, and common markdown symbols are stripped so the
+ * preview reads as plain prose.
+ *
+ * Args:
+ *   raw: Raw message content string.
+ *
+ * Returns:
+ *   string
+ */
+function cleanPreviewContent(raw: string): string {
+  return raw
+    .replace(/```mermaid[\s\S]*?```/gi, '[Diagrama]')
+    .replace(/```[\s\S]*?```/g, '[Código]')
+    .replace(/^#{1,6}\s+/gm, '')
+    .replace(/[*_`~]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+/**
  * Create the sidebar preview for the most recent visible chat message.
  *
  * Args:
@@ -102,7 +126,7 @@ function buildLastMessagePreview(messages: ApiFullChatResponse['messages']): str
 
   const lastMessage = visibleMessages[visibleMessages.length - 1]
 
-  return lastMessage.content?.trim() || 'Sin contenido'
+  return cleanPreviewContent(lastMessage.content?.trim() || '') || 'Sin contenido'
 }
 
 /**

@@ -165,6 +165,7 @@ See [kai-ia-front/src/__tests__/README.md](kai-ia-front/src/__tests__/README.md)
 | Calendar | List events, create meetings and check availability. |
 | Drive | Search, upload, list, delete and publish files. |
 | Tasks | Create, update, list and delete Google Tasks. |
+| Diagrams | Generate Mermaid diagrams (flowchart, sequence, class, ER, Gantt, pie, mindmap…) rendered inline in the chat with PNG and SVG export. |
 | Debug Lab | Visualize backend execution stages and tool calls. |
 | Reports | Export PDF and CSV data for later analysis. |
 | CLI Agent | Standalone terminal agent with `run_shell_command` tool support. |

@@ -34,6 +34,7 @@ notifications, Debug Lab and report export tools.
 - ZIP export containing a PDF report and CSV datasets.
 - System notification bridge for email events.
 - Settings toggle for optional backend service endpoint exposure.
+- Mermaid diagram rendering in chat: fenced ` ```mermaid ` blocks are rendered as interactive SVG cards with PNG (2× retina) and SVG download buttons.
 
 ## Frontend Layout
 

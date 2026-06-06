@@ -8,6 +8,7 @@ import remarkGfm from 'remark-gfm'
 import remarkMath from 'remark-math'
 import rehypeKatex from 'rehype-katex'
 import 'katex/dist/katex.min.css'
+import MermaidDiagram from '@renderer/components/diagram/MermaidDiagram'
 import { createNewEmailWatcher } from '@renderer/services/new_email_watcher.service'
 import { readEmailById, type GmailApiEmail } from '@renderer/services/gmail_email.service'
 import EmailActionModal from '@renderer/components/email/EmailActionModal'
@@ -74,7 +75,87 @@ function normalizeLatex(content: string): string {
 }
 
 /**
- * Render assistant markdown with math, GitHub-flavored markdown and syntax highlighting.
+ * Stable react-markdown component overrides declared at module level.
+ *
+ * Keeping this object outside the component function is critical: if it were
+ * created inline, every parent re-render (e.g. typing in the composer) would
+ * produce a new object reference, causing react-markdown to see a different
+ * component type for each render and unmount/remount MermaidDiagram instances,
+ * which triggers the debounce reset and produces a visible flash on every keystroke.
+ */
+const MARKDOWN_COMPONENTS = {
+  p: ({ children }: { children?: React.ReactNode }) => (
+    <p className="mb-2 last:mb-0 text-sm leading-7 text-slate-100 break-words">{children}</p>
+  ),
+  strong: ({ children }: { children?: React.ReactNode }) => (
+    <strong className="font-semibold text-white">{children}</strong>
+  ),
+  em: ({ children }: { children?: React.ReactNode }) => (
+    <em className="italic text-slate-200">{children}</em>
+  ),
+  /** Strip the default pre wrapper so the code component controls the outer element. */
+  pre: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
+  code: ({
+    inline,
+    className,
+    children
+  }: {
+    inline?: boolean
+    className?: string
+    children?: React.ReactNode
+  }) => {
+    if (!inline && className === 'language-mermaid') {
+      return <MermaidDiagram chart={String(children).replace(/\n$/, '')} />
+    }
+    return inline ? (
+      <code className="rounded bg-white/10 px-1.5 py-0.5 text-xs font-mono text-cyan-200 break-all">
+        {children}
+      </code>
+    ) : (
+      <pre className="my-2 overflow-x-auto rounded-xl bg-black/40 p-3 text-xs font-mono text-slate-200 border border-white/10">
+        <code className="whitespace-pre-wrap">{children}</code>
+      </pre>
+    )
+  },
+  ul: ({ children }: { children?: React.ReactNode }) => (
+    <ul className="mb-2 ml-4 list-disc space-y-1 text-sm text-slate-100">{children}</ul>
+  ),
+  ol: ({ children }: { children?: React.ReactNode }) => (
+    <ol className="mb-2 ml-4 list-decimal space-y-1 text-sm text-slate-100">{children}</ol>
+  ),
+  li: ({ children }: { children?: React.ReactNode }) => (
+    <li className="leading-6 break-words">{children}</li>
+  ),
+  a: ({ href, children }: { href?: string; children?: React.ReactNode }) => (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="text-cyan-300 underline break-all hover:text-cyan-200"
+    >
+      {children}
+    </a>
+  ),
+  blockquote: ({ children }: { children?: React.ReactNode }) => (
+    <blockquote className="my-2 border-l-2 border-cyan-400/50 pl-3 text-slate-300 italic">
+      {children}
+    </blockquote>
+  ),
+  h1: ({ children }: { children?: React.ReactNode }) => (
+    <h1 className="mb-2 text-base font-semibold text-white">{children}</h1>
+  ),
+  h2: ({ children }: { children?: React.ReactNode }) => (
+    <h2 className="mb-2 text-sm font-semibold text-white">{children}</h2>
+  ),
+  h3: ({ children }: { children?: React.ReactNode }) => (
+    <h3 className="mb-1 text-sm font-medium text-white">{children}</h3>
+  )
+}
+
+/**
+ * Render assistant markdown with math, GitHub-flavored markdown, syntax highlighting and
+ * Mermaid diagram blocks. Uses the module-level MARKDOWN_COMPONENTS to keep component
+ * references stable across parent re-renders.
  *
  * Args:
  *   content: Markdown text produced by the assistant.
@@ -82,59 +163,15 @@ function normalizeLatex(content: string): string {
  * Returns:
  *   React.JSX.Element
  */
-const MarkdownContent = ({ content }: { content: string }) => {
-
-  return (
-    <ReactMarkdown
-      remarkPlugins={[remarkGfm, remarkMath]}
-      rehypePlugins={[rehypeKatex]}
-      components={{
-        p: ({ children }) => (
-          <p className="mb-2 last:mb-0 text-sm leading-7 text-slate-100 break-words">{children}</p>
-        ),
-        strong: ({ children }) => <strong className="font-semibold text-white">{children}</strong>,
-        em: ({ children }) => <em className="italic text-slate-200">{children}</em>,
-        code: ({ inline, children }: { inline?: boolean; children?: React.ReactNode }) =>
-          inline ? (
-            <code className="rounded bg-white/10 px-1.5 py-0.5 text-xs font-mono text-cyan-200 break-all">
-              {children}
-            </code>
-          ) : (
-            <pre className="my-2 overflow-x-auto rounded-xl bg-black/40 p-3 text-xs font-mono text-slate-200 border border-white/10">
-              <code className="whitespace-pre-wrap">{children}</code>
-            </pre>
-          ),
-        ul: ({ children }) => (
-          <ul className="mb-2 ml-4 list-disc space-y-1 text-sm text-slate-100">{children}</ul>
-        ),
-        ol: ({ children }) => (
-          <ol className="mb-2 ml-4 list-decimal space-y-1 text-sm text-slate-100">{children}</ol>
-        ),
-        li: ({ children }) => <li className="leading-6 break-words">{children}</li>,
-        a: ({ href, children }) => (
-          <a
-            href={href}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-cyan-300 underline break-all hover:text-cyan-200"
-          >
-            {children}
-          </a>
-        ),
-        blockquote: ({ children }) => (
-          <blockquote className="my-2 border-l-2 border-cyan-400/50 pl-3 text-slate-300 italic">
-            {children}
-          </blockquote>
-        ),
-        h1: ({ children }) => <h1 className="mb-2 text-base font-semibold text-white">{children}</h1>,
-        h2: ({ children }) => <h2 className="mb-2 text-sm font-semibold text-white">{children}</h2>,
-        h3: ({ children }) => <h3 className="mb-1 text-sm font-medium text-white">{children}</h3>
-      }}
-    >
-      {content}
-    </ReactMarkdown>
-  )
-}
+const MarkdownContent = ({ content }: { content: string }) => (
+  <ReactMarkdown
+    remarkPlugins={[remarkGfm, remarkMath]}
+    rehypePlugins={[rehypeKatex]}
+    components={MARKDOWN_COMPONENTS}
+  >
+    {content}
+  </ReactMarkdown>
+)
 
 const STREAM_LIMIT_HISTORY = 6
 const DEFAULT_EMAIL_WATCH_INTERVAL_MS = 20000
@@ -1249,7 +1286,7 @@ const HomePage = (): React.JSX.Element => {
                           className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}
                         >
                           <div
-                            className={`max-w-[80%] rounded-[24px] border px-4 py-3 shadow-[0_10px_30px_rgba(0,0,0,0.18)] backdrop-blur-xl ${
+                            className={`min-w-0 max-w-[80%] overflow-hidden rounded-[24px] border px-4 py-3 shadow-[0_10px_30px_rgba(0,0,0,0.18)] backdrop-blur-xl ${
                               isUser
                                 ? 'border-cyan-300/20 bg-cyan-400/10'
                                 : 'border-white/10 bg-white/[0.06]'
@@ -1259,7 +1296,7 @@ const HomePage = (): React.JSX.Element => {
                               {isUser ? <User size={14} /> : <Bot size={14} />}
                               <span>{isUser ? 'Tú' : 'Kai'}</span>
                             </div>
-                            <div className="whitespace-pre-wrap text-sm leading-7 text-slate-100">
+                            <div className="min-w-0 text-sm leading-7 text-slate-100">
                               <MarkdownContent content={normalizeLatex(message.content)} />
                             </div>
                           </div>
@@ -1269,12 +1306,12 @@ const HomePage = (): React.JSX.Element => {
 
                     {selectedChatStreamingContent && (
                       <div className="flex justify-start">
-                        <div className="max-w-[80%] rounded-[24px] border border-white/10 bg-white/[0.06] px-4 py-3 shadow-[0_10px_30px_rgba(0,0,0,0.18)] backdrop-blur-xl">
+                        <div className="min-w-0 max-w-[80%] overflow-hidden rounded-[24px] border border-white/10 bg-white/[0.06] px-4 py-3 shadow-[0_10px_30px_rgba(0,0,0,0.18)] backdrop-blur-xl">
                           <div className="mb-2 flex items-center gap-2 text-xs text-slate-300/80">
                             <Bot size={14} />
                             <span>Kai</span>
                           </div>
-                          <div className="whitespace-pre-wrap text-sm leading-7 text-slate-100">
+                          <div className="min-w-0 text-sm leading-7 text-slate-100">
                             <MarkdownContent content={normalizeLatex(selectedChatStreamingContent)} />
                             <span className="ml-0.5 inline-block h-4 w-0.5 animate-pulse bg-cyan-300" />
                           </div>

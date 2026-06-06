@@ -1,6 +1,7 @@
 """Chat title helpers used by assistant flows."""
 
 import logging
+import re
 
 from api.assistant.constants import DEBUG_TOOLS
 from api.assistant.model_text import clean_model_output
@@ -8,6 +9,19 @@ from services.chat_store import get_chat_title, update_chat_title
 from services.chat_summary_service import generate_chat_summary_from_text
 
 logger = logging.getLogger("uvicorn")
+
+
+def _strip_code_blocks(text: str) -> str:
+    """Remove fenced code blocks (including mermaid) from text before title generation.
+
+    Args:
+        text: Raw message content that may contain fenced code blocks.
+
+    Returns:
+        str
+    """
+    cleaned = re.sub(r"```[\s\S]*?```", "", text, flags=re.IGNORECASE)
+    return " ".join(cleaned.split())
 
 
 def fallback_title_from_user_input(user_input: str) -> str:
@@ -19,7 +33,7 @@ def fallback_title_from_user_input(user_input: str) -> str:
     Returns:
         str
     """
-    text = " ".join(user_input.strip().split())
+    text = _strip_code_blocks(user_input)
     if not text:
         return "Nuevo chat"
 
@@ -59,7 +73,7 @@ def ensure_chat_title(
 
     try:
         generated_title = clean_model_output(
-            generate_chat_summary_from_text(user_input) or ""
+            generate_chat_summary_from_text(_strip_code_blocks(user_input)) or ""
         )
         if generated_title:
             generated_title = " ".join(generated_title.split())
