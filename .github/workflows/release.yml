@@ -1,0 +1,219 @@
+name: Build and publish release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag, for example v1.0.2"
+        required: true
+        default: "v1.0.2"
+
+permissions:
+  contents: write
+
+jobs:
+  frontend:
+    name: Frontend ${{ matrix.target }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: windows-x64
+            runner: windows-latest
+            build_args: --win nsis --x64
+            copy_command: cp dist/*setup.exe ../release-artifacts/kai-ia-front-windows-x64-setup.exe
+          - target: linux-x64-appimage-deb
+            runner: ubuntu-latest
+            build_args: --linux AppImage deb --x64
+            copy_command: |
+              cp dist/*.AppImage ../release-artifacts/kai-ia-front-linux-x64.AppImage
+              cp dist/*.deb ../release-artifacts/kai-ia-front-linux-x64.deb
+          - target: macos-x64
+            runner: macos-15-intel
+            build_args: --mac dmg --x64
+            copy_command: cp dist/*.dmg ../release-artifacts/kai-ia-front-macos-x64.dmg
+          - target: macos-arm64
+            runner: macos-15
+            build_args: --mac dmg --arm64
+            copy_command: cp dist/*.dmg ../release-artifacts/kai-ia-front-macos-arm64.dmg
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install frontend dependencies
+        working-directory: kai-ia-front
+        run: npm install
+
+      - name: Sync frontend icon
+        shell: bash
+        run: |
+          cp assets/icon.png kai-ia-front/build/icon.png
+          cp assets/icon.png kai-ia-front/resources/icon.png
+          cp assets/icon.png kai-ia-front/src/renderer/src/assets/icon.png
+
+      - name: Build frontend
+        working-directory: kai-ia-front
+        shell: bash
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+        run: |
+          npm run build
+          npx electron-builder ${{ matrix.build_args }} --publish never
+
+      - name: Rename frontend artifacts
+        working-directory: kai-ia-front
+        shell: bash
+        run: |
+          mkdir -p ../release-artifacts
+          ${{ matrix.copy_command }}
+
+      - name: Upload frontend artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: kai-ia-front-${{ matrix.target }}
+          path: release-artifacts/*
+          if-no-files-found: error
+
+  backend:
+    name: Backend ${{ matrix.target }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: windows-x64
+            platform: windows
+            runner: windows-latest
+            archive: kai-ia-backend-windows-x64.zip
+          - target: linux-x64
+            platform: linux
+            runner: ubuntu-latest
+            archive: kai-ia-backend-linux-x64.tar.gz
+          - target: macos-x64
+            platform: macos
+            runner: macos-15-intel
+            archive: kai-ia-backend-macos-x64.tar.gz
+          - target: macos-arm64
+            platform: macos
+            runner: macos-15
+            archive: kai-ia-backend-macos-arm64.tar.gz
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install backend build dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt pyinstaller pillow
+
+      - name: Build backend executable
+        shell: bash
+        run: |
+          if [[ "${{ matrix.platform }}" == "windows" ]]; then
+            python -c "from PIL import Image; Image.open('assets/icon_backend.png').save('backend_icon.ico', sizes=[(256, 256), (128, 128), (64, 64), (48, 48), (32, 32), (16, 16)])"
+            ICON_ARG="--icon backend_icon.ico"
+            ADD_DATA_ARG="--add-data assets/icon_backend.png;assets"
+          elif [[ "${{ matrix.platform }}" == "macos" ]]; then
+            mkdir -p backend.iconset
+            sips -z 16 16 assets/icon_backend.png --out backend.iconset/icon_16x16.png
+            sips -z 32 32 assets/icon_backend.png --out backend.iconset/icon_16x16@2x.png
+            sips -z 32 32 assets/icon_backend.png --out backend.iconset/icon_32x32.png
+            sips -z 64 64 assets/icon_backend.png --out backend.iconset/icon_32x32@2x.png
+            sips -z 128 128 assets/icon_backend.png --out backend.iconset/icon_128x128.png
+            sips -z 256 256 assets/icon_backend.png --out backend.iconset/icon_128x128@2x.png
+            sips -z 256 256 assets/icon_backend.png --out backend.iconset/icon_256x256.png
+            sips -z 512 512 assets/icon_backend.png --out backend.iconset/icon_256x256@2x.png
+            sips -z 512 512 assets/icon_backend.png --out backend.iconset/icon_512x512.png
+            sips -z 1024 1024 assets/icon_backend.png --out backend.iconset/icon_512x512@2x.png
+            iconutil -c icns backend.iconset -o backend_icon.icns
+            ICON_ARG="--icon backend_icon.icns"
+            ADD_DATA_ARG="--add-data assets/icon_backend.png:assets"
+          else
+            ICON_ARG="--icon assets/icon_backend.png"
+            ADD_DATA_ARG="--add-data assets/icon_backend.png:assets"
+          fi
+
+          pyinstaller \
+            --name kai-ia-backend \
+            --clean \
+            --noconfirm \
+            --onedir \
+            --paths . \
+            --collect-all pydantic \
+            --collect-all pydantic_core \
+            --hidden-import uvicorn.logging \
+            --hidden-import uvicorn.loops \
+            --hidden-import uvicorn.loops.auto \
+            --hidden-import uvicorn.protocols \
+            --hidden-import uvicorn.protocols.http \
+            --hidden-import uvicorn.protocols.http.auto \
+            --hidden-import uvicorn.protocols.http.h11_impl \
+            --hidden-import uvicorn.protocols.websockets \
+            --hidden-import uvicorn.protocols.websockets.auto \
+            --hidden-import uvicorn.lifespan \
+            --hidden-import uvicorn.lifespan.on \
+            --hidden-import email_validator \
+            --hidden-import multipart \
+            --hidden-import sqlalchemy.dialects.sqlite \
+            $ICON_ARG \
+            $ADD_DATA_ARG \
+            scripts/backend_launcher.py
+
+      - name: Archive backend
+        shell: bash
+        run: |
+          mkdir -p release-artifacts
+          if [[ "${{ matrix.platform }}" == "windows" ]]; then
+            powershell -NoProfile -Command "Compress-Archive -Path dist/kai-ia-backend -DestinationPath release-artifacts/${{ matrix.archive }} -Force"
+          else
+            tar -czf "release-artifacts/${{ matrix.archive }}" -C dist kai-ia-backend
+          fi
+
+      - name: Upload backend artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: kai-ia-backend-${{ matrix.target }}
+          path: release-artifacts/${{ matrix.archive }}
+          if-no-files-found: error
+
+  publish:
+    name: Publish GitHub release
+    needs:
+      - frontend
+      - backend
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          merge-multiple: true
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+        run: |
+          gh release view "$RELEASE_TAG" >/dev/null 2>&1 || gh release create "$RELEASE_TAG" --title "Kai IA $RELEASE_TAG" --notes "Automated multiplatform release for Kai IA."
+          gh release view "$RELEASE_TAG" --json assets -q '.assets[].name' | while read -r asset; do
+            gh release delete-asset "$RELEASE_TAG" "$asset" -y
+          done
+          gh release upload "$RELEASE_TAG" release-assets/* --clobber

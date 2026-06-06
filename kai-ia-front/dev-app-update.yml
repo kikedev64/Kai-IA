@@ -1,0 +1,3 @@
+provider: generic
+url: https://github.com/kikedev64/Kai-IA/releases
+updaterCacheDirName: kai-ia-updater
