@@ -128,7 +128,7 @@ def ask_llm(req: AskRequest) -> dict[str, str]:
     except Exception as e:
         if "No models loaded" in str(e):
             raise HTTPException(
-                status_code=503, detail="No hay ningúnmodelo cargado en LM Studio."
+                status_code=503, detail="No hay ningún modelo cargado en LM Studio."
             )
         raise HTTPException(status_code=500, detail=str(e))
 

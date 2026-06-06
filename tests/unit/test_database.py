@@ -33,7 +33,6 @@ def test_app_config_seeded_with_required_keys(isolated_db: Path) -> None:
         "temperature",
         "google_scopes",
         "system_prompt_default",
-        "tool_activation_keywords",
         "lmstudio_timeout",
         "tool_approval_timeout",
         "shell_command_timeout",

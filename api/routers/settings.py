@@ -17,7 +17,6 @@ from core.config import (
     get_shell_command_timeout,
     get_system_prompt_default,
     get_temperature,
-    get_tool_activation_keywords,
     get_tool_approval_timeout,
 )
 from core.runtime_config import set_runtime_config_values
@@ -34,7 +33,6 @@ ALLOWED_KEYS = {
     "model_name",
     "expose_service_endpoints",
     "temperature",
-    "tool_activation_keywords",
     "default_prompts.resume_mail",
     "default_prompts.basic_user_information_json",
     "default_prompts.chat_summary",
@@ -75,11 +73,6 @@ def _build_settings_response() -> dict[str, str]:
         "default_prompts.resume_mail": DEFAULT_PROMPTS.resume_mail(),
         "default_prompts.basic_user_information_json": DEFAULT_PROMPTS.basic_user_information(),
         "default_prompts.chat_summary": DEFAULT_PROMPTS.chat_summary(),
-        "tool_activation_keywords": json.dumps(
-            get_tool_activation_keywords(),
-            ensure_ascii=False,
-            indent=2,
-        ),
         "lmstudio_timeout": str(get_lmstudio_timeout()),
         "tool_approval_timeout": str(get_tool_approval_timeout()),
         "shell_command_timeout": str(get_shell_command_timeout()),

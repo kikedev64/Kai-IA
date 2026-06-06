@@ -37,58 +37,6 @@ def _build_initial_config() -> dict[str, str]:
         "https://www.googleapis.com/auth/tasks",
         "https://www.googleapis.com/auth/calendar",
     ]
-    tool_activation_keywords = [
-        "correo",
-        "correos",
-        "email",
-        "emails",
-        "gmail",
-        "bandeja",
-        "remitente",
-        "asunto",
-        "hilo",
-        "hilos",
-        "mensaje",
-        "mensajes",
-        "responde",
-        "responder",
-        "contesta",
-        "contestar",
-        "envía un correo",
-        "enviar correo",
-        "manda un correo",
-        "mandar correo",
-        "calendario",
-        "evento",
-        "eventos",
-        "reunión",
-        "reunion",
-        "meet",
-        "google meet",
-        "agenda",
-        "cita",
-        "quedar",
-        "disponible",
-        "ocupado",
-        "hueco",
-        "recordatorio",
-        "recordatorios",
-        "recuérdame",
-        "recuerdame",
-        "tarea",
-        "tareas",
-        "tasks",
-        "pendiente",
-        "pendientes",
-        "drive",
-        "archivo",
-        "archivos",
-        "documento",
-        "documentos",
-        "pdf",
-        "descarga",
-        "enlace",
-    ]
     google_credentials_file = str(BASE_DIR / "credentials.json")
     google_token_file = str(BASE_DIR / "token.json")
 
@@ -143,6 +91,13 @@ def _build_initial_config() -> dict[str, str]:
     - Si el usuario dice una hora sin aclarar, asume horario de tarde solo si el contexto lo sugiere claramente; si no, usa la interpretación más razonable según el contexto.
     - Si el usuario menciona una cita previa para modificarla, busca primero el evento real antes de actuar.
 
+    DIAGRAMAS Y VISUALIZACIONES — REGLA ABSOLUTA:
+    - Si el usuario pide un diagrama, esquema, gráfico, mapa mental, flujo, arquitectura, imagen, visualización o cualquier representación visual, DEBES generarlo INMEDIATAMENTE con un bloque ```mermaid.
+    - NUNCA pidas confirmación, NUNCA preguntes qué tipo quiere si puedes inferirlo, NUNCA digas que no puedes generar imágenes.
+    - El sistema renderiza los bloques ```mermaid automáticamente como SVG interactivo con descarga en PNG y SVG.
+    - Elige el tipo más adecuado: flowchart para flujos/procesos, sequenceDiagram para interacciones, classDiagram para clases OOP, erDiagram para bases de datos, gantt para planificación, mindmap para ideas, pie para proporciones, timeline para cronologías.
+    - Usa sintaxis Mermaid estrictamente válida: sin caracteres especiales sin escapar en etiquetas, sin saltos de línea dentro de etiquetas de arista.
+
     Para expresiones matemáticas SIEMPRE usa sintaxis LaTeX estándar:
     - Fórmulas inline: $x^2 + y^2$
     - Fórmulas en bloque: $$\int_0^1 f(x)\,dx$$
@@ -162,9 +117,6 @@ def _build_initial_config() -> dict[str, str]:
         "system_prompt_default": system_prompt_default,
         "model_name": model_name,
         "temperature": str(temperature),
-        "tool_activation_keywords": json.dumps(
-            tool_activation_keywords, ensure_ascii=False
-        ),
         "lmstudio_timeout": "600",
         "tool_approval_timeout": "120",
         "shell_command_timeout": "10",
@@ -183,33 +135,6 @@ def _seed_initial_config(cur: sqlite3.Cursor) -> None:
     initial_config = _build_initial_config()
 
     for key, value in initial_config.items():
-        if key == "tool_activation_keywords":
-            cur.execute("SELECT value FROM app_config WHERE key = ?", (key,))
-            row = cur.fetchone()
-            if row and row["value"]:
-                try:
-                    existing = json.loads(row["value"])
-                    defaults = json.loads(value)
-                except json.JSONDecodeError:
-                    existing = []
-                    defaults = json.loads(value)
-
-                if isinstance(existing, list):
-                    merged = list(existing)
-                    for keyword in defaults:
-                        if keyword not in merged:
-                            merged.append(keyword)
-
-                    cur.execute(
-                        """
-                        UPDATE app_config
-                        SET value = ?, updated_at = CURRENT_TIMESTAMP
-                        WHERE key = ?
-                        """,
-                        (json.dumps(merged, ensure_ascii=False), key),
-                    )
-                    continue
-
         cur.execute(
             """
             INSERT INTO app_config (key, value, updated_at)

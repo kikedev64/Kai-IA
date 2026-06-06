@@ -13,7 +13,6 @@ export type BackendSettings = {
   model_name: string
   expose_service_endpoints: string
   temperature: string
-  tool_activation_keywords: string
   'default_prompts.resume_mail': string
   'default_prompts.basic_user_information_json': string
   'default_prompts.chat_summary': string

@@ -29,7 +29,6 @@ type SettingsSectionId =
   | 'profile'
   | 'model'
   | 'security'
-  | 'tools'
   | 'google'
   | 'gmail'
   | 'prompts'
@@ -94,12 +93,6 @@ const SECTION_ITEMS: SectionItem[] = [
     icon: <KeyRound size={16} />
   },
   {
-    id: 'tools',
-    label: 'Tools',
-    description: 'Activación automática de herramientas',
-    icon: <Wrench size={16} />
-  },
-  {
     id: 'timeouts',
     label: 'Timeouts',
     description: 'Tiempos límite del sistema',
@@ -122,7 +115,6 @@ const EMPTY_FORM: SettingsForm = {
   model_name: '',
   expose_service_endpoints: 'true',
   temperature: '0',
-  tool_activation_keywords: '[]',
   'default_prompts.resume_mail': '',
   'default_prompts.basic_user_information_json': '',
   'default_prompts.chat_summary': '',
@@ -494,24 +486,6 @@ const SettingsPage = (): React.JSX.Element => {
       } catch {
         throw new Error('El user profile JSON no es válido')
       }
-      try {
-        const parsedKeywords = JSON.parse(form.tool_activation_keywords || '[]')
-
-        if (!Array.isArray(parsedKeywords)) {
-          throw new Error()
-        }
-
-        for (const keyword of parsedKeywords) {
-          if (typeof keyword !== 'string') {
-            throw new Error()
-          }
-        }
-      } catch {
-        throw new Error(
-          'Las palabras clave de tools deben ser un JSON válido con una lista de strings'
-        )
-      }
-
       const parsedLmstudioTimeout = Number(form.lmstudio_timeout)
       if (!Number.isInteger(parsedLmstudioTimeout) || parsedLmstudioTimeout < 30 || parsedLmstudioTimeout > 3600) {
         throw new Error('El timeout de LM Studio debe ser un entero entre 30 y 3600')
@@ -537,7 +511,6 @@ const SettingsPage = (): React.JSX.Element => {
         model_name: form.model_name,
         expose_service_endpoints: form.expose_service_endpoints,
         temperature: form.temperature,
-        tool_activation_keywords: form.tool_activation_keywords,
         'default_prompts.resume_mail': form['default_prompts.resume_mail'],
         'default_prompts.basic_user_information_json':
           form['default_prompts.basic_user_information_json'],
@@ -842,26 +815,6 @@ const SettingsPage = (): React.JSX.Element => {
                 onChange={(value) => updateField('default_prompts.chat_summary', value)}
                 rows={8}
                 placeholder="Prompt para títulos de chat..."
-              />
-            </div>
-          </SectionCard>
-        )
-      case 'tools':
-        return (
-          <SectionCard
-            title="Activación de tools"
-            description="Palabras clave que activan automáticamente las herramientas del backend."
-          >
-            <div>
-              <FieldLabel
-                title="Palabras clave para activar tools"
-                subtitle="Debe ser un JSON válido con una lista de strings. Si el mensaje contiene alguna, se envían tools al modelo."
-              />
-              <TextArea
-                value={form.tool_activation_keywords}
-                onChange={(value) => updateField('tool_activation_keywords', value)}
-                rows={18}
-                placeholder='["correo","gmail","calendario","evento","recordatorio","drive"]'
               />
             </div>
           </SectionCard>
