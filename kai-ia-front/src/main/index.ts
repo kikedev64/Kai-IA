@@ -67,6 +67,7 @@ type DebugLabReportExportPayload = {
   html: string
   dashboardHtml: string
   csvFiles: DebugLabCsvFile[]
+  modelOutput: string
 }
 
 let previousCpuTotals: CpuTotals | null = null
@@ -1111,6 +1112,7 @@ app.whenReady().then(() => {
         const archive = createZipArchive([
           { filename: 'informe-debug-lab.pdf', content: pdf },
           { filename: 'dashboard.html', content: payload.dashboardHtml },
+          { filename: 'respuesta-modelo.txt', content: payload.modelOutput },
           ...payload.csvFiles.map((file) => ({
             filename: `csv/${file.filename}`,
             content: file.content

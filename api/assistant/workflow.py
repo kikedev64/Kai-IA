@@ -4,7 +4,6 @@ import json
 import logging
 
 from api.assistant.model_text import clean_model_output, parse_json_object
-from core.config import get_tool_activation_keywords
 from llm.lmstudio_client import call_lm_studio
 
 logger = logging.getLogger("uvicorn")

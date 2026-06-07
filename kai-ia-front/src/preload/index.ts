@@ -18,6 +18,7 @@ if (process.contextIsolated) {
         html: string
         dashboardHtml: string
         csvFiles: Array<{ filename: string; content: string }>
+        modelOutput: string
       }) => ipcRenderer.invoke('debug-lab:export-report', payload),
       getDebugLabSystemSnapshot: () => ipcRenderer.invoke('debug-lab:get-system-snapshot')
     })

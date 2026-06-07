@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import mermaid from 'mermaid'
-import { Download, FileCode, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react'
+import { Download, FileCode } from 'lucide-react'
 
 /** Monotonic counter — each mermaid.render() call gets a fresh unique element ID. */
 let _diagramIdCounter = 0
@@ -34,8 +34,10 @@ mermaid.initialize({
  * Fixes applied:
  *   - Collapses multi-line edge labels: content between | ... | that spans more than
  *     one line is joined into a single line with the internal whitespace collapsed.
- *   - Quotes unquoted rectangle node labels [ ... ] that contain parentheses or curly
- *     braces, which the Mermaid parser would misinterpret as shape delimiters.
+ *   - Quotes unquoted edge labels |...| and rectangle node labels [...] that contain
+ *     parentheses, curly braces or quotes, which the Mermaid parser would otherwise
+ *     misinterpret as shape delimiters or string boundaries (common in LLM-generated
+ *     diagrams that quote IPC channel names or show callback signatures).
  *   - Strips a trailing newline left after the closing fence is removed.
  *
  * Args:
@@ -45,15 +47,20 @@ mermaid.initialize({
  *   string
  */
 function sanitizeChart(chart: string): string {
+  const quoteLabel = (content: string): string => `"${content.replace(/"/g, '#quot;')}"`
+
   return chart
     .replace(/\|([^|]+)\|/g, (_match: string, content: string) => {
       const collapsed = content.replace(/\s*\n\s*/g, ' ').trim()
+      const isQuoted = collapsed.startsWith('"') && collapsed.endsWith('"')
+      if (!isQuoted && /[(){}'"]/.test(collapsed)) {
+        return `|${quoteLabel(collapsed)}|`
+      }
       return `|${collapsed}|`
     })
     .replace(/\[([^\]"]+)\]/g, (match: string, content: string) => {
-      // Quote labels that contain characters the parser treats as shape delimiters.
       if (/[(){}]/.test(content)) {
-        return `["${content}"]`
+        return `[${quoteLabel(content)}]`
       }
       return match
     })
@@ -179,7 +186,6 @@ function exportAsSvg(svgContent: string, filename: string): void {
 const MermaidDiagram = ({ chart }: { chart: string }): React.JSX.Element => {
   const [svgContent, setSvgContent] = useState<string>('')
   const [error, setError] = useState<string | null>(null)
-  const [showRaw, setShowRaw] = useState(false)
   const [downloadingPng, setDownloadingPng] = useState(false)
 
   useEffect(() => {
@@ -192,11 +198,16 @@ const MermaidDiagram = ({ chart }: { chart: string }): React.JSX.Element => {
       const renderId = `mermaid-diagram-${_diagramIdCounter++}`
       try {
         const { svg } = await mermaid.render(renderId, sanitizeChart(chart))
-        if (!cancelled) setSvgContent(svg)
-      } catch (err) {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : String(err))
+        document.getElementById(renderId)?.remove()
+        if (cancelled) return
+        if (svg.includes('Syntax error') || svg.includes('syntax-error') || !svg.trim()) {
+          setError('render-failed')
+        } else {
+          setSvgContent(svg)
         }
+      } catch {
+        document.getElementById(renderId)?.remove()
+        if (!cancelled) setError('render-failed')
       }
     }, 500)
 
@@ -221,29 +232,7 @@ const MermaidDiagram = ({ chart }: { chart: string }): React.JSX.Element => {
     exportAsSvg(svgContent, `kai-diagram-${Date.now()}`)
   }
 
-  if (error) {
-    return (
-      <div className="my-3 rounded-xl border border-red-500/30 bg-red-500/10 p-4 space-y-2">
-        <div className="flex items-center gap-2">
-          <AlertCircle className="h-3.5 w-3.5 shrink-0 text-red-400" />
-          <span className="text-xs font-semibold text-red-300">Mermaid render error</span>
-          <button
-            onClick={() => setShowRaw((v) => !v)}
-            className="ml-auto flex items-center gap-1 rounded-md bg-white/5 px-2 py-0.5 text-[10px] text-slate-400 hover:bg-white/10 transition-colors"
-          >
-            {showRaw ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-            {showRaw ? 'Hide source' : 'Show source'}
-          </button>
-        </div>
-        <pre className="ml-5 text-xs text-red-400/80 whitespace-pre-wrap">{error}</pre>
-        {showRaw && (
-          <pre className="mt-1 overflow-x-auto rounded-lg bg-black/40 p-3 text-xs font-mono text-slate-300 border border-white/10 whitespace-pre-wrap">
-            {chart.trim()}
-          </pre>
-        )}
-      </div>
-    )
-  }
+  if (error) return null
 
   if (!svgContent) {
     return (

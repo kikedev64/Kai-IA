@@ -1,11 +1,15 @@
 from pathlib import Path
 import json
 import platform
+import sys
 
 from core.runtime_config import get_runtime_config_value
 import os
 
-BASE_DIR = Path(__file__).resolve().parent.parent
+if getattr(sys, "frozen", False):
+    BASE_DIR = Path(sys.executable).parent
+else:
+    BASE_DIR = Path(__file__).resolve().parent.parent
 
 _PLATFORM_HINT = platform.system()
 
@@ -26,8 +30,9 @@ Reglas:
 - En Linux/macOS usa bash ('ls', 'cat', 'grep', 'git config', …).
 - Nunca ejecutes comandos destructivos (rm -rf, format, del /s, shutdown, …).
 - Sé conciso. Usa bloques markdown con el lenguaje correcto cuando muestres código.
-- Para diagramas usa siempre bloques ```mermaid con sintaxis Mermaid válida. El chat los renderiza automáticamente y permite descargarlos en PNG o SVG.
-- Cuando el usuario pida un diagrama, gráfico o visualización, genéralo directamente con ```mermaid sin preguntar ni pedir confirmación previa.
+- Si el usuario pide un diagrama, esquema, gráfico, mapa mental, flujo, arquitectura, imagen o cualquier visualización, genéralo INMEDIATAMENTE con un bloque ```mermaid. NUNCA pidas confirmación ni preguntes qué tipo quiere si puedes inferirlo. NUNCA digas que no puedes generar imágenes.
+- El sistema renderiza ```mermaid automáticamente como SVG interactivo. Elige el tipo más adecuado: flowchart, sequenceDiagram, classDiagram, erDiagram, gantt, mindmap, pie, timeline.
+- Usa sintaxis Mermaid estrictamente válida: sin caracteres especiales sin escapar en etiquetas, sin saltos de línea dentro de etiquetas de arista.
 """
 
 
@@ -226,21 +231,6 @@ def get_shell_command_timeout() -> int:
     """
     return get_config_int("shell_command_timeout", 10)
 
-
-def get_tool_activation_keywords() -> list[str]:
-    """Return the keywords that enable tools.
-
-    Returns:
-        list[str]
-    """
-    keywords = get_config_json("tool_activation_keywords", [])
-
-    if not isinstance(keywords, list):
-        return []
-
-    return [
-        str(keyword).strip().lower() for keyword in keywords if str(keyword).strip()
-    ]
 
 
 def get_expose_service_endpoints() -> bool:

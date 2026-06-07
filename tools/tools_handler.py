@@ -664,7 +664,24 @@ def handle_tool_call(tool_call: object) -> dict:
             except Exception:
                 original_task = None
 
-            delete_reminder(tasklist_id=tasklist["id"], task_id=task_id)
+            try:
+                delete_reminder(tasklist_id=tasklist["id"], task_id=task_id)
+            except Exception as e:
+                error_str = str(e)
+                if "404" in error_str or "notFound" in error_str:
+                    return {
+                        "status": "success",
+                        "data": {
+                            "deleted": True,
+                            "tasklist": {
+                                "id": tasklist.get("id"),
+                                "title": tasklist.get("title"),
+                            },
+                            "task": {"id": task_id},
+                            "note": "Task was already deleted or not found",
+                        },
+                    }
+                raise
 
             return {
                 "status": "success",

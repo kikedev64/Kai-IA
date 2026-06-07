@@ -32,7 +32,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     yield
 
 
-app = FastAPI(title="Kai IA API", version="1.0.0", lifespan=lifespan)
+app = FastAPI(title="Kai IA API", version="1.0.2", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,

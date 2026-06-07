@@ -30,6 +30,7 @@ stay here, while business logic lives in `services`, `core`, `llm` and `tools`.
 | `health.py` | `/health` | `Health` | API health check. |
 | `settings.py` | `/settings` | `Settings` | Editable app settings. |
 | `tasks.py` | `/tasks` | `Tasks` | Google Tasks operations. |
+| `tool_approval.py` | `/assistant/tool` | `Tool Approval` | User approval gate for sensitive tool calls (e.g. shell commands). |
 
 ## Endpoint Exposure
 
@@ -50,6 +51,7 @@ notification flow.
 | `GET` | `/assistant/chats` | `get_chats` | List stored chat sessions. |
 | `GET` | `/assistant/chats/{chat_id}` | `get_chat_by_id` | Read one chat with its messages. |
 | `POST` | `/assistant/chat/stream` | `assistant_chat_stream` | Stream tokens, debug events and tool results. |
+| `POST` | `/assistant/tool/approve/{approval_id}` | `submit_approval` | Submit the user's decision for a pending tool call awaiting approval. |
 
 ## Google Workspace Routes
 

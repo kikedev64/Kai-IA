@@ -22,7 +22,6 @@ from cli.llm_client import (
     CLI_SYSTEM_PROMPT,
     check_service,
     get_cli_model,
-    run_cli_turn,
 )
 from cli.renderer import (
     console,
@@ -132,6 +131,11 @@ def _run_turn(messages: list[dict]) -> tuple[str, list[dict]]:
 
 
 def main() -> None:
+    """Run the interactive Kai CLI session loop.
+
+    Returns:
+        None
+    """
     print_banner()
 
     with console.status("[dim]Conectando con LM Studio…[/dim]"):
