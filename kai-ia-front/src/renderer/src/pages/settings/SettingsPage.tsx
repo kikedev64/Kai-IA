@@ -12,8 +12,7 @@ import {
   Search,
   UserRound,
   Link2,
-  Timer,
-  Wrench
+  Timer
 } from 'lucide-react'
 import {
   type BackendSettings,

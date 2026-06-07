@@ -7,7 +7,6 @@ from rich.markdown import Markdown
 from rich.panel import Panel
 from rich.rule import Rule
 from rich.syntax import Syntax
-from rich.text import Text
 
 console = Console(highlight=False)
 
@@ -38,6 +37,11 @@ _BANNER = """\
 
 
 def print_banner() -> None:
+    """Print the Kai CLI startup banner and command hints.
+
+    Returns:
+        None
+    """
     console.print()
     console.print(f"[bold blue]{_BANNER}[/bold blue]")
     console.print(
@@ -54,6 +58,11 @@ def print_banner() -> None:
 
 
 def print_help() -> None:
+    """Print the CLI session help panel listing commands and capabilities.
+
+    Returns:
+        None
+    """
     console.print(
         Panel(
             "[bold]Comandos de sesión:[/bold]\n"
@@ -76,6 +85,14 @@ def print_help() -> None:
 
 
 def print_assistant_message(content: str) -> None:
+    """Print the assistant's reply as a Markdown panel.
+
+    Args:
+        content: Raw assistant message text, possibly containing thinking tags.
+
+    Returns:
+        None
+    """
     content = _strip_thinking_tags(content)
     console.print()
     console.print(
@@ -91,6 +108,15 @@ def print_assistant_message(content: str) -> None:
 
 
 def print_tool_call(tool_name: str, args: dict) -> None:
+    """Print a panel showing the tool name and its call arguments as JSON.
+
+    Args:
+        tool_name: Name of the tool being invoked.
+        args: Arguments passed to the tool call.
+
+    Returns:
+        None
+    """
     body = json.dumps(args, indent=2, ensure_ascii=False)
     console.print(
         Panel(
@@ -104,6 +130,14 @@ def print_tool_call(tool_name: str, args: dict) -> None:
 
 
 def print_tool_result(result: dict) -> None:
+    """Print a panel summarising a tool execution result.
+
+    Args:
+        result: Tool result containing stdout, stderr, message and returncode.
+
+    Returns:
+        None
+    """
     stdout = result.get("stdout", "").strip()
     stderr = result.get("stderr", "").strip()
     message = result.get("message", "")
@@ -132,8 +166,21 @@ def print_tool_result(result: dict) -> None:
 
 
 def print_error(message: str) -> None:
+    """Print an error message in red.
+
+    Args:
+        message: Error text to display.
+
+    Returns:
+        None
+    """
     console.print(f"\n[bold red]Error:[/bold red] {message}\n")
 
 
 def print_rule() -> None:
+    """Print a horizontal divider rule.
+
+    Returns:
+        None
+    """
     console.print(Rule(style="dim"))

@@ -132,7 +132,7 @@ instance, Google credentials or a running backend server.
 
 ### Backend (pytest)
 
-64 tests across unit and integration layers. Each test gets an isolated
+74 tests across unit and integration layers. Each test gets an isolated
 in-memory SQLite database through the `isolated_db` fixture so production data
 is never touched.
 

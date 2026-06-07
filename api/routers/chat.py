@@ -2,7 +2,6 @@
 import logging
 import time
 import uuid
-from datetime import datetime
 from typing import Iterator
 
 from fastapi import APIRouter, HTTPException, Query
@@ -28,8 +27,6 @@ from api.assistant.messages import (
 )
 from api.assistant.model_text import (
     clean_model_output,
-    extract_legacy_tool_call,
-    is_garbage_text,
     is_legacy_tool_json,
     should_store_assistant_message,
 )
@@ -37,7 +34,6 @@ from api.assistant.orchestrator import run_chat_orchestrator
 from api.assistant.titles import ensure_chat_title as _ensure_chat_title
 from api.assistant.workflow import (
     evaluate_workflow_completion,
-    fallback_text_from_tool_results,
     resolve_tool_choice,
     should_enable_tools,
 )

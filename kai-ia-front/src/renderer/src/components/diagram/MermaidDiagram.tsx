@@ -34,8 +34,10 @@ mermaid.initialize({
  * Fixes applied:
  *   - Collapses multi-line edge labels: content between | ... | that spans more than
  *     one line is joined into a single line with the internal whitespace collapsed.
- *   - Quotes unquoted rectangle node labels [ ... ] that contain parentheses or curly
- *     braces, which the Mermaid parser would misinterpret as shape delimiters.
+ *   - Quotes unquoted edge labels |...| and rectangle node labels [...] that contain
+ *     parentheses, curly braces or quotes, which the Mermaid parser would otherwise
+ *     misinterpret as shape delimiters or string boundaries (common in LLM-generated
+ *     diagrams that quote IPC channel names or show callback signatures).
  *   - Strips a trailing newline left after the closing fence is removed.
  *
  * Args:
@@ -45,15 +47,20 @@ mermaid.initialize({
  *   string
  */
 function sanitizeChart(chart: string): string {
+  const quoteLabel = (content: string): string => `"${content.replace(/"/g, '#quot;')}"`
+
   return chart
     .replace(/\|([^|]+)\|/g, (_match: string, content: string) => {
       const collapsed = content.replace(/\s*\n\s*/g, ' ').trim()
+      const isQuoted = collapsed.startsWith('"') && collapsed.endsWith('"')
+      if (!isQuoted && /[(){}'"]/.test(collapsed)) {
+        return `|${quoteLabel(collapsed)}|`
+      }
       return `|${collapsed}|`
     })
     .replace(/\[([^\]"]+)\]/g, (match: string, content: string) => {
-      // Quote labels that contain characters the parser treats as shape delimiters.
       if (/[(){}]/.test(content)) {
-        return `["${content}"]`
+        return `[${quoteLabel(content)}]`
       }
       return match
     })
