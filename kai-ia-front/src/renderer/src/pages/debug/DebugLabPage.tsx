@@ -2125,7 +2125,12 @@ export default function DebugLabPage() {
         resourceSamples: reportResourceSamples
       })
       const csvFiles = buildReportCsvFiles(metrics, flowNodes, reportResourceSamples)
-      const result = await window.electronAPI.exportDebugLabReport({ html, dashboardHtml, csvFiles })
+      const result = await window.electronAPI.exportDebugLabReport({
+        html,
+        dashboardHtml,
+        csvFiles,
+        modelOutput: output
+      })
 
       if (!result.ok && !result.cancelled) {
         console.error('No se pudo exportar el informe:', result.error)

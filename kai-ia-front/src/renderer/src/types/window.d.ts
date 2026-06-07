@@ -11,6 +11,7 @@ declare global {
         html: string
         dashboardHtml: string
         csvFiles: Array<{ filename: string; content: string }>
+        modelOutput: string
       }) => Promise<{ ok: boolean; path?: string; cancelled?: boolean; error?: string }>
       getDebugLabSystemSnapshot: () => Promise<{
         hardware: {
