@@ -98,30 +98,3 @@ the LLM context manageable.
 | `shell_tool.py` | `run_shell_command` OpenAI tool schema + execution handler. |
 | `renderer.py` | Rich-based terminal display (banner, panels, markdown). |
 | `__main__.py` | Package entry point (`python -m cli`). |
-
-## Architecture
-
-```
-User input
-    │
-    ▼
-agent.py (_run_turn)
-    │
-    ├─► LM Studio (via llm_client.py)
-    │       └─► response with tool_calls?
-    │               │
-    │               ▼
-    │           shell_tool.py (run_shell_command)
-    │               └─► subprocess result
-    │               │
-    │               ▼
-    │           inject tool result into messages
-    │               │
-    │               └─► repeat until no tool calls
-    │
-    └─► renderer.py (Rich panels / Markdown)
-```
-
-Each tool call is displayed in a yellow panel with the arguments, followed by
-a panel with the command output and return code. The final LLM reply is
-rendered as Markdown in a green panel.
