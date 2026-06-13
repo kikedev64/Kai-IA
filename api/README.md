@@ -59,9 +59,10 @@ pip install -r requirements.txt
 Create a local `.env` file in the root of the repository with the following values:
 
 ```env
-BASE_URL_OPEN_AI=http://127.0.0.1:1234/v1
 API_KEY_OPEN_AI=lm-studio
-GOOGLE_REDIRECT_URI=http://127.0.0.1:8000/auth/google/callback
+BASE_URL_OPEN_AI=http://localhost:1234/v1
+GOOGLE_REDIRECT_URI=http://localhost:8000/auth/google/callback
+CLI_MODEL_NAME=qwen/qwen3-14b
 ```
 
 Google OAuth credentials are expected through the local credential flow used by
