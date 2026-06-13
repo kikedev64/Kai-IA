@@ -110,10 +110,15 @@ OpenAI-compatible base URL and API key.
 Common environment keys:
 
 ```env
-BASE_URL_OPEN_AI=http://127.0.0.1:1234/v1
 API_KEY_OPEN_AI=lm-studio
-GOOGLE_REDIRECT_URI=http://127.0.0.1:8000/auth/google/callback
+BASE_URL_OPEN_AI=http://localhost:1234/v1
+GOOGLE_REDIRECT_URI=http://localhost:8000/auth/google/callback
+CLI_MODEL_NAME=qwen/qwen3-14b
 ```
+
+Create a `.env` file in the backend root with the values shown above. This file is excluded from version control via `.gitignore`.
+
+For Google OAuth, place your downloaded OAuth client credentials file at the backend root as `credentials.json`. The backend uses this file to authenticate with Gmail, Calendar, Drive and Tasks. After the first successful sign-in, the OAuth token will be stored in `token.json`.
 
 ## Documentation
 
